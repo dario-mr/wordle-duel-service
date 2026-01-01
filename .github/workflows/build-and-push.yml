@@ -1,0 +1,16 @@
+name: Build and push image to Docker Hub
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build_and_push:
+    uses: dario-mr/ci-pipelines/.github/workflows/build-and-push.yml@main
+    with:
+      image-name: dariomr8/wordle:latest
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}

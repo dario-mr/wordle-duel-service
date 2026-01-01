@@ -1,0 +1,5 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://aws-0-eu-central-1.pooler.supabase.com:${DB_PORT}/postgres?prepareThreshold=0
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
