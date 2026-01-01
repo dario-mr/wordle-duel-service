@@ -1,5 +1,6 @@
 package com.dariom.wds.websocket;
 
+import com.dariom.wds.websocket.model.RoomEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;

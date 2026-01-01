@@ -9,6 +9,8 @@ import static com.dariom.wds.api.v1.error.ErrorCode.NO_ATTEMPTS_LEFT;
 import static com.dariom.wds.api.v1.error.ErrorCode.PLAYER_DONE;
 import static com.dariom.wds.api.v1.error.ErrorCode.ROOM_NOT_IN_PROGRESS;
 import static com.dariom.wds.api.v1.error.ErrorCode.WORD_NOT_ALLOWED;
+import static com.dariom.wds.websocket.model.EventType.ROUND_FINISHED;
+import static com.dariom.wds.websocket.model.EventType.SCORES_UPDATED;
 
 import com.dariom.wds.domain.RoomStatus;
 import com.dariom.wds.domain.RoundPlayerStatus;
@@ -20,10 +22,10 @@ import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.entity.RoundEntity;
 import com.dariom.wds.persistence.repository.DictionaryRepository;
 import com.dariom.wds.persistence.repository.jpa.RoomJpaRepository;
-import com.dariom.wds.websocket.RoomEvent;
 import com.dariom.wds.websocket.RoomEventPublisher;
-import com.dariom.wds.websocket.RoundFinishedPayload;
-import com.dariom.wds.websocket.ScoresUpdatedPayload;
+import com.dariom.wds.websocket.model.RoomEvent;
+import com.dariom.wds.websocket.model.RoundFinishedPayload;
+import com.dariom.wds.websocket.model.ScoresUpdatedPayload;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
@@ -116,13 +118,13 @@ public class GameService {
         }
 
         eventPublisher.publish(room.getId(), new RoomEvent(
-            "ROUND_FINISHED",
+            ROUND_FINISHED,
             new RoundFinishedPayload(round.getRoundNumber())
         ));
 
         Map<String, Integer> snapshot = new TreeMap<>(room.getScoresByPlayerId());
         eventPublisher.publish(room.getId(), new RoomEvent(
-            "SCORES_UPDATED",
+            SCORES_UPDATED,
             new ScoresUpdatedPayload(snapshot)
         ));
       }

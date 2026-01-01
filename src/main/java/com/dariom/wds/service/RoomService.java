@@ -2,6 +2,8 @@ package com.dariom.wds.service;
 
 import static com.dariom.wds.api.v1.error.ErrorCode.INVALID_PLAYER_ID;
 import static com.dariom.wds.api.v1.error.ErrorCode.ROOM_CLOSED;
+import static com.dariom.wds.websocket.model.EventType.PLAYER_JOINED;
+import static com.dariom.wds.websocket.model.EventType.ROOM_CREATED;
 
 import com.dariom.wds.domain.Language;
 import com.dariom.wds.domain.RoomStatus;
@@ -10,9 +12,9 @@ import com.dariom.wds.exception.RoomFullException;
 import com.dariom.wds.exception.RoomNotFoundException;
 import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.repository.jpa.RoomJpaRepository;
-import com.dariom.wds.websocket.PlayerJoinedPayload;
-import com.dariom.wds.websocket.RoomEvent;
 import com.dariom.wds.websocket.RoomEventPublisher;
+import com.dariom.wds.websocket.model.PlayerJoinedPayload;
+import com.dariom.wds.websocket.model.RoomEvent;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -41,7 +43,7 @@ public class RoomService {
 
     var saved = roomJpaRepository.save(room);
     eventPublisher.publish(saved.getId(), new RoomEvent(
-        "ROOM_CREATED",
+        ROOM_CREATED,
         new PlayerJoinedPayload(normalizedPlayerId, saved.getPlayerIds().stream().sorted().toList())
     ));
     return saved;
@@ -75,7 +77,7 @@ public class RoomService {
 
       var saved = roomJpaRepository.save(room);
       eventPublisher.publish(saved.getId(), new RoomEvent(
-          "PLAYER_JOINED",
+          PLAYER_JOINED,
           new PlayerJoinedPayload(normalizedPlayerId,
               saved.getPlayerIds().stream().sorted().toList())
       ));

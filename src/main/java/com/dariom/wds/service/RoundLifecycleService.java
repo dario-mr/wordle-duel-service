@@ -1,6 +1,7 @@
 package com.dariom.wds.service;
 
 import static com.dariom.wds.api.v1.error.ErrorCode.DICTIONARY_EMPTY;
+import static com.dariom.wds.websocket.model.EventType.ROUND_STARTED;
 
 import com.dariom.wds.config.WordleProperties;
 import com.dariom.wds.domain.Language;
@@ -9,9 +10,9 @@ import com.dariom.wds.exception.InvalidGuessException;
 import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.entity.RoundEntity;
 import com.dariom.wds.persistence.repository.DictionaryRepository;
-import com.dariom.wds.websocket.RoomEvent;
 import com.dariom.wds.websocket.RoomEventPublisher;
-import com.dariom.wds.websocket.RoundStartedPayload;
+import com.dariom.wds.websocket.model.RoomEvent;
+import com.dariom.wds.websocket.model.RoundStartedPayload;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.concurrent.ThreadLocalRandom;
@@ -67,7 +68,7 @@ public class RoundLifecycleService {
     room.setCurrentRoundNumber(nextRoundNumber);
 
     eventPublisher.publish(room.getId(), new RoomEvent(
-        "ROUND_STARTED",
+        ROUND_STARTED,
         new RoundStartedPayload(round.getRoundNumber(), round.getMaxAttempts())
     ));
 
