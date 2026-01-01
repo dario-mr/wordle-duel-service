@@ -2,12 +2,12 @@ package com.dariom.wds.api.v1;
 
 import com.dariom.wds.api.v1.dto.CreateRoomRequest;
 import com.dariom.wds.api.v1.dto.GuessResponse;
-import com.dariom.wds.domain.Language;
 import com.dariom.wds.api.v1.dto.JoinRoomRequest;
 import com.dariom.wds.api.v1.dto.RoomDto;
 import com.dariom.wds.api.v1.dto.SubmitGuessRequest;
 import com.dariom.wds.api.v1.error.ErrorResponse;
 import com.dariom.wds.api.v1.mapper.RoomMapper;
+import com.dariom.wds.domain.Language;
 import com.dariom.wds.service.GameService;
 import com.dariom.wds.service.RoomService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,6 +34,7 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Rooms", description = "Room management and gameplay actions")
 @RequiredArgsConstructor
 public class RoomController {
+  // todo security
 
   private final RoomService roomService;
   private final GameService gameService;
@@ -64,7 +65,7 @@ public class RoomController {
       @PathVariable String roomId,
       @Valid @RequestBody JoinRoomRequest request
   ) {
-    log.info("Join room id <{}>: {}", roomId, request);
+    log.info("Join room <{}>: {}", roomId, request);
     var room = roomService.joinRoom(roomId, request.playerId());
     return ResponseEntity.ok(roomMapper.toDto(room));
   }
@@ -79,7 +80,7 @@ public class RoomController {
       @Parameter(description = "Room identifier", required = true)
       @PathVariable String roomId
   ) {
-    log.info("Get room by id <{}>", roomId);
+    log.info("Get room <{}>", roomId);
     var room = roomService.getRoom(roomId);
     return ResponseEntity.ok(roomMapper.toDto(room));
   }

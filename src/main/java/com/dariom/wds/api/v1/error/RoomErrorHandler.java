@@ -17,6 +17,7 @@ import com.dariom.wds.exception.InvalidGuessException;
 import com.dariom.wds.exception.PlayerNotInRoomException;
 import com.dariom.wds.exception.RoomFullException;
 import com.dariom.wds.exception.RoomNotFoundException;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -29,41 +30,46 @@ public class RoomErrorHandler {
 
   @ExceptionHandler(RoomNotFoundException.class)
   public ResponseEntity<ErrorResponse> handleRoomNotFound(RoomNotFoundException ex) {
-    log.error("Room not found", ex);
+    log.warn(ex.getMessage());
     return ResponseEntity.status(NOT_FOUND)
         .body(new ErrorResponse(ROOM_NOT_FOUND, ex.getMessage()));
   }
 
   @ExceptionHandler(RoomFullException.class)
   public ResponseEntity<ErrorResponse> handleRoomFull(RoomFullException ex) {
-    log.error("Room full", ex);
+    log.warn(ex.getMessage());
     return ResponseEntity.status(CONFLICT)
         .body(new ErrorResponse(ROOM_FULL, ex.getMessage()));
   }
 
   @ExceptionHandler(PlayerNotInRoomException.class)
   public ResponseEntity<ErrorResponse> handlePlayerNotInRoom(PlayerNotInRoomException ex) {
-    log.error("Player not in room", ex);
+    log.warn(ex.getMessage());
     return ResponseEntity.status(FORBIDDEN)
         .body(new ErrorResponse(PLAYER_NOT_IN_ROOM, ex.getMessage()));
   }
 
   @ExceptionHandler(InvalidGuessException.class)
   public ResponseEntity<ErrorResponse> handleInvalidGuess(InvalidGuessException ex) {
-    log.error("Invalid guess", ex);
+    log.warn("Invalid guess: code={}, message={}", ex.getCode(), ex.getMessage());
     return ResponseEntity.status(BAD_REQUEST)
         .body(new ErrorResponse(ex.getCode(), ex.getMessage()));
   }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)
-  public ResponseEntity<ErrorResponse> handleArgumentNotValid(MethodArgumentNotValidException ex) {
-    log.error("Invalid argument", ex);
-
+  public ResponseEntity<ErrorResponse> handleArgumentNotValid(MethodArgumentNotValidException ex,
+      HttpServletRequest request) {
     var fieldError = ex.getBindingResult().getFieldError();
     if (fieldError == null) {
+      log.warn("Request validation failed: no fieldError");
       return ResponseEntity.status(BAD_REQUEST)
           .body(new ErrorResponse(GENERIC_BAD_REQUEST, "Invalid request"));
     }
+
+    var message = defaultIfBlank(fieldError.getDefaultMessage(), "Invalid request");
+    log.warn("Request validation failed: endpoint={} {}, field={}, rejectedValue={}, message={}",
+        request.getMethod(), request.getRequestURI(),
+        fieldError.getField(), fieldError.getRejectedValue(), message);
 
     var errorCode = switch (fieldError.getField()) {
       case "playerId" -> INVALID_PLAYER_ID;
@@ -71,7 +77,6 @@ public class RoomErrorHandler {
       case "language" -> INVALID_LANGUAGE;
       default -> GENERIC_BAD_REQUEST;
     };
-    var message = defaultIfBlank(fieldError.getDefaultMessage(), "Invalid request");
 
     return ResponseEntity.status(BAD_REQUEST)
         .body(new ErrorResponse(errorCode, message));
