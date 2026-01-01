@@ -3,7 +3,6 @@ package com.dariom.wds.service;
 import static com.dariom.wds.api.v1.error.ErrorCode.INVALID_CHARS;
 import static com.dariom.wds.api.v1.error.ErrorCode.INVALID_LANGUAGE;
 import static com.dariom.wds.api.v1.error.ErrorCode.INVALID_LENGTH;
-import static com.dariom.wds.api.v1.error.ErrorCode.INVALID_PLAYER_ID;
 import static com.dariom.wds.api.v1.error.ErrorCode.INVALID_WORD;
 import static com.dariom.wds.api.v1.error.ErrorCode.NO_ATTEMPTS_LEFT;
 import static com.dariom.wds.api.v1.error.ErrorCode.PLAYER_DONE;
@@ -49,8 +48,6 @@ public class GameService {
 
   @Transactional
   public RoomEntity handleGuess(String roomId, String playerId, String rawWord) {
-    var normalizedPlayerId = normalizePlayerId(playerId);
-
     return roomLockManager.withRoomLock(roomId, () -> {
       var room = roomJpaRepository.findWithDetailsById(roomId)
           .orElseThrow(() -> new RoomNotFoundException(roomId));
@@ -59,8 +56,8 @@ public class GameService {
         throw new InvalidGuessException(ROOM_NOT_IN_PROGRESS, "Room is not in progress");
       }
 
-      if (!room.getPlayerIds().contains(normalizedPlayerId)) {
-        throw new PlayerNotInRoomException(normalizedPlayerId, roomId);
+      if (!room.getPlayerIds().contains(playerId)) {
+        throw new PlayerNotInRoomException(playerId, roomId);
       }
 
       var round = ensureActiveRound(room);
@@ -71,16 +68,16 @@ public class GameService {
       var guess = normalizeWord(rawWord);
       validateWord(guess, room);
 
-      var playerStatus = round.getStatusByPlayerId().get(normalizedPlayerId);
+      var playerStatus = round.getStatusByPlayerId().get(playerId);
       if (playerStatus == null) {
-        throw new PlayerNotInRoomException(normalizedPlayerId, roomId);
+        throw new PlayerNotInRoomException(playerId, roomId);
       }
       if (playerStatus != RoundPlayerStatus.PLAYING) {
         throw new InvalidGuessException(PLAYER_DONE, "Player already finished this round");
       }
 
       int previousAttempts = (int) round.getGuesses().stream()
-          .filter(g -> Objects.equals(g.getPlayerId(), normalizedPlayerId))
+          .filter(g -> Objects.equals(g.getPlayerId(), playerId))
           .count();
       int attemptNumber = previousAttempts + 1;
 
@@ -92,7 +89,7 @@ public class GameService {
 
       var guessEntity = new GuessEntity();
       guessEntity.setRound(round);
-      guessEntity.setPlayerId(normalizedPlayerId);
+      guessEntity.setPlayerId(playerId);
       guessEntity.setWord(guess);
       guessEntity.setAttemptNumber(attemptNumber);
       guessEntity.setCreatedAt(Instant.now());
@@ -101,9 +98,9 @@ public class GameService {
       round.getGuesses().add(guessEntity);
 
       if (guess.equalsIgnoreCase(round.getTargetWord())) {
-        round.getStatusByPlayerId().put(normalizedPlayerId, RoundPlayerStatus.WON);
+        round.getStatusByPlayerId().put(playerId, RoundPlayerStatus.WON);
       } else if (attemptNumber >= round.getMaxAttempts()) {
-        round.getStatusByPlayerId().put(normalizedPlayerId, RoundPlayerStatus.LOST);
+        round.getStatusByPlayerId().put(playerId, RoundPlayerStatus.LOST);
       }
 
       boolean roundFinishedNow = !round.isFinished() && isRoundFinished(room, round);
@@ -176,13 +173,6 @@ public class GameService {
     }
 
     return w;
-  }
-
-  private static String normalizePlayerId(String playerId) {
-    if (playerId == null || playerId.trim().isEmpty()) {
-      throw new InvalidGuessException(INVALID_PLAYER_ID, "playerId is required");
-    }
-    return playerId.trim();
   }
 
   private static boolean isRoundFinished(RoomEntity room, RoundEntity round) {

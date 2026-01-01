@@ -1,6 +1,5 @@
 package com.dariom.wds.service;
 
-import static com.dariom.wds.api.v1.error.ErrorCode.INVALID_PLAYER_ID;
 import static com.dariom.wds.api.v1.error.ErrorCode.ROOM_CLOSED;
 import static com.dariom.wds.websocket.model.EventType.PLAYER_JOINED;
 import static com.dariom.wds.websocket.model.EventType.ROOM_CREATED;
@@ -31,28 +30,24 @@ public class RoomService {
 
   @Transactional
   public RoomEntity createRoom(Language language, String creatorPlayerId) {
-    var normalizedPlayerId = normalizePlayerId(creatorPlayerId);
-
     var room = new RoomEntity();
     room.setId(UUID.randomUUID().toString());
-    room.setLanguage(language == null ? Language.IT : language);
+    room.setLanguage(language);
     room.setStatus(RoomStatus.WAITING_FOR_PLAYERS);
-    room.getPlayerIds().add(normalizedPlayerId);
-    room.getScoresByPlayerId().put(normalizedPlayerId, 0);
+    room.getPlayerIds().add(creatorPlayerId);
+    room.getScoresByPlayerId().put(creatorPlayerId, 0);
     room.setCurrentRoundNumber(null);
 
     var saved = roomJpaRepository.save(room);
     eventPublisher.publish(saved.getId(), new RoomEvent(
         ROOM_CREATED,
-        new PlayerJoinedPayload(normalizedPlayerId, saved.getPlayerIds().stream().sorted().toList())
+        new PlayerJoinedPayload(creatorPlayerId, saved.getPlayerIds().stream().sorted().toList())
     ));
     return saved;
   }
 
   @Transactional
   public RoomEntity joinRoom(String roomId, String playerId) {
-    var normalizedPlayerId = normalizePlayerId(playerId);
-
     return roomLockManager.withRoomLock(roomId, () -> {
       var room = roomJpaRepository.findWithDetailsById(roomId)
           .orElseThrow(() -> new RoomNotFoundException(roomId));
@@ -61,12 +56,12 @@ public class RoomService {
         throw new InvalidGuessException(ROOM_CLOSED, "Room is closed: " + roomId);
       }
 
-      if (!room.getPlayerIds().contains(normalizedPlayerId) && room.getPlayerIds().size() >= 2) {
+      if (!room.getPlayerIds().contains(playerId) && room.getPlayerIds().size() >= 2) {
         throw new RoomFullException(roomId);
       }
 
-      room.getPlayerIds().add(normalizedPlayerId);
-      room.getScoresByPlayerId().putIfAbsent(normalizedPlayerId, 0);
+      room.getPlayerIds().add(playerId);
+      room.getScoresByPlayerId().putIfAbsent(playerId, 0);
 
       if (room.getPlayerIds().size() == 2) {
         room.setStatus(RoomStatus.IN_PROGRESS);
@@ -78,7 +73,7 @@ public class RoomService {
       var saved = roomJpaRepository.save(room);
       eventPublisher.publish(saved.getId(), new RoomEvent(
           PLAYER_JOINED,
-          new PlayerJoinedPayload(normalizedPlayerId,
+          new PlayerJoinedPayload(playerId,
               saved.getPlayerIds().stream().sorted().toList())
       ));
       return saved;
@@ -91,10 +86,4 @@ public class RoomService {
         .orElseThrow(() -> new RoomNotFoundException(roomId));
   }
 
-  private static String normalizePlayerId(String playerId) {
-    if (playerId == null || playerId.trim().isEmpty()) {
-      throw new InvalidGuessException(INVALID_PLAYER_ID, "playerId is required");
-    }
-    return playerId.trim();
-  }
 }

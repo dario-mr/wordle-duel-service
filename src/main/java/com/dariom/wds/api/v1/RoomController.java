@@ -2,6 +2,7 @@ package com.dariom.wds.api.v1;
 
 import com.dariom.wds.api.v1.dto.CreateRoomRequest;
 import com.dariom.wds.api.v1.dto.GuessResponse;
+import com.dariom.wds.domain.Language;
 import com.dariom.wds.api.v1.dto.JoinRoomRequest;
 import com.dariom.wds.api.v1.dto.RoomDto;
 import com.dariom.wds.api.v1.dto.SubmitGuessRequest;
@@ -16,6 +17,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -43,9 +45,10 @@ public class RoomController {
       @ApiResponse(responseCode = "400", description = "Invalid request", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
   @PostMapping
-  public ResponseEntity<RoomDto> createRoom(@RequestBody CreateRoomRequest request) {
+  public ResponseEntity<RoomDto> createRoom(@Valid @RequestBody CreateRoomRequest request) {
     log.info("Create room request: {}", request);
-    var room = roomService.createRoom(request.language(), request.playerId());
+    var language = Language.valueOf(request.language().trim().toUpperCase());
+    var room = roomService.createRoom(language, request.playerId());
     return ResponseEntity.ok(roomMapper.toDto(room));
   }
 
@@ -59,7 +62,7 @@ public class RoomController {
   public ResponseEntity<RoomDto> joinRoom(
       @Parameter(description = "Room identifier", required = true)
       @PathVariable String roomId,
-      @RequestBody JoinRoomRequest request
+      @Valid @RequestBody JoinRoomRequest request
   ) {
     log.info("Join room id <{}>: {}", roomId, request);
     var room = roomService.joinRoom(roomId, request.playerId());
@@ -91,7 +94,7 @@ public class RoomController {
   public ResponseEntity<GuessResponse> submitGuess(
       @Parameter(description = "Room identifier", required = true)
       @PathVariable String roomId,
-      @RequestBody SubmitGuessRequest request
+      @Valid @RequestBody SubmitGuessRequest request
   ) {
     log.info("Submit guess in room <{}>: {}", roomId, request);
     var room = gameService.handleGuess(roomId, request.playerId(), request.word());
