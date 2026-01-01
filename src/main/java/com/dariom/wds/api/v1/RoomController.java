@@ -17,6 +17,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/rooms")
 @Tag(name = "Rooms", description = "Room management and gameplay actions")
@@ -42,6 +44,7 @@ public class RoomController {
   })
   @PostMapping
   public ResponseEntity<RoomDto> createRoom(@RequestBody CreateRoomRequest request) {
+    log.info("Create room request: {}", request);
     var room = roomService.createRoom(request.language(), request.playerId());
     return ResponseEntity.ok(roomMapper.toDto(room));
   }
@@ -58,6 +61,7 @@ public class RoomController {
       @PathVariable String roomId,
       @RequestBody JoinRoomRequest request
   ) {
+    log.info("Join room id <{}>: {}", roomId, request);
     var room = roomService.joinRoom(roomId, request.playerId());
     return ResponseEntity.ok(roomMapper.toDto(room));
   }
@@ -72,6 +76,7 @@ public class RoomController {
       @Parameter(description = "Room identifier", required = true)
       @PathVariable String roomId
   ) {
+    log.info("Get room by id <{}>", roomId);
     var room = roomService.getRoom(roomId);
     return ResponseEntity.ok(roomMapper.toDto(room));
   }
@@ -88,6 +93,7 @@ public class RoomController {
       @PathVariable String roomId,
       @RequestBody SubmitGuessRequest request
   ) {
+    log.info("Submit guess in room <{}>: {}", roomId, request);
     var room = gameService.handleGuess(roomId, request.playerId(), request.word());
     return ResponseEntity.ok(new GuessResponse(roomMapper.toDto(room)));
   }
