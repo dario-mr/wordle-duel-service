@@ -14,28 +14,18 @@ import com.dariom.wds.websocket.PlayerJoinedPayload;
 import com.dariom.wds.websocket.RoomEvent;
 import com.dariom.wds.websocket.RoomEventPublisher;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@RequiredArgsConstructor
 public class RoomService {
 
   private final RoomJpaRepository roomJpaRepository;
   private final RoomLockManager roomLockManager;
   private final RoundLifecycleService roundLifecycleService;
   private final RoomEventPublisher eventPublisher;
-
-  public RoomService(
-      RoomJpaRepository roomJpaRepository,
-      RoomLockManager roomLockManager,
-      RoundLifecycleService roundLifecycleService,
-      RoomEventPublisher eventPublisher
-  ) {
-    this.roomJpaRepository = roomJpaRepository;
-    this.roomLockManager = roomLockManager;
-    this.roundLifecycleService = roundLifecycleService;
-    this.eventPublisher = eventPublisher;
-  }
 
   @Transactional
   public RoomEntity createRoom(Language language, String creatorPlayerId) {

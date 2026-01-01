@@ -5,9 +5,17 @@ import com.dariom.wds.api.v1.dto.GuessResponse;
 import com.dariom.wds.api.v1.dto.JoinRoomRequest;
 import com.dariom.wds.api.v1.dto.RoomDto;
 import com.dariom.wds.api.v1.dto.SubmitGuessRequest;
+import com.dariom.wds.api.v1.error.ErrorResponse;
 import com.dariom.wds.api.v1.mapper.RoomMapper;
 import com.dariom.wds.service.GameService;
 import com.dariom.wds.service.RoomService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,6 +27,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/rooms")
+@Tag(name = "Rooms", description = "Room management and gameplay actions")
 @RequiredArgsConstructor
 public class RoomController {
 
@@ -26,14 +35,26 @@ public class RoomController {
   private final GameService gameService;
   private final RoomMapper roomMapper;
 
+  @Operation(summary = "Create room", description = "Creates a new room and joins the creator as the first player.")
+  @ApiResponses({
+      @ApiResponse(responseCode = "200", description = "Room created", content = @Content(schema = @Schema(implementation = RoomDto.class))),
+      @ApiResponse(responseCode = "400", description = "Invalid request", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+  })
   @PostMapping
   public ResponseEntity<RoomDto> createRoom(@RequestBody CreateRoomRequest request) {
     var room = roomService.createRoom(request.language(), request.playerId());
     return ResponseEntity.ok(roomMapper.toDto(room));
   }
 
+  @Operation(summary = "Join room", description = "Joins an existing room as the second player.")
+  @ApiResponses({
+      @ApiResponse(responseCode = "200", description = "Joined room", content = @Content(schema = @Schema(implementation = RoomDto.class))),
+      @ApiResponse(responseCode = "404", description = "Room not found", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+      @ApiResponse(responseCode = "409", description = "Room full", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+  })
   @PostMapping("/{roomId}/join")
   public ResponseEntity<RoomDto> joinRoom(
+      @Parameter(description = "Room identifier", required = true)
       @PathVariable String roomId,
       @RequestBody JoinRoomRequest request
   ) {
@@ -41,14 +62,29 @@ public class RoomController {
     return ResponseEntity.ok(roomMapper.toDto(room));
   }
 
+  @Operation(summary = "Get room", description = "Returns the current state of a room.")
+  @ApiResponses({
+      @ApiResponse(responseCode = "200", description = "Room returned", content = @Content(schema = @Schema(implementation = RoomDto.class))),
+      @ApiResponse(responseCode = "404", description = "Room not found", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+  })
   @GetMapping("/{roomId}")
-  public ResponseEntity<RoomDto> getRoom(@PathVariable String roomId) {
+  public ResponseEntity<RoomDto> getRoom(
+      @Parameter(description = "Room identifier", required = true)
+      @PathVariable String roomId
+  ) {
     var room = roomService.getRoom(roomId);
     return ResponseEntity.ok(roomMapper.toDto(room));
   }
 
+  @Operation(summary = "Submit guess", description = "Submits a guess for a player in a room and returns the updated room state.")
+  @ApiResponses({
+      @ApiResponse(responseCode = "200", description = "Guess accepted", content = @Content(schema = @Schema(implementation = GuessResponse.class))),
+      @ApiResponse(responseCode = "400", description = "Invalid guess", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+      @ApiResponse(responseCode = "404", description = "Room not found", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+  })
   @PostMapping("/{roomId}/guess")
   public ResponseEntity<GuessResponse> submitGuess(
+      @Parameter(description = "Room identifier", required = true)
       @PathVariable String roomId,
       @RequestBody SubmitGuessRequest request
   ) {
