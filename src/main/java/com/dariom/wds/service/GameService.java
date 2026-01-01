@@ -28,10 +28,12 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.Objects;
 import java.util.TreeMap;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@RequiredArgsConstructor
 public class GameService {
 
   private static final int WORD_LENGTH = 5;
@@ -42,22 +44,6 @@ public class GameService {
   private final DictionaryRepository dictionaryRepository;
   private final WordleEvaluator evaluator;
   private final RoomEventPublisher eventPublisher;
-
-  public GameService(
-      RoomJpaRepository roomJpaRepository,
-      RoomLockManager roomLockManager,
-      RoundLifecycleService roundLifecycleService,
-      DictionaryRepository dictionaryRepository,
-      WordleEvaluator evaluator,
-      RoomEventPublisher eventPublisher
-  ) {
-    this.roomJpaRepository = roomJpaRepository;
-    this.roomLockManager = roomLockManager;
-    this.roundLifecycleService = roundLifecycleService;
-    this.dictionaryRepository = dictionaryRepository;
-    this.evaluator = evaluator;
-    this.eventPublisher = eventPublisher;
-  }
 
   @Transactional
   public RoomEntity handleGuess(String roomId, String playerId, String rawWord) {

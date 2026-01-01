@@ -15,24 +15,16 @@ import com.dariom.wds.websocket.RoundStartedPayload;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.concurrent.ThreadLocalRandom;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 @Service
+@RequiredArgsConstructor
 public class RoundLifecycleService {
 
   private final DictionaryRepository dictionaryRepository;
   private final WordleProperties properties;
   private final RoomEventPublisher eventPublisher;
-
-  public RoundLifecycleService(
-      DictionaryRepository dictionaryRepository,
-      WordleProperties properties,
-      RoomEventPublisher eventPublisher
-  ) {
-    this.dictionaryRepository = dictionaryRepository;
-    this.properties = properties;
-    this.eventPublisher = eventPublisher;
-  }
 
   public RoundEntity getCurrentRoundOrNull(RoomEntity room) {
     if (room.getCurrentRoundNumber() == null) {
