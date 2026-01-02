@@ -32,9 +32,9 @@ public class RoundLifecycleService {
       return null;
     }
 
-    int current = room.getCurrentRoundNumber();
+    var currentRoundNumber = room.getCurrentRoundNumber();
     return room.getRounds().stream()
-        .filter(r -> r.getRoundNumber() == current)
+        .filter(round -> round.getRoundNumber() == currentRoundNumber)
         .findFirst()
         .orElse(null);
   }
@@ -81,7 +81,7 @@ public class RoundLifecycleService {
           "No answer words available for language: %s".formatted(language));
     }
 
-    int randomIndex = ThreadLocalRandom.current().nextInt(answers.size());
+    var randomIndex = ThreadLocalRandom.current().nextInt(answers.size());
     return answers.stream().skip(randomIndex).findFirst().orElseThrow();
   }
 }

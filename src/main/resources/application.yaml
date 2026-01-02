@@ -18,3 +18,4 @@ management:
 
 wordle:
   max-attempts: 6
+  word-length: 5

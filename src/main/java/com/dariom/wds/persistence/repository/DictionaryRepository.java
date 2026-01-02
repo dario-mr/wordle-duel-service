@@ -14,6 +14,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 @RequiredArgsConstructor
 public class DictionaryRepository {
+  // TODO add cache, these values do not change often
 
   private final DictionaryWordJpaRepository jpaRepository;
 

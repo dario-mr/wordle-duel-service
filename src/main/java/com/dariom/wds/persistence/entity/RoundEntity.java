@@ -78,4 +78,8 @@ public class RoundEntity {
     statusByPlayerId.put(playerId, roundPlayerStatus);
   }
 
+  public RoundPlayerStatus getPlayerStatus(String playerId) {
+    return statusByPlayerId.get(playerId);
+  }
+
 }

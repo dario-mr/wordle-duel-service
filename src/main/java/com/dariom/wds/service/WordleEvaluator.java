@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class WordleEvaluator {
+  // todo review
 
   public List<LetterResultEmbeddable> evaluate(String targetWord, String guessWord) {
     if (targetWord.length() != guessWord.length()) {

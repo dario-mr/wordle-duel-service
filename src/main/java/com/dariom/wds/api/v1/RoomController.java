@@ -100,7 +100,7 @@ public class RoomController {
       @Valid @RequestBody SubmitGuessRequest request
   ) {
     log.info("Submit guess in room <{}>: {}", roomId, request);
-    var room = gameService.handleGuess(roomId, request.playerId(), request.word());
+    var room = gameService.handleGuess(roomId, request.playerId(), request.word().toUpperCase());
     return ResponseEntity.ok(new GuessResponse(roomMapper.toDto(room)));
   }
 
