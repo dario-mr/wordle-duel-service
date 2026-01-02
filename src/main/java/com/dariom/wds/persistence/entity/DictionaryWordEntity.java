@@ -29,6 +29,7 @@ public class DictionaryWordEntity {
   @Column(name = "language")
   private Language language;
 
+  // TODO type (duplicate entries) or flag isAnswer (no duplication)?
   @Enumerated(STRING)
   @Column(name = "type")
   private DictionaryWordType type;
