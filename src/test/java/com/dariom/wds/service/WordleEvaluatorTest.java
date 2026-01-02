@@ -1,9 +1,8 @@
-package com.dariom.wds.wordle;
+package com.dariom.wds.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.dariom.wds.domain.LetterStatus;
-import com.dariom.wds.service.WordleEvaluator;
 import org.junit.jupiter.api.Test;
 
 class WordleEvaluatorTest {

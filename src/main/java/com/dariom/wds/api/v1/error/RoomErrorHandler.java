@@ -7,10 +7,12 @@ import static com.dariom.wds.api.v1.error.ErrorCode.INVALID_WORD;
 import static com.dariom.wds.api.v1.error.ErrorCode.PLAYER_NOT_IN_ROOM;
 import static com.dariom.wds.api.v1.error.ErrorCode.ROOM_FULL;
 import static com.dariom.wds.api.v1.error.ErrorCode.ROOM_NOT_FOUND;
+import static com.dariom.wds.api.v1.error.ErrorCode.UNKNOWN_ERROR;
 import static org.apache.commons.lang3.StringUtils.defaultIfBlank;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CONFLICT;
 import static org.springframework.http.HttpStatus.FORBIDDEN;
+import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 import com.dariom.wds.exception.InvalidGuessException;
@@ -27,6 +29,13 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @Slf4j
 @RestControllerAdvice
 public class RoomErrorHandler {
+
+  @ExceptionHandler(Exception.class)
+  public ResponseEntity<ErrorResponse> handleUnexpected(Exception ex, HttpServletRequest req) {
+    log.error("Unhandled error: {} {}", req.getMethod(), req.getRequestURI(), ex);
+    return ResponseEntity.status(INTERNAL_SERVER_ERROR)
+        .body(new ErrorResponse(UNKNOWN_ERROR, "Unexpected error"));
+  }
 
   @ExceptionHandler(RoomNotFoundException.class)
   public ResponseEntity<ErrorResponse> handleRoomNotFound(RoomNotFoundException ex) {
