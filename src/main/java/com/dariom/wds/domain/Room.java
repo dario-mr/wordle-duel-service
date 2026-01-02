@@ -1,11 +1,14 @@
 package com.dariom.wds.domain;
 
-import com.dariom.wds.persistence.entity.RoomEntity;
-import com.dariom.wds.persistence.entity.RoundEntity;
+import java.util.List;
+import java.util.Map;
 
 public record Room(
-    RoomEntity room,
-    RoundEntity currentRound
+    String id,
+    Language language,
+    RoomStatus status,
+    List<String> players,
+    Map<String, Integer> scoresByPlayerId,
+    Round currentRound
 ) {
-
 }

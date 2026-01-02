@@ -30,6 +30,7 @@ public class RoomService {
   private final RoomJpaRepository roomJpaRepository;
   private final RoomLockManager roomLockManager;
   private final RoundLifecycleService roundLifecycleService;
+  private final DomainMapper domainMapper;
   private final ApplicationEventPublisher applicationEventPublisher;
 
   @Transactional
@@ -49,7 +50,7 @@ public class RoomService {
         new PlayerJoinedPayload(creatorPlayerId, saved.getSortedPlayerIds())
     )));
 
-    return new Room(saved, null);
+    return domainMapper.toRoom(saved, null);
   }
 
   @Transactional
@@ -84,7 +85,7 @@ public class RoomService {
       )));
 
       var currentRound = roundLifecycleService.getCurrentRoundOrNull(saved);
-      return new Room(saved, currentRound);
+      return domainMapper.toRoom(saved, currentRound);
     });
   }
 
@@ -94,7 +95,7 @@ public class RoomService {
         .orElseThrow(() -> new RoomNotFoundException(roomId));
 
     var currentRound = roundLifecycleService.getCurrentRoundOrNull(room);
-    return new Room(room, currentRound);
+    return domainMapper.toRoom(room, currentRound);
   }
 
 }

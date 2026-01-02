@@ -82,4 +82,8 @@ public class RoundEntity {
     return statusByPlayerId.get(playerId);
   }
 
+  public void addGuess(GuessEntity guessEntity) {
+    guesses.add(guessEntity);
+  }
+
 }

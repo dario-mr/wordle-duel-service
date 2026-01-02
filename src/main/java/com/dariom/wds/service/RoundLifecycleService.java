@@ -6,6 +6,7 @@ import static com.dariom.wds.websocket.model.EventType.ROUND_STARTED;
 
 import com.dariom.wds.config.WordleProperties;
 import com.dariom.wds.domain.Language;
+import com.dariom.wds.domain.Round;
 import com.dariom.wds.exception.InvalidGuessException;
 import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.entity.RoundEntity;
@@ -29,11 +30,17 @@ public class RoundLifecycleService {
   private final DictionaryRepository dictionaryRepository;
   private final RoundJpaRepository roundJpaRepository;
   private final WordleProperties properties;
+  private final DomainMapper domainMapper;
   private final ApplicationEventPublisher applicationEventPublisher;
   private final Clock clock;
 
   @Transactional(readOnly = true)
-  public RoundEntity getCurrentRoundOrNull(RoomEntity room) {
+  public Round getCurrentRoundOrNull(RoomEntity room) {
+    return domainMapper.toRound(getCurrentRoundEntityOrNull(room));
+  }
+
+  @Transactional(readOnly = true)
+  public RoundEntity getCurrentRoundEntityOrNull(RoomEntity room) {
     if (room.getCurrentRoundNumber() == null) {
       return null;
     }

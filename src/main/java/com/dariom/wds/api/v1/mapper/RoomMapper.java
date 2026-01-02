@@ -1,19 +1,15 @@
 package com.dariom.wds.api.v1.mapper;
 
 import static java.util.Comparator.comparingInt;
-import static java.util.stream.Collectors.groupingBy;
-import static java.util.stream.Collectors.mapping;
-import static java.util.stream.Collectors.toList;
 import static java.util.stream.Collectors.toMap;
 
 import com.dariom.wds.api.v1.dto.GuessDto;
 import com.dariom.wds.api.v1.dto.LetterResultDto;
 import com.dariom.wds.api.v1.dto.RoomDto;
 import com.dariom.wds.api.v1.dto.RoundDto;
+import com.dariom.wds.domain.Guess;
 import com.dariom.wds.domain.Room;
-import com.dariom.wds.persistence.entity.GuessEntity;
-import com.dariom.wds.persistence.entity.RoundEntity;
-import java.util.List;
+import com.dariom.wds.domain.Round;
 import java.util.Map;
 import java.util.TreeMap;
 import org.springframework.stereotype.Component;
@@ -22,48 +18,49 @@ import org.springframework.stereotype.Component;
 public class RoomMapper {
 
   public RoomDto toDto(Room room) {
-    var roomEntity = room.room();
     return new RoomDto(
-        roomEntity.getId(),
-        roomEntity.getLanguage(),
-        roomEntity.getStatus(),
-        roomEntity.getSortedPlayerIds(),
-        new TreeMap<>(roomEntity.getScoresByPlayerId()),
+        room.id(),
+        room.language(),
+        room.status(),
+        room.players(),
+        new TreeMap<>(room.scoresByPlayerId()),
         toRoundDto(room.currentRound())
     );
   }
 
-  private RoundDto toRoundDto(RoundEntity round) {
+  private RoundDto toRoundDto(Round round) {
     if (round == null) {
       return null;
     }
 
-    Map<String, List<GuessDto>> guessesByPlayerId = round.getGuesses().stream()
-        .sorted(comparingInt(GuessEntity::getAttemptNumber))
-        .collect(groupingBy(
-            GuessEntity::getPlayerId,
-            mapping(this::toGuessDto, toList())
+    var guessesByPlayerId = round.guessesByPlayerId().entrySet().stream()
+        .collect(toMap(
+            Map.Entry::getKey,
+            e -> e.getValue().stream()
+                .sorted(comparingInt(Guess::attemptNumber))
+                .map(this::toGuessDto)
+                .toList()
         ));
 
     return new RoundDto(
-        round.getRoundNumber(),
-        round.getMaxAttempts(),
+        round.roundNumber(),
+        round.maxAttempts(),
         guessesByPlayerId,
-        round.getStatusByPlayerId().entrySet().stream()
+        round.statusByPlayerId().entrySet().stream()
             .collect(toMap(Map.Entry::getKey, e -> e.getValue().name())),
-        round.isFinished()
+        round.finished()
     );
   }
 
-  private GuessDto toGuessDto(GuessEntity guess) {
-    var letters = guess.getLetters().stream()
-        .map(l -> new LetterResultDto(l.getLetter(), l.getStatus()))
+  private GuessDto toGuessDto(Guess guess) {
+    var letters = guess.letters().stream()
+        .map(l -> new LetterResultDto(l.letter(), l.status()))
         .toList();
 
     return new GuessDto(
-        guess.getWord(),
+        guess.word(),
         letters,
-        guess.getAttemptNumber()
+        guess.attemptNumber()
     );
   }
 

@@ -15,6 +15,7 @@ import static com.dariom.wds.websocket.model.EventType.SCORES_UPDATED;
 
 import com.dariom.wds.config.WordleProperties;
 import com.dariom.wds.domain.Language;
+import com.dariom.wds.domain.Room;
 import com.dariom.wds.domain.RoomStatus;
 import com.dariom.wds.exception.InvalidGuessException;
 import com.dariom.wds.exception.PlayerNotInRoomException;
@@ -46,58 +47,59 @@ public class GameService {
   private final RoundLifecycleService roundLifecycleService;
   private final DictionaryRepository dictionaryRepository;
   private final WordleEvaluator evaluator;
+  private final DomainMapper domainMapper;
   private final ApplicationEventPublisher applicationEventPublisher;
   private final WordleProperties properties;
   private final Clock clock;
 
   @Transactional
-  public RoundEntity handleGuess(String roomId, String playerId, String guess) {
+  public Room handleGuess(String roomId, String playerId, String guess) {
     return roomLockManager.withRoomLock(roomId, () -> {
-      var room = roomJpaRepository.findWithPlayersAndScoresById(roomId)
+      var roomEntity = roomJpaRepository.findWithPlayersAndScoresById(roomId)
           .orElseThrow(() -> new RoomNotFoundException(roomId));
 
-      validateRoomStatus(playerId, room);
+      validateRoomStatus(playerId, roomEntity);
 
-      var round = ensureActiveRound(room);
-      if (round.isFinished()) {
-        round = roundLifecycleService.startNewRound(room);
+      var roundEntity = ensureActiveRound(roomEntity);
+      if (roundEntity.isFinished()) {
+        roundEntity = roundLifecycleService.startNewRound(roomEntity);
       }
-      round.setRoom(room);
+      roundEntity.setRoom(roomEntity);
 
       var normalizedGuess = normalizeGuess(guess);
-      validateGuess(normalizedGuess, room.getLanguage());
-      validatePlayerStatus(roomId, playerId, round);
+      validateGuess(normalizedGuess, roomEntity.getLanguage());
+      validatePlayerStatus(roomId, playerId, roundEntity);
 
-      var attemptNumber = getAttemptNumber(playerId, round);
-      if (attemptNumber > round.getMaxAttempts()) {
+      var attemptNumber = getAttemptNumber(playerId, roundEntity);
+      if (attemptNumber > roundEntity.getMaxAttempts()) {
         throw new InvalidGuessException(NO_ATTEMPTS_LEFT, "No attempts left for this round");
       }
 
-      var letters = evaluator.evaluate(round.getTargetWord(), normalizedGuess);
+      var letters = evaluator.evaluate(roundEntity.getTargetWord(), normalizedGuess);
 
       var guessEntity = new GuessEntity();
-      guessEntity.setRound(round);
+      guessEntity.setRound(roundEntity);
       guessEntity.setPlayerId(playerId);
       guessEntity.setWord(normalizedGuess);
       guessEntity.setAttemptNumber(attemptNumber);
       guessEntity.setCreatedAt(Instant.now(clock));
       guessEntity.setLetters(letters);
 
-      round.getGuesses().add(guessEntity);
+      roundEntity.addGuess(guessEntity);
 
-      if (normalizedGuess.equals(round.getTargetWord())) {
-        round.setPlayerStatus(playerId, WON);
-      } else if (attemptNumber >= round.getMaxAttempts()) {
-        round.setPlayerStatus(playerId, LOST);
+      if (normalizedGuess.equals(roundEntity.getTargetWord())) {
+        roundEntity.setPlayerStatus(playerId, WON);
+      } else if (attemptNumber >= roundEntity.getMaxAttempts()) {
+        roundEntity.setPlayerStatus(playerId, LOST);
       }
 
-      var roundFinishedNow = !round.isFinished() && isRoundFinished(room, round);
+      var roundFinishedNow = !roundEntity.isFinished() && isRoundFinished(roomEntity, roundEntity);
       if (roundFinishedNow) {
-        finishRound(round, room);
+        finishRound(roundEntity, roomEntity);
       }
 
-      roomJpaRepository.save(room);
-      return round;
+      roomJpaRepository.save(roomEntity);
+      return domainMapper.toRoom(roomEntity, domainMapper.toRound(roundEntity));
     });
   }
 
@@ -112,7 +114,7 @@ public class GameService {
   }
 
   private RoundEntity ensureActiveRound(RoomEntity room) {
-    var round = roundLifecycleService.getCurrentRoundOrNull(room);
+    var round = roundLifecycleService.getCurrentRoundEntityOrNull(room);
     if (round == null) {
       round = roundLifecycleService.startNewRound(room);
     }

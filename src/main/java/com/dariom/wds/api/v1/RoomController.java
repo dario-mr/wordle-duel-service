@@ -8,7 +8,6 @@ import com.dariom.wds.api.v1.dto.SubmitGuessRequest;
 import com.dariom.wds.api.v1.error.ErrorResponse;
 import com.dariom.wds.api.v1.mapper.RoomMapper;
 import com.dariom.wds.domain.Language;
-import com.dariom.wds.domain.Room;
 import com.dariom.wds.service.GameService;
 import com.dariom.wds.service.RoomService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -102,8 +101,8 @@ public class RoomController {
       @Valid @RequestBody SubmitGuessRequest request
   ) {
     log.info("Submit guess in room <{}>: {}", roomId, request);
-    var round = gameService.handleGuess(roomId, request.playerId(), request.word());
-    var response = new GuessResponse(roomMapper.toDto(new Room(round.getRoom(), round)));
+    var room = gameService.handleGuess(roomId, request.playerId(), request.word());
+    var response = new GuessResponse(roomMapper.toDto(room));
     return ResponseEntity.ok(response);
   }
 
