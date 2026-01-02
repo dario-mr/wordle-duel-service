@@ -7,15 +7,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface RoomJpaRepository extends JpaRepository<RoomEntity, String> {
 
-  // TODO review entity graph, it is bad for performance once a room starts having MANY rounds
-  // load relations eagerly, to avoid N+1 issue
+  // load relations eagerly, to avoid N+1 issue and lazy init exceptions
   @EntityGraph(attributePaths = {
       "playerIds",
-      "scoresByPlayerId",
-      "rounds",
-      "rounds.statusByPlayerId",
-      "rounds.guesses",
-      "rounds.guesses.letters"
+      "scoresByPlayerId"
   })
-  Optional<RoomEntity> findWithDetailsById(String id);
+  Optional<RoomEntity> findWithPlayersAndScoresById(String id);
+
 }

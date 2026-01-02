@@ -8,16 +8,18 @@ import static com.dariom.wds.websocket.model.EventType.PLAYER_JOINED;
 import static com.dariom.wds.websocket.model.EventType.ROOM_CREATED;
 
 import com.dariom.wds.domain.Language;
+import com.dariom.wds.domain.Room;
 import com.dariom.wds.exception.InvalidGuessException;
 import com.dariom.wds.exception.RoomFullException;
 import com.dariom.wds.exception.RoomNotFoundException;
 import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.repository.jpa.RoomJpaRepository;
-import com.dariom.wds.websocket.RoomEventPublisher;
 import com.dariom.wds.websocket.model.PlayerJoinedPayload;
 import com.dariom.wds.websocket.model.RoomEvent;
+import com.dariom.wds.websocket.model.RoomEventToPublish;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,10 +30,10 @@ public class RoomService {
   private final RoomJpaRepository roomJpaRepository;
   private final RoomLockManager roomLockManager;
   private final RoundLifecycleService roundLifecycleService;
-  private final RoomEventPublisher eventPublisher;
+  private final ApplicationEventPublisher applicationEventPublisher;
 
   @Transactional
-  public RoomEntity createRoom(Language language, String creatorPlayerId) {
+  public Room createRoom(Language language, String creatorPlayerId) {
     var room = new RoomEntity();
     room.setId(UUID.randomUUID().toString());
     room.setLanguage(language);
@@ -42,18 +44,18 @@ public class RoomService {
 
     var saved = roomJpaRepository.save(room);
 
-    eventPublisher.publish(saved.getId(), new RoomEvent(
+    applicationEventPublisher.publishEvent(new RoomEventToPublish(saved.getId(), new RoomEvent(
         ROOM_CREATED,
         new PlayerJoinedPayload(creatorPlayerId, saved.getSortedPlayerIds())
-    ));
+    )));
 
-    return saved;
+    return new Room(saved, null);
   }
 
   @Transactional
-  public RoomEntity joinRoom(String roomId, String playerId) {
+  public Room joinRoom(String roomId, String playerId) {
     return roomLockManager.withRoomLock(roomId, () -> {
-      var room = roomJpaRepository.findWithDetailsById(roomId)
+      var room = roomJpaRepository.findWithPlayersAndScoresById(roomId)
           .orElseThrow(() -> new RoomNotFoundException(roomId));
 
       if (room.getStatus() == CLOSED) {
@@ -76,18 +78,23 @@ public class RoomService {
 
       var saved = roomJpaRepository.save(room);
 
-      eventPublisher.publish(saved.getId(), new RoomEvent(
+      applicationEventPublisher.publishEvent(new RoomEventToPublish(saved.getId(), new RoomEvent(
           PLAYER_JOINED,
           new PlayerJoinedPayload(playerId, saved.getSortedPlayerIds())
-      ));
-      return saved;
+      )));
+
+      var currentRound = roundLifecycleService.getCurrentRoundOrNull(saved);
+      return new Room(saved, currentRound);
     });
   }
 
   @Transactional(readOnly = true)
-  public RoomEntity getRoom(String roomId) {
-    return roomJpaRepository.findWithDetailsById(roomId)
+  public Room getRoom(String roomId) {
+    var room = roomJpaRepository.findWithPlayersAndScoresById(roomId)
         .orElseThrow(() -> new RoomNotFoundException(roomId));
+
+    var currentRound = roundLifecycleService.getCurrentRoundOrNull(room);
+    return new Room(room, currentRound);
   }
 
 }

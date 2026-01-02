@@ -24,14 +24,16 @@ import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.entity.RoundEntity;
 import com.dariom.wds.persistence.repository.DictionaryRepository;
 import com.dariom.wds.persistence.repository.jpa.RoomJpaRepository;
-import com.dariom.wds.websocket.RoomEventPublisher;
 import com.dariom.wds.websocket.model.RoomEvent;
+import com.dariom.wds.websocket.model.RoomEventToPublish;
 import com.dariom.wds.websocket.model.RoundFinishedPayload;
 import com.dariom.wds.websocket.model.ScoresUpdatedPayload;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.Objects;
 import java.util.TreeMap;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,13 +46,14 @@ public class GameService {
   private final RoundLifecycleService roundLifecycleService;
   private final DictionaryRepository dictionaryRepository;
   private final WordleEvaluator evaluator;
-  private final RoomEventPublisher eventPublisher;
+  private final ApplicationEventPublisher applicationEventPublisher;
   private final WordleProperties properties;
+  private final Clock clock;
 
   @Transactional
-  public RoomEntity handleGuess(String roomId, String playerId, String guess) {
+  public RoundEntity handleGuess(String roomId, String playerId, String guess) {
     return roomLockManager.withRoomLock(roomId, () -> {
-      var room = roomJpaRepository.findWithDetailsById(roomId)
+      var room = roomJpaRepository.findWithPlayersAndScoresById(roomId)
           .orElseThrow(() -> new RoomNotFoundException(roomId));
 
       validateRoomStatus(playerId, room);
@@ -59,8 +62,10 @@ public class GameService {
       if (round.isFinished()) {
         round = roundLifecycleService.startNewRound(room);
       }
+      round.setRoom(room);
 
-      validateGuess(guess, room.getLanguage());
+      var normalizedGuess = normalizeGuess(guess);
+      validateGuess(normalizedGuess, room.getLanguage());
       validatePlayerStatus(roomId, playerId, round);
 
       var attemptNumber = getAttemptNumber(playerId, round);
@@ -68,19 +73,19 @@ public class GameService {
         throw new InvalidGuessException(NO_ATTEMPTS_LEFT, "No attempts left for this round");
       }
 
-      var letters = evaluator.evaluate(round.getTargetWord(), guess);
+      var letters = evaluator.evaluate(round.getTargetWord(), normalizedGuess);
 
       var guessEntity = new GuessEntity();
       guessEntity.setRound(round);
       guessEntity.setPlayerId(playerId);
-      guessEntity.setWord(guess);
+      guessEntity.setWord(normalizedGuess);
       guessEntity.setAttemptNumber(attemptNumber);
-      guessEntity.setCreatedAt(Instant.now());
+      guessEntity.setCreatedAt(Instant.now(clock));
       guessEntity.setLetters(letters);
 
       round.getGuesses().add(guessEntity);
 
-      if (guess.equalsIgnoreCase(round.getTargetWord())) {
+      if (normalizedGuess.equals(round.getTargetWord())) {
         round.setPlayerStatus(playerId, WON);
       } else if (attemptNumber >= round.getMaxAttempts()) {
         round.setPlayerStatus(playerId, LOST);
@@ -91,7 +96,8 @@ public class GameService {
         finishRound(round, room);
       }
 
-      return roomJpaRepository.save(room);
+      roomJpaRepository.save(room);
+      return round;
     });
   }
 
@@ -111,6 +117,10 @@ public class GameService {
       round = roundLifecycleService.startNewRound(room);
     }
     return round;
+  }
+
+  private String normalizeGuess(String guess) {
+    return guess.trim().toUpperCase();
   }
 
   private void validateGuess(String guess, Language language) {
@@ -166,7 +176,7 @@ public class GameService {
 
   private void finishRound(RoundEntity round, RoomEntity room) {
     round.setFinished(true);
-    round.setFinishedAt(Instant.now());
+    round.setFinishedAt(Instant.now(clock));
 
     for (var pid : room.getPlayerIds()) {
       if (round.getPlayerStatus(pid) == WON) {
@@ -174,15 +184,15 @@ public class GameService {
       }
     }
 
-    eventPublisher.publish(room.getId(), new RoomEvent(
+    applicationEventPublisher.publishEvent(new RoomEventToPublish(room.getId(), new RoomEvent(
         ROUND_FINISHED,
         new RoundFinishedPayload(round.getRoundNumber())
-    ));
+    )));
 
     var scoresSnapshot = new TreeMap<>(room.getScoresByPlayerId());
-    eventPublisher.publish(room.getId(), new RoomEvent(
+    applicationEventPublisher.publishEvent(new RoomEventToPublish(room.getId(), new RoomEvent(
         SCORES_UPDATED,
         new ScoresUpdatedPayload(scoresSnapshot)
-    ));
+    )));
   }
 }

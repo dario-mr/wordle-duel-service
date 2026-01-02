@@ -10,8 +10,8 @@ import com.dariom.wds.api.v1.dto.GuessDto;
 import com.dariom.wds.api.v1.dto.LetterResultDto;
 import com.dariom.wds.api.v1.dto.RoomDto;
 import com.dariom.wds.api.v1.dto.RoundDto;
+import com.dariom.wds.domain.Room;
 import com.dariom.wds.persistence.entity.GuessEntity;
-import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.entity.RoundEntity;
 import java.util.List;
 import java.util.Map;
@@ -21,19 +21,19 @@ import org.springframework.stereotype.Component;
 @Component
 public class RoomMapper {
 
-  public RoomDto toDto(RoomEntity room) {
+  public RoomDto toDto(Room room) {
+    var roomEntity = room.room();
     return new RoomDto(
-        room.getId(),
-        room.getLanguage(),
-        room.getStatus(),
-        room.getSortedPlayerIds(),
-        new TreeMap<>(room.getScoresByPlayerId()),
-        toRoundDto(room)
+        roomEntity.getId(),
+        roomEntity.getLanguage(),
+        roomEntity.getStatus(),
+        roomEntity.getSortedPlayerIds(),
+        new TreeMap<>(roomEntity.getScoresByPlayerId()),
+        toRoundDto(room.currentRound())
     );
   }
 
-  private RoundDto toRoundDto(RoomEntity room) {
-    var round = getCurrentRoundOrNull(room);
+  private RoundDto toRoundDto(RoundEntity round) {
     if (round == null) {
       return null;
     }
@@ -67,15 +67,4 @@ public class RoomMapper {
     );
   }
 
-  private static RoundEntity getCurrentRoundOrNull(RoomEntity room) {
-    if (room.getCurrentRoundNumber() == null) {
-      return null;
-    }
-
-    int current = room.getCurrentRoundNumber();
-    return room.getRounds().stream()
-        .filter(r -> r.getRoundNumber() == current)
-        .findFirst()
-        .orElse(null);
-  }
 }
