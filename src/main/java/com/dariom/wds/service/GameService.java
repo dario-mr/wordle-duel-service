@@ -8,6 +8,8 @@ import static com.dariom.wds.api.v1.error.ErrorCode.NO_ATTEMPTS_LEFT;
 import static com.dariom.wds.api.v1.error.ErrorCode.PLAYER_DONE;
 import static com.dariom.wds.api.v1.error.ErrorCode.ROOM_NOT_IN_PROGRESS;
 import static com.dariom.wds.api.v1.error.ErrorCode.WORD_NOT_ALLOWED;
+import static com.dariom.wds.domain.RoundPlayerStatus.LOST;
+import static com.dariom.wds.domain.RoundPlayerStatus.WON;
 import static com.dariom.wds.websocket.model.EventType.ROUND_FINISHED;
 import static com.dariom.wds.websocket.model.EventType.SCORES_UPDATED;
 
@@ -98,9 +100,9 @@ public class GameService {
       round.getGuesses().add(guessEntity);
 
       if (guess.equalsIgnoreCase(round.getTargetWord())) {
-        round.getStatusByPlayerId().put(playerId, RoundPlayerStatus.WON);
+        round.setPlayerStatus(playerId, WON);
       } else if (attemptNumber >= round.getMaxAttempts()) {
-        round.getStatusByPlayerId().put(playerId, RoundPlayerStatus.LOST);
+        round.setPlayerStatus(playerId, LOST);
       }
 
       boolean roundFinishedNow = !round.isFinished() && isRoundFinished(room, round);
@@ -109,7 +111,7 @@ public class GameService {
         round.setFinishedAt(Instant.now());
 
         for (String pid : room.getPlayerIds()) {
-          if (round.getStatusByPlayerId().get(pid) == RoundPlayerStatus.WON) {
+          if (round.getStatusByPlayerId().get(pid) == WON) {
             room.getScoresByPlayerId().merge(pid, 1, Integer::sum);
           }
         }

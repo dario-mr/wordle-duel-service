@@ -1,11 +1,12 @@
 package com.dariom.wds.service;
 
 import static com.dariom.wds.api.v1.error.ErrorCode.DICTIONARY_EMPTY;
+import static com.dariom.wds.domain.RoundPlayerStatus.PLAYING;
 import static com.dariom.wds.websocket.model.EventType.ROUND_STARTED;
+import static java.util.Comparator.naturalOrder;
 
 import com.dariom.wds.config.WordleProperties;
 import com.dariom.wds.domain.Language;
-import com.dariom.wds.domain.RoundPlayerStatus;
 import com.dariom.wds.exception.InvalidGuessException;
 import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.entity.RoundEntity;
@@ -14,7 +15,6 @@ import com.dariom.wds.websocket.RoomEventPublisher;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoundStartedPayload;
 import java.time.Instant;
-import java.util.Comparator;
 import java.util.concurrent.ThreadLocalRandom;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -46,10 +46,9 @@ public class RoundLifecycleService {
 
     var language = room.getLanguage();
     var targetWord = randomTargetWord(language);
-
-    int nextRoundNumber = room.getRounds().stream()
+    var nextRoundNumber = room.getRounds().stream()
         .map(RoundEntity::getRoundNumber)
-        .max(Comparator.naturalOrder())
+        .max(naturalOrder())
         .orElse(0) + 1;
 
     var round = new RoundEntity();
@@ -61,10 +60,10 @@ public class RoundLifecycleService {
     round.setStartedAt(Instant.now());
 
     for (String playerId : room.getPlayerIds()) {
-      round.getStatusByPlayerId().put(playerId, RoundPlayerStatus.PLAYING);
+      round.setPlayerStatus(playerId, PLAYING);
     }
 
-    room.getRounds().add(round);
+    room.addRound(round);
     room.setCurrentRoundNumber(nextRoundNumber);
 
     eventPublisher.publish(room.getId(), new RoomEvent(
@@ -82,7 +81,7 @@ public class RoundLifecycleService {
           "No answer words available for language: %s".formatted(language));
     }
 
-    int idx = ThreadLocalRandom.current().nextInt(answers.size());
-    return answers.stream().skip(idx).findFirst().orElseThrow();
+    int randomIndex = ThreadLocalRandom.current().nextInt(answers.size());
+    return answers.stream().skip(randomIndex).findFirst().orElseThrow();
   }
 }

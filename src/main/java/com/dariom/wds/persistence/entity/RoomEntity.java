@@ -1,15 +1,16 @@
 package com.dariom.wds.persistence.entity;
 
+import static jakarta.persistence.CascadeType.ALL;
+import static jakarta.persistence.EnumType.STRING;
+import static jakarta.persistence.FetchType.LAZY;
+
 import com.dariom.wds.domain.Language;
 import com.dariom.wds.domain.RoomStatus;
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.MapKeyColumn;
@@ -34,35 +35,61 @@ import lombok.Setter;
 public class RoomEntity {
 
   @Id
+  @Column(name = "id")
   private String id;
 
-  @Enumerated(EnumType.STRING)
+  @Enumerated(STRING)
+  @Column(name = "language")
   private Language language;
 
-  @Enumerated(EnumType.STRING)
+  @Enumerated(STRING)
+  @Column(name = "status")
   private RoomStatus status;
 
-  @ElementCollection(fetch = FetchType.LAZY)
+  @ElementCollection(fetch = LAZY)
   @CollectionTable(name = "room_players", joinColumns = @JoinColumn(name = "room_id"))
   @Column(name = "player_id")
   private Set<String> playerIds = new HashSet<>();
 
-  @ElementCollection(fetch = FetchType.LAZY)
+  @ElementCollection(fetch = LAZY)
   @CollectionTable(name = "room_scores", joinColumns = @JoinColumn(name = "room_id"))
   @MapKeyColumn(name = "player_id")
   @Column(name = "score")
   private Map<String, Integer> scoresByPlayerId = new HashMap<>();
 
-  @OneToMany(mappedBy = "room", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+  @OneToMany(mappedBy = "room", cascade = ALL, orphanRemoval = true, fetch = LAZY)
   private List<RoundEntity> rounds = new ArrayList<>();
 
+  @Column(name = "current_round_number")
   private Integer currentRoundNumber;
 
+  @Column(name = "created_at")
   private Instant createdAt;
 
+  @Column(name = "last_updated_at")
   private Instant lastUpdatedAt;
 
   public RoomEntity() {
+  }
+
+  public void addPlayer(String playerId) {
+    playerIds.add(playerId);
+  }
+
+  public void addRound(RoundEntity round) {
+    rounds.add(round);
+  }
+
+  public void setPlayerScore(String playerId, Integer score) {
+    scoresByPlayerId.put(playerId, score);
+  }
+
+  public void setPlayerScoreIfNotSet(String playerId, Integer score) {
+    scoresByPlayerId.putIfAbsent(playerId, score);
+  }
+
+  public List<String> getSortedPlayerIds() {
+    return playerIds.stream().sorted().toList();
   }
 
   @PrePersist

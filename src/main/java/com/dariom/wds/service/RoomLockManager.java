@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class RoomLockManager {
+  // todo how to handle horizontal scaling?
 
   private final ConcurrentHashMap<String, ReentrantLock> locksByRoomId = new ConcurrentHashMap<>();
 

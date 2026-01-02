@@ -26,7 +26,7 @@ public class RoomMapper {
         room.getId(),
         room.getLanguage(),
         room.getStatus(),
-        room.getPlayerIds().stream().sorted().toList(),
+        room.getSortedPlayerIds(),
         new TreeMap<>(room.getScoresByPlayerId()),
         toRoundDto(room)
     );

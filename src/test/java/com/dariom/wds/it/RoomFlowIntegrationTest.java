@@ -3,6 +3,7 @@ package com.dariom.wds.it;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -28,15 +29,14 @@ class RoomFlowIntegrationTest {
 
   @Test
   void roundFinishesWhenBothPlayersDone() throws Exception {
-    var createReq = Map.of("playerId", "p1", "language", "IT");
-
     // player1 creates the room
+    var createReq = Map.of("playerId", "p1", "language", "IT");
     var createRes = mockMvc.perform(post(BASE_URL)
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(createReq)))
-        .andExpect(status().isOk())
+        .andExpect(status().isCreated())
+        .andExpect(header().exists("Location"))
         .andExpect(jsonPath("$.status").value("WAITING_FOR_PLAYERS"))
-//        .andExpect(jsonPath("$.currentRound.roundNumber").value(1))
         .andReturn();
 
     var createdJson = createRes.getResponse().getContentAsString();

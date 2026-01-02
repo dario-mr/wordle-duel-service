@@ -1,16 +1,17 @@
 package com.dariom.wds.persistence.entity;
 
+import static jakarta.persistence.CascadeType.ALL;
+import static jakarta.persistence.EnumType.STRING;
+import static jakarta.persistence.FetchType.LAZY;
+import static jakarta.persistence.GenerationType.IDENTITY;
+
 import com.dariom.wds.domain.RoundPlayerStatus;
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
@@ -33,37 +34,48 @@ import lombok.Setter;
 public class RoundEntity {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  @GeneratedValue(strategy = IDENTITY)
+  @Column(name = "id")
   private Long id;
 
+  @Column(name = "round_number")
   private int roundNumber;
 
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = LAZY)
   @JoinColumn(name = "room_id", nullable = false)
   private RoomEntity room;
 
+  @Column(name = "target_word")
   private String targetWord;
 
+  @Column(name = "max_attempts")
   private int maxAttempts;
 
-  @ElementCollection(fetch = FetchType.LAZY)
+  @ElementCollection(fetch = LAZY)
   @CollectionTable(name = "round_player_status", joinColumns = @JoinColumn(name = "round_id"))
   @MapKeyColumn(name = "player_id")
   @Column(name = "status")
-  @Enumerated(EnumType.STRING)
+  @Enumerated(STRING)
   private Map<String, RoundPlayerStatus> statusByPlayerId = new HashMap<>();
 
+  @Column(name = "finished")
   private boolean finished;
 
+  @Column(name = "started_at")
   private Instant startedAt;
 
+  @Column(name = "finished_at")
   private Instant finishedAt;
 
-  @OneToMany(mappedBy = "round", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+  @OneToMany(mappedBy = "round", cascade = ALL, orphanRemoval = true, fetch = LAZY)
   @OrderColumn(name = "guess_order")
   private List<GuessEntity> guesses = new ArrayList<>();
 
   public RoundEntity() {
+  }
+
+  public void setPlayerStatus(String playerId, RoundPlayerStatus roundPlayerStatus) {
+    statusByPlayerId.put(playerId, roundPlayerStatus);
   }
 
 }

@@ -1,9 +1,10 @@
 package com.dariom.wds.persistence.entity;
 
+import static jakarta.persistence.EnumType.STRING;
+
 import com.dariom.wds.domain.LetterStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Embeddable;
-import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import lombok.Getter;
 import lombok.Setter;
@@ -16,7 +17,7 @@ public class LetterResultEmbeddable {
   @Column(name = "letter")
   private char letter;
 
-  @Enumerated(EnumType.STRING)
+  @Enumerated(STRING)
   @Column(name = "status")
   private LetterStatus status;
 

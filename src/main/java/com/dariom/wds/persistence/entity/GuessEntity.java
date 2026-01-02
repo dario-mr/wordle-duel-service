@@ -1,11 +1,13 @@
 package com.dariom.wds.persistence.entity;
 
+import static jakarta.persistence.FetchType.LAZY;
+import static jakarta.persistence.GenerationType.IDENTITY;
+
 import jakarta.persistence.CollectionTable;
+import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
 import jakarta.persistence.Entity;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
@@ -24,22 +26,27 @@ import lombok.Setter;
 public class GuessEntity {
 
   @Id
-  @GeneratedValue(strategy = GenerationType.IDENTITY)
+  @GeneratedValue(strategy = IDENTITY)
+  @Column(name = "id")
   private Long id;
 
-  @ManyToOne(fetch = FetchType.LAZY)
+  @ManyToOne(fetch = LAZY)
   @JoinColumn(name = "round_id", nullable = false)
   private RoundEntity round;
 
+  @Column(name = "player_id")
   private String playerId;
 
+  @Column(name = "word")
   private String word;
 
+  @Column(name = "attempt_number")
   private int attemptNumber;
 
+  @Column(name = "created_at")
   private Instant createdAt;
 
-  @ElementCollection(fetch = FetchType.LAZY)
+  @ElementCollection(fetch = LAZY)
   @CollectionTable(name = "guess_letters", joinColumns = @JoinColumn(name = "guess_id"))
   @OrderColumn(name = "letter_order")
   private List<LetterResultEmbeddable> letters = new ArrayList<>();
