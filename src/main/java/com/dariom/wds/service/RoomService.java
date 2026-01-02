@@ -29,7 +29,7 @@ public class RoomService {
 
   private final RoomJpaRepository roomJpaRepository;
   private final RoomLockManager roomLockManager;
-  private final RoundLifecycleService roundLifecycleService;
+  private final RoundService roundService;
   private final DomainMapper domainMapper;
   private final ApplicationEventPublisher applicationEventPublisher;
 
@@ -73,7 +73,7 @@ public class RoomService {
       if (room.getPlayerIds().size() == 2) {
         room.setStatus(IN_PROGRESS);
         if (room.getCurrentRoundNumber() == null) {
-          roundLifecycleService.startNewRound(room);
+          roundService.startNewRound(room);
         }
       }
 
@@ -84,7 +84,7 @@ public class RoomService {
           new PlayerJoinedPayload(playerId, saved.getSortedPlayerIds())
       )));
 
-      var currentRound = roundLifecycleService.getCurrentRoundOrNull(saved);
+      var currentRound = roundService.getCurrentRoundOrNull(saved);
       return domainMapper.toRoom(saved, currentRound);
     });
   }
@@ -94,7 +94,7 @@ public class RoomService {
     var room = roomJpaRepository.findWithPlayersAndScoresById(roomId)
         .orElseThrow(() -> new RoomNotFoundException(roomId));
 
-    var currentRound = roundLifecycleService.getCurrentRoundOrNull(room);
+    var currentRound = roundService.getCurrentRoundOrNull(room);
     return domainMapper.toRoom(room, currentRound);
   }
 

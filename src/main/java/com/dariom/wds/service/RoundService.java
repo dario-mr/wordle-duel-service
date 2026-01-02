@@ -25,7 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @RequiredArgsConstructor
-public class RoundLifecycleService {
+public class RoundService {
 
   private final DictionaryRepository dictionaryRepository;
   private final RoundJpaRepository roundJpaRepository;

@@ -44,7 +44,7 @@ public class GameService {
 
   private final RoomJpaRepository roomJpaRepository;
   private final RoomLockManager roomLockManager;
-  private final RoundLifecycleService roundLifecycleService;
+  private final RoundService roundService;
   private final DictionaryRepository dictionaryRepository;
   private final WordleEvaluator evaluator;
   private final DomainMapper domainMapper;
@@ -62,7 +62,7 @@ public class GameService {
 
       var roundEntity = ensureActiveRound(roomEntity);
       if (roundEntity.isFinished()) {
-        roundEntity = roundLifecycleService.startNewRound(roomEntity);
+        roundEntity = roundService.startNewRound(roomEntity);
       }
       roundEntity.setRoom(roomEntity);
 
@@ -114,9 +114,9 @@ public class GameService {
   }
 
   private RoundEntity ensureActiveRound(RoomEntity room) {
-    var round = roundLifecycleService.getCurrentRoundEntityOrNull(room);
+    var round = roundService.getCurrentRoundEntityOrNull(room);
     if (round == null) {
-      round = roundLifecycleService.startNewRound(room);
+      round = roundService.startNewRound(room);
     }
     return round;
   }
