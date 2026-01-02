@@ -21,6 +21,7 @@ import com.dariom.wds.exception.InvalidGuessException;
 import com.dariom.wds.exception.PlayerNotInRoomException;
 import com.dariom.wds.exception.RoomNotFoundException;
 import com.dariom.wds.persistence.entity.GuessEntity;
+import com.dariom.wds.persistence.entity.LetterResultEmbeddable;
 import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.entity.RoundEntity;
 import com.dariom.wds.persistence.repository.DictionaryRepository;
@@ -31,6 +32,8 @@ import com.dariom.wds.websocket.model.RoundFinishedPayload;
 import com.dariom.wds.websocket.model.ScoresUpdatedPayload;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
 import java.util.TreeMap;
 import lombok.RequiredArgsConstructor;
@@ -61,40 +64,26 @@ public class GameService {
       validateRoomStatus(playerId, roomEntity);
 
       var roundEntity = ensureActiveRound(roomEntity);
-      if (roundEntity.isFinished()) {
-        roundEntity = roundService.startNewRound(roomEntity);
-      }
-      roundEntity.setRoom(roomEntity);
-
       var normalizedGuess = normalizeGuess(guess);
-      validateGuess(normalizedGuess, roomEntity.getLanguage());
+
       validatePlayerStatus(roomId, playerId, roundEntity);
 
-      var attemptNumber = getAttemptNumber(playerId, roundEntity);
+      var attemptNumber = nextAttemptNumber(playerId, roundEntity);
       if (attemptNumber > roundEntity.getMaxAttempts()) {
         throw new InvalidGuessException(NO_ATTEMPTS_LEFT, "No attempts left for this round");
       }
 
-      var letters = evaluator.evaluate(roundEntity.getTargetWord(), normalizedGuess);
+      validateGuessFormat(normalizedGuess);
+      validateGuessAllowed(normalizedGuess, roomEntity.getLanguage());
 
-      var guessEntity = new GuessEntity();
-      guessEntity.setRound(roundEntity);
-      guessEntity.setPlayerId(playerId);
-      guessEntity.setWord(normalizedGuess);
-      guessEntity.setAttemptNumber(attemptNumber);
-      guessEntity.setCreatedAt(Instant.now(clock));
-      guessEntity.setLetters(letters);
+      List<LetterResultEmbeddable> letters =
+          evaluator.evaluate(roundEntity.getTargetWord(), normalizedGuess);
 
-      roundEntity.addGuess(guessEntity);
+      roundEntity.addGuess(
+          createGuessEntity(roundEntity, playerId, normalizedGuess, attemptNumber, letters));
+      updatePlayerStatusAfterGuess(roundEntity, playerId, normalizedGuess, attemptNumber);
 
-      if (normalizedGuess.equals(roundEntity.getTargetWord())) {
-        roundEntity.setPlayerStatus(playerId, WON);
-      } else if (attemptNumber >= roundEntity.getMaxAttempts()) {
-        roundEntity.setPlayerStatus(playerId, LOST);
-      }
-
-      var roundFinishedNow = !roundEntity.isFinished() && isRoundFinished(roomEntity, roundEntity);
-      if (roundFinishedNow) {
+      if (!roundEntity.isFinished() && isRoundFinished(roomEntity, roundEntity)) {
         finishRound(roundEntity, roomEntity);
       }
 
@@ -115,17 +104,17 @@ public class GameService {
 
   private RoundEntity ensureActiveRound(RoomEntity room) {
     var round = roundService.getCurrentRoundEntityOrNull(room);
-    if (round == null) {
-      round = roundService.startNewRound(room);
+    if (round == null || round.isFinished()) {
+      return roundService.startNewRound(room);
     }
     return round;
   }
 
   private String normalizeGuess(String guess) {
-    return guess.trim().toUpperCase();
+    return guess.strip().toUpperCase(Locale.ROOT);
   }
 
-  private void validateGuess(String guess, Language language) {
+  private void validateGuessFormat(String guess) {
     if (guess.length() != properties.wordLength()) {
       throw new InvalidGuessException(INVALID_LENGTH,
           "Word must be %s characters".formatted(properties.wordLength()));
@@ -137,7 +126,9 @@ public class GameService {
         throw new InvalidGuessException(INVALID_CHARS, "Word must contain only letters A-Z");
       }
     }
+  }
 
+  private void validateGuessAllowed(String guess, Language language) {
     if (language == null) {
       throw new InvalidGuessException(INVALID_LANGUAGE, "Room language not set");
     }
@@ -160,11 +151,40 @@ public class GameService {
     }
   }
 
-  private int getAttemptNumber(String playerId, RoundEntity round) {
-    var previousAttempts = (int) round.getGuesses().stream()
+  private int nextAttemptNumber(String playerId, RoundEntity round) {
+    var previousAttemptCount = (int) round.getGuesses().stream()
         .filter(g -> Objects.equals(g.getPlayerId(), playerId))
         .count();
-    return previousAttempts + 1;
+    return previousAttemptCount + 1;
+  }
+
+  private GuessEntity createGuessEntity(
+      RoundEntity round,
+      String playerId,
+      String guess,
+      int attemptNumber,
+      List<LetterResultEmbeddable> letters) {
+    var guessEntity = new GuessEntity();
+    guessEntity.setRound(round);
+    guessEntity.setPlayerId(playerId);
+    guessEntity.setWord(guess);
+    guessEntity.setAttemptNumber(attemptNumber);
+    guessEntity.setCreatedAt(Instant.now(clock));
+    guessEntity.setLetters(letters);
+
+    return guessEntity;
+  }
+
+  private void updatePlayerStatusAfterGuess(
+      RoundEntity round,
+      String playerId,
+      String guess,
+      int attemptNumber) {
+    if (guess.equals(round.getTargetWord())) {
+      round.setPlayerStatus(playerId, WON);
+    } else if (attemptNumber >= round.getMaxAttempts()) {
+      round.setPlayerStatus(playerId, LOST);
+    }
   }
 
   private boolean isRoundFinished(RoomEntity room, RoundEntity round) {
