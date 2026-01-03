@@ -9,7 +9,7 @@ import com.dariom.wds.api.v1.error.ErrorResponse;
 import com.dariom.wds.api.v1.mapper.RoomMapper;
 import com.dariom.wds.domain.Language;
 import com.dariom.wds.service.GameService;
-import com.dariom.wds.service.RoomService;
+import com.dariom.wds.service.room.RoomService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;

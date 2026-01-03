@@ -1,6 +1,7 @@
 package com.dariom.wds.service;
 
 import com.dariom.wds.domain.Room;
+import com.dariom.wds.service.round.RoundService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 

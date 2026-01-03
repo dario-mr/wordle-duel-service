@@ -1,19 +1,20 @@
-package com.dariom.wds.service;
+package com.dariom.wds.service.room;
 
-import static com.dariom.wds.domain.RoomStatus.CLOSED;
 import static com.dariom.wds.domain.RoomStatus.IN_PROGRESS;
 import static com.dariom.wds.domain.RoomStatus.WAITING_FOR_PLAYERS;
+import static com.dariom.wds.service.room.RoomValidator.validateRoom;
 import static com.dariom.wds.websocket.model.EventType.PLAYER_JOINED;
 import static com.dariom.wds.websocket.model.EventType.ROOM_CREATED;
 
 import com.dariom.wds.domain.Language;
 import com.dariom.wds.domain.Room;
 import com.dariom.wds.domain.Round;
-import com.dariom.wds.exception.RoomClosedException;
-import com.dariom.wds.exception.RoomFullException;
 import com.dariom.wds.exception.RoomNotFoundException;
 import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.repository.jpa.RoomJpaRepository;
+import com.dariom.wds.service.DomainMapper;
+import com.dariom.wds.service.RoomLockManager;
+import com.dariom.wds.service.round.RoundService;
 import com.dariom.wds.websocket.model.PlayerJoinedPayload;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
@@ -60,10 +61,8 @@ public class RoomService {
   @Transactional
   public Room joinRoom(String roomId, String playerId) {
     return roomLockManager.withRoomLock(roomId, () -> {
-      var room = findRoomForUpdate(roomId);
-
-      ensureRoomNotClosed(room);
-      ensureRoomNotFull(room, playerId);
+      var room = findRoom(roomId);
+      validateRoom(playerId, domainMapper.toRoom(room, null), MAX_PLAYERS);
 
       addPlayerAndInitializeScore(room, playerId);
       var startedRound = maybeStartRound(room);
@@ -93,23 +92,6 @@ public class RoomService {
   private RoomEntity findRoom(String roomId) {
     return roomJpaRepository.findWithPlayersAndScoresById(roomId)
         .orElseThrow(() -> new RoomNotFoundException(roomId));
-  }
-
-  private RoomEntity findRoomForUpdate(String roomId) {
-    return findRoom(roomId);
-  }
-
-  private void ensureRoomNotClosed(RoomEntity room) {
-    if (room.getStatus() == CLOSED) {
-      throw new RoomClosedException(room.getId());
-    }
-  }
-
-  private void ensureRoomNotFull(RoomEntity room, String playerId) {
-    if (!room.getPlayerIds().contains(playerId)
-        && room.getPlayerIds().size() >= MAX_PLAYERS) {
-      throw new RoomFullException(room.getId());
-    }
   }
 
   private void addPlayerAndInitializeScore(RoomEntity room, String playerId) {
