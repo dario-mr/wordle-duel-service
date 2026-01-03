@@ -1,13 +1,12 @@
 package com.dariom.wds.service;
 
-import static com.dariom.wds.api.v1.error.ErrorCode.DICTIONARY_EMPTY;
 import static com.dariom.wds.domain.RoundPlayerStatus.PLAYING;
 import static com.dariom.wds.websocket.model.EventType.ROUND_STARTED;
 
 import com.dariom.wds.config.WordleProperties;
 import com.dariom.wds.domain.Language;
 import com.dariom.wds.domain.Round;
-import com.dariom.wds.exception.InvalidGuessException;
+import com.dariom.wds.exception.DictionaryEmptyException;
 import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.entity.RoundEntity;
 import com.dariom.wds.persistence.repository.DictionaryRepository;
@@ -17,6 +16,7 @@ import com.dariom.wds.websocket.model.RoomEventToPublish;
 import com.dariom.wds.websocket.model.RoundStartedPayload;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -35,27 +35,27 @@ public class RoundService {
   private final Clock clock;
 
   @Transactional(readOnly = true)
-  public Round getCurrentRoundOrNull(RoomEntity room) {
-    return domainMapper.toRound(getCurrentRoundEntityOrNull(room));
+  public Optional<Round> getCurrentRound(RoomEntity room) {
+    return getCurrentRoundEntity(room).map(domainMapper::toRound);
   }
 
   @Transactional(readOnly = true)
-  public RoundEntity getCurrentRoundEntityOrNull(RoomEntity room) {
+  public Optional<RoundEntity> getCurrentRoundEntity(RoomEntity room) {
     if (room.getCurrentRoundNumber() == null) {
-      return null;
+      return Optional.empty();
     }
 
     return roundJpaRepository.findWithDetailsByRoomIdAndRoundNumber(
-            room.getId(),
-            room.getCurrentRoundNumber())
-        .orElse(null);
+        room.getId(), room.getCurrentRoundNumber());
   }
 
+  @Transactional
   public RoundEntity startNewRound(RoomEntity room) {
     if (room.getPlayerIds().size() != 2) {
       throw new IllegalStateException("Cannot start round unless room has 2 players");
     }
 
+    var roomId = room.getId();
     var language = room.getLanguage();
     var targetWord = randomTargetWord(language);
     var nextRoundNumber =
@@ -69,29 +69,32 @@ public class RoundService {
     round.setFinished(false);
     round.setStartedAt(Instant.now(clock));
 
-    for (String playerId : room.getPlayerIds()) {
+    for (var playerId : room.getPlayerIds()) {
       round.setPlayerStatus(playerId, PLAYING);
     }
 
     room.addRound(round);
     room.setCurrentRoundNumber(nextRoundNumber);
 
-    applicationEventPublisher.publishEvent(new RoomEventToPublish(room.getId(), new RoomEvent(
-        ROUND_STARTED,
-        new RoundStartedPayload(round.getRoundNumber(), round.getMaxAttempts())
-    )));
-
+    publishRoundStarted(roomId, round.getRoundNumber(), round.getMaxAttempts());
     return round;
   }
 
   private String randomTargetWord(Language language) {
     var answers = dictionaryRepository.getAnswerWords(language);
     if (answers.isEmpty()) {
-      throw new InvalidGuessException(DICTIONARY_EMPTY,
-          "No answer words available for language: %s".formatted(language));
+      throw new DictionaryEmptyException(language);
     }
 
-    var randomIndex = ThreadLocalRandom.current().nextInt(answers.size());
-    return answers.stream().skip(randomIndex).findFirst().orElseThrow();
+    var answersArray = answers.toArray(String[]::new);
+    var randomIndex = ThreadLocalRandom.current().nextInt(answersArray.length);
+    return answersArray[randomIndex];
+  }
+
+  private void publishRoundStarted(String roomId, int roundNumber, int maxAttempts) {
+    applicationEventPublisher.publishEvent(new RoomEventToPublish(roomId, new RoomEvent(
+        ROUND_STARTED,
+        new RoundStartedPayload(roundNumber, maxAttempts)
+    )));
   }
 }

@@ -1,5 +1,6 @@
 package com.dariom.wds.api.v1.error;
 
+import static com.dariom.wds.api.v1.error.ErrorCode.DICTIONARY_EMPTY;
 import static com.dariom.wds.api.v1.error.ErrorCode.GENERIC_BAD_REQUEST;
 import static com.dariom.wds.api.v1.error.ErrorCode.INVALID_LANGUAGE;
 import static com.dariom.wds.api.v1.error.ErrorCode.INVALID_PLAYER_ID;
@@ -16,6 +17,7 @@ import static org.springframework.http.HttpStatus.FORBIDDEN;
 import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
+import com.dariom.wds.exception.DictionaryEmptyException;
 import com.dariom.wds.exception.InvalidGuessException;
 import com.dariom.wds.exception.PlayerNotInRoomException;
 import com.dariom.wds.exception.RoomClosedException;
@@ -72,6 +74,13 @@ public class RoomErrorHandler {
     log.warn("Invalid guess: code={}, message={}", ex.getCode(), ex.getMessage());
     return ResponseEntity.status(BAD_REQUEST)
         .body(new ErrorResponse(ex.getCode(), ex.getMessage()));
+  }
+
+  @ExceptionHandler(DictionaryEmptyException.class)
+  public ResponseEntity<ErrorResponse> handleDictionaryEmpty(DictionaryEmptyException ex) {
+    log.error(ex.getMessage());
+    return ResponseEntity.status(INTERNAL_SERVER_ERROR)
+        .body(new ErrorResponse(DICTIONARY_EMPTY, ex.getMessage()));
   }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)

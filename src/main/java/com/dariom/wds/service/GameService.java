@@ -103,11 +103,9 @@ public class GameService {
   }
 
   private RoundEntity ensureActiveRound(RoomEntity room) {
-    var round = roundService.getCurrentRoundEntityOrNull(room);
-    if (round == null || round.isFinished()) {
-      return roundService.startNewRound(room);
-    }
-    return round;
+    return roundService.getCurrentRoundEntity(room)
+        .filter(round -> !round.isFinished())
+        .orElseGet(() -> roundService.startNewRound(room));
   }
 
   private String normalizeGuess(String guess) {

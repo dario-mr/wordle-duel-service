@@ -75,7 +75,7 @@ public class RoomService {
           new PlayerJoinedPayload(playerId, saved.getSortedPlayerIds())
       ));
 
-      var currentRound = startedRound.orElseGet(() -> roundService.getCurrentRoundOrNull(saved));
+      var currentRound = startedRound.or(() -> roundService.getCurrentRound(saved)).orElse(null);
       return domainMapper.toRoom(saved, currentRound);
     });
   }
@@ -83,7 +83,7 @@ public class RoomService {
   @Transactional(readOnly = true)
   public Room getRoom(String roomId) {
     var room = findRoom(roomId);
-    var currentRound = roundService.getCurrentRoundOrNull(room);
+    var currentRound = roundService.getCurrentRound(room).orElse(null);
     return domainMapper.toRoom(room, currentRound);
   }
 
