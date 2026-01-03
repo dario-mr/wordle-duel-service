@@ -9,6 +9,7 @@ import static com.dariom.wds.api.v1.error.ErrorCode.PLAYER_NOT_IN_ROOM;
 import static com.dariom.wds.api.v1.error.ErrorCode.ROOM_CLOSED;
 import static com.dariom.wds.api.v1.error.ErrorCode.ROOM_FULL;
 import static com.dariom.wds.api.v1.error.ErrorCode.ROOM_NOT_FOUND;
+import static com.dariom.wds.api.v1.error.ErrorCode.ROOM_NOT_READY;
 import static com.dariom.wds.api.v1.error.ErrorCode.UNKNOWN_ERROR;
 import static org.apache.commons.lang3.StringUtils.defaultIfBlank;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
@@ -23,6 +24,7 @@ import com.dariom.wds.exception.PlayerNotInRoomException;
 import com.dariom.wds.exception.RoomClosedException;
 import com.dariom.wds.exception.RoomFullException;
 import com.dariom.wds.exception.RoomNotFoundException;
+import com.dariom.wds.exception.RoomNotReadyException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -60,6 +62,13 @@ public class RoomErrorHandler {
     log.warn(ex.getMessage());
     return ResponseEntity.status(CONFLICT)
         .body(new ErrorResponse(ROOM_CLOSED, ex.getMessage()));
+  }
+
+  @ExceptionHandler(RoomNotReadyException.class)
+  public ResponseEntity<ErrorResponse> handleRoomNotReady(RoomNotReadyException ex) {
+    log.warn(ex.getMessage());
+    return ResponseEntity.status(CONFLICT)
+        .body(new ErrorResponse(ROOM_NOT_READY, ex.getMessage()));
   }
 
   @ExceptionHandler(PlayerNotInRoomException.class)

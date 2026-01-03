@@ -1,20 +1,27 @@
 package com.dariom.wds.service.round;
 
 import static com.dariom.wds.domain.RoundPlayerStatus.PLAYING;
+import static com.dariom.wds.domain.RoundPlayerStatus.WON;
+import static com.dariom.wds.websocket.model.EventType.ROUND_FINISHED;
 import static com.dariom.wds.websocket.model.EventType.ROUND_STARTED;
+import static com.dariom.wds.websocket.model.EventType.SCORES_UPDATED;
 
 import com.dariom.wds.config.WordleProperties;
 import com.dariom.wds.domain.Language;
 import com.dariom.wds.exception.DictionaryEmptyException;
+import com.dariom.wds.exception.RoomNotReadyException;
 import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.entity.RoundEntity;
 import com.dariom.wds.persistence.repository.DictionaryRepository;
 import com.dariom.wds.persistence.repository.jpa.RoundJpaRepository;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
+import com.dariom.wds.websocket.model.RoundFinishedPayload;
 import com.dariom.wds.websocket.model.RoundStartedPayload;
+import com.dariom.wds.websocket.model.ScoresUpdatedPayload;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.TreeMap;
 import java.util.concurrent.ThreadLocalRandom;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -42,11 +49,11 @@ class RoundLifecycleService {
   }
 
   public RoundEntity startNewRoundEntity(RoomEntity room) {
-    if (room.getPlayerIds().size() != 2) {
-      throw new IllegalStateException("Cannot start round unless room has 2 players");
+    var playerCount = room.getPlayerIds().size();
+    if (playerCount != 2) {
+      throw new RoomNotReadyException(room.getId(), playerCount);
     }
 
-    var roomId = room.getId();
     var language = room.getLanguage();
     var targetWord = randomTargetWord(language);
     var nextRoundNumber =
@@ -67,8 +74,43 @@ class RoundLifecycleService {
     room.addRound(round);
     room.setCurrentRoundNumber(nextRoundNumber);
 
-    publishRoundStarted(roomId, round.getRoundNumber(), round.getMaxAttempts());
+    publishRoomEvent(room.getId(), new RoomEvent(
+        ROUND_STARTED,
+        new RoundStartedPayload(round.getRoundNumber(), round.getMaxAttempts())
+    ));
+
     return round;
+  }
+
+  public boolean isRoundFinished(RoomEntity room, RoundEntity round) {
+    for (var playerId : room.getPlayerIds()) {
+      if (round.getPlayerStatus(playerId) == PLAYING) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  public void finishRound(RoundEntity round, RoomEntity room) {
+    round.setFinished(true);
+    round.setFinishedAt(Instant.now(clock));
+
+    for (var pid : room.getPlayerIds()) {
+      if (round.getPlayerStatus(pid) == WON) {
+        room.getScoresByPlayerId().merge(pid, 1, Integer::sum);
+      }
+    }
+
+    publishRoomEvent(room.getId(), new RoomEvent(
+        ROUND_FINISHED,
+        new RoundFinishedPayload(round.getRoundNumber())
+    ));
+
+    var scoresSnapshot = new TreeMap<>(room.getScoresByPlayerId());
+    publishRoomEvent(room.getId(), new RoomEvent(
+        SCORES_UPDATED,
+        new ScoresUpdatedPayload(scoresSnapshot)
+    ));
   }
 
   private String randomTargetWord(Language language) {
@@ -82,10 +124,7 @@ class RoundLifecycleService {
     return answersArray[randomIndex];
   }
 
-  private void publishRoundStarted(String roomId, int roundNumber, int maxAttempts) {
-    applicationEventPublisher.publishEvent(new RoomEventToPublish(roomId, new RoomEvent(
-        ROUND_STARTED,
-        new RoundStartedPayload(roundNumber, maxAttempts)
-    )));
+  private void publishRoomEvent(String roomId, RoomEvent roomEvent) {
+    applicationEventPublisher.publishEvent(new RoomEventToPublish(roomId, roomEvent));
   }
 }

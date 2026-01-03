@@ -23,7 +23,6 @@ public class RoundService {
   private final DomainMapper domainMapper;
   private final RoundLifecycleService roundLifecycleService;
   private final GuessSubmissionService guessSubmissionService;
-  private final RoundFinisher roundFinisher;
 
   @Transactional(readOnly = true)
   public Optional<Round> getCurrentRound(String roomId, Integer currentRoundNumber) {
@@ -51,8 +50,9 @@ public class RoundService {
     var roundEntity = roundLifecycleService.ensureActiveRound(roomEntity);
     guessSubmissionService.applyGuess(roomId, playerId, guess, roomEntity, roundEntity);
 
-    if (!roundEntity.isFinished() && roundFinisher.isRoundFinished(roomEntity, roundEntity)) {
-      roundFinisher.finishRound(roundEntity, roomEntity);
+    if (!roundEntity.isFinished()
+        && roundLifecycleService.isRoundFinished(roomEntity, roundEntity)) {
+      roundLifecycleService.finishRound(roundEntity, roomEntity);
     }
 
     roomJpaRepository.save(roomEntity);
