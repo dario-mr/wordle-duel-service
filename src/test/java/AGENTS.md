@@ -14,6 +14,8 @@
 - `when(...)` should use argument matchers like `any()`/`anyString()` by default; only match real
   values when they matter for the specific test.
 - `verify(...)` should assert the actual values passed to dependencies.
+- When verifying a call that should happen exactly once, prefer `verify(mock).method(...)` over
+  `verify(mock, times(1)).method(...)`.
 
 ## Example
 

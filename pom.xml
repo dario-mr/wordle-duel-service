@@ -59,6 +59,10 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-logging</artifactId>
     </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-cache</artifactId>
+    </dependency>
 
     <!-- third parties -->
     <dependency>
@@ -119,6 +123,7 @@
         <executions>
           <execution>
             <goals>
+              <!-- populates data for the /actuator/info endpoint -->
               <goal>build-info</goal>
             </goals>
           </execution>
