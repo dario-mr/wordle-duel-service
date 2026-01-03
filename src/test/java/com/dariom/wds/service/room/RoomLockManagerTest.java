@@ -1,4 +1,4 @@
-package com.dariom.wds.service;
+package com.dariom.wds.service.room;
 
 import static org.assertj.core.api.Assertions.assertThat;
 

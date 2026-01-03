@@ -1,4 +1,4 @@
-package com.dariom.wds.service;
+package com.dariom.wds.service.room;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;

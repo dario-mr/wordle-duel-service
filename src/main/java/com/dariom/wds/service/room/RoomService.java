@@ -13,7 +13,6 @@ import com.dariom.wds.exception.RoomNotFoundException;
 import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.repository.jpa.RoomJpaRepository;
 import com.dariom.wds.service.DomainMapper;
-import com.dariom.wds.service.RoomLockManager;
 import com.dariom.wds.service.round.RoundService;
 import com.dariom.wds.websocket.model.PlayerJoinedPayload;
 import com.dariom.wds.websocket.model.RoomEvent;

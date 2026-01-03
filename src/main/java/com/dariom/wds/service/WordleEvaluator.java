@@ -1,58 +1,65 @@
 package com.dariom.wds.service;
 
-import com.dariom.wds.domain.LetterStatus;
-import com.dariom.wds.persistence.entity.LetterResultEmbeddable;
+import static com.dariom.wds.domain.LetterStatus.ABSENT;
+import static com.dariom.wds.domain.LetterStatus.CORRECT;
+import static com.dariom.wds.domain.LetterStatus.PRESENT;
+import static java.util.Locale.ROOT;
+
+import com.dariom.wds.domain.LetterResult;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import org.springframework.stereotype.Component;
 
 @Component
 public class WordleEvaluator {
-  // todo review
 
-  public List<LetterResultEmbeddable> evaluate(String targetWord, String guessWord) {
-    if (targetWord.length() != guessWord.length()) {
-      throw new IllegalArgumentException("targetWord and guessWord must have same length");
-    }
+  public List<LetterResult> evaluate(String targetWord, String guessWord) {
+    var target = targetWord.toUpperCase(ROOT);
+    var guess = guessWord.toUpperCase(ROOT);
 
-    var target = targetWord.toUpperCase(Locale.ROOT);
-    var guess = guessWord.toUpperCase(Locale.ROOT);
+    var results = initAbsentResults(guess);
+    var remainingCounts = countLetters(target);
 
-    var results = new ArrayList<LetterResultEmbeddable>(guess.length());
-    for (int i = 0; i < guess.length(); i++) {
-      results.add(new LetterResultEmbeddable(guess.charAt(i), LetterStatus.ABSENT));
-    }
-
-    Map<Character, Integer> remaining = new HashMap<>();
-    for (int i = 0; i < target.length(); i++) {
-      remaining.merge(target.charAt(i), 1, Integer::sum);
-    }
-
-    for (int i = 0; i < target.length(); i++) {
-      if (guess.charAt(i) == target.charAt(i)) {
-        results.set(i, new LetterResultEmbeddable(guess.charAt(i), LetterStatus.CORRECT));
-        remaining.merge(target.charAt(i), -1, Integer::sum);
+    for (var i = 0; i < target.length(); i++) {
+      var targetChar = target.charAt(i);
+      var guessChar = guess.charAt(i);
+      if (guessChar == targetChar) {
+        results.set(i, new LetterResult(guessChar, CORRECT));
+        remainingCounts.merge(targetChar, -1, Integer::sum);
       }
     }
 
-    for (int i = 0; i < target.length(); i++) {
-      if (results.get(i).getStatus() == LetterStatus.CORRECT) {
+    for (var i = 0; i < target.length(); i++) {
+      if (results.get(i).status() == CORRECT) {
         continue;
       }
 
-      char letter = guess.charAt(i);
-      int count = remaining.getOrDefault(letter, 0);
+      var guessChar = guess.charAt(i);
+      var count = remainingCounts.getOrDefault(guessChar, 0);
       if (count > 0) {
-        results.set(i, new LetterResultEmbeddable(letter, LetterStatus.PRESENT));
-        remaining.put(letter, count - 1);
-      } else {
-        results.set(i, new LetterResultEmbeddable(letter, LetterStatus.ABSENT));
+        results.set(i, new LetterResult(guessChar, PRESENT));
+        remainingCounts.put(guessChar, count - 1);
       }
     }
 
     return results;
+  }
+
+  private static List<LetterResult> initAbsentResults(String guessUpper) {
+    var results = new ArrayList<LetterResult>(guessUpper.length());
+    for (var i = 0; i < guessUpper.length(); i++) {
+      results.add(new LetterResult(guessUpper.charAt(i), ABSENT));
+    }
+    return results;
+  }
+
+  private static Map<Character, Integer> countLetters(String word) {
+    var counts = new HashMap<Character, Integer>();
+    for (var i = 0; i < word.length(); i++) {
+      counts.merge(word.charAt(i), 1, Integer::sum);
+    }
+    return counts;
   }
 }

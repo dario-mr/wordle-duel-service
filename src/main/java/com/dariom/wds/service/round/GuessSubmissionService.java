@@ -4,7 +4,9 @@ import static com.dariom.wds.api.v1.error.ErrorCode.NO_ATTEMPTS_LEFT;
 import static com.dariom.wds.domain.RoundPlayerStatus.LOST;
 import static com.dariom.wds.domain.RoundPlayerStatus.WON;
 import static com.dariom.wds.service.round.validation.PlayerStatusValidator.validatePlayerStatus;
+import static java.util.stream.Collectors.toCollection;
 
+import com.dariom.wds.domain.LetterResult;
 import com.dariom.wds.exception.InvalidGuessException;
 import com.dariom.wds.persistence.entity.GuessEntity;
 import com.dariom.wds.persistence.entity.LetterResultEmbeddable;
@@ -14,6 +16,7 @@ import com.dariom.wds.service.WordleEvaluator;
 import com.dariom.wds.service.round.validation.GuessValidator;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -42,11 +45,11 @@ class GuessSubmissionService {
       throw new InvalidGuessException(NO_ATTEMPTS_LEFT, "No attempts left for this round");
     }
 
-    guessValidator.validateGuess(guess, room.getLanguage());
+    guessValidator.validateGuess(guess, round.getTargetWord(), room.getLanguage());
 
-    var letters = evaluator.evaluate(round.getTargetWord(), guess);
+    var letterResults = evaluator.evaluate(round.getTargetWord(), guess);
 
-    var guessEntity = createGuessEntity(round, playerId, guess, attemptNumber, letters);
+    var guessEntity = createGuessEntity(round, playerId, guess, attemptNumber, letterResults);
     round.addGuess(guessEntity);
 
     updatePlayerStatusAfterGuess(round, playerId, guess, attemptNumber);
@@ -68,14 +71,18 @@ class GuessSubmissionService {
       String playerId,
       String guess,
       int attemptNumber,
-      List<LetterResultEmbeddable> letters) {
+      List<LetterResult> letterResults) {
+    var letterResultsEntity = letterResults.stream()
+        .map(lr -> new LetterResultEmbeddable(lr.letter(), lr.status()))
+        .collect(toCollection(ArrayList::new));
+
     var guessEntity = new GuessEntity();
     guessEntity.setRound(round);
     guessEntity.setPlayerId(playerId);
     guessEntity.setWord(guess);
     guessEntity.setAttemptNumber(attemptNumber);
     guessEntity.setCreatedAt(Instant.now(clock));
-    guessEntity.setLetters(letters);
+    guessEntity.setLetters(letterResultsEntity);
 
     return guessEntity;
   }

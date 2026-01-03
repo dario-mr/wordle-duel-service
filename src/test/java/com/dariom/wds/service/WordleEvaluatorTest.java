@@ -1,8 +1,13 @@
 package com.dariom.wds.service;
 
+import static com.dariom.wds.domain.LetterStatus.ABSENT;
+import static com.dariom.wds.domain.LetterStatus.CORRECT;
+import static com.dariom.wds.domain.LetterStatus.PRESENT;
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.dariom.wds.domain.LetterResult;
 import com.dariom.wds.domain.LetterStatus;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class WordleEvaluatorTest {
@@ -10,34 +15,107 @@ class WordleEvaluatorTest {
   private final WordleEvaluator evaluator = new WordleEvaluator();
 
   @Test
-  void marksAllCorrectWhenGuessEqualsTarget() {
-    var res = evaluator.evaluate("PIZZA", "PIZZA");
+  void evaluate_guessEqualsTarget_returnsAllCorrect() {
+    // Arrange
+    var target = "PIZZA";
+    var guess = "PIZZA";
 
-    assertThat(res).hasSize(5);
-    assertThat(res.stream().allMatch(r -> r.getStatus() == LetterStatus.CORRECT)).isTrue();
+    // Act
+    List<LetterResult> results = evaluator.evaluate(target, guess);
+
+    // Assert
+    assertThat(results).hasSize(5);
+    assertStatuses(results, CORRECT, CORRECT, CORRECT, CORRECT, CORRECT);
   }
 
   @Test
-  void handlesDuplicateLettersCorrectly_case1() {
-    var res = evaluator.evaluate("MAMMA", "AMMMA");
+  void evaluate_mixedCaseInput_uppercasesWords() {
+    // Arrange
+    var target = "pizza";
+    var guess = "pIzZa";
 
-    assertThat(res).hasSize(5);
-    assertThat(res.get(0).getStatus()).isEqualTo(LetterStatus.PRESENT);
-    assertThat(res.get(1).getStatus()).isEqualTo(LetterStatus.PRESENT);
-    assertThat(res.get(2).getStatus()).isEqualTo(LetterStatus.CORRECT);
-    assertThat(res.get(3).getStatus()).isEqualTo(LetterStatus.CORRECT);
-    assertThat(res.get(4).getStatus()).isEqualTo(LetterStatus.CORRECT);
+    // Act
+    List<LetterResult> results = evaluator.evaluate(target, guess);
+
+    // Assert
+    assertThat(results).hasSize(5);
+    assertStatuses(results, CORRECT, CORRECT, CORRECT, CORRECT, CORRECT);
+    assertThat(results).extracting(LetterResult::letter).containsExactly('P', 'I', 'Z', 'Z', 'A');
   }
 
   @Test
-  void handlesDuplicateLettersCorrectly_case2() {
-    var res = evaluator.evaluate("PIZZA", "ZZZZZ");
+  void evaluate_duplicateLettersAcrossTargetAndGuess_respectsCounts() {
+    // Arrange
+    var target = "MAMMA";
+    var guess = "AMMMA";
 
-    assertThat(res).hasSize(5);
-    assertThat(res.get(0).getStatus()).isEqualTo(LetterStatus.ABSENT);
-    assertThat(res.get(1).getStatus()).isEqualTo(LetterStatus.ABSENT);
-    assertThat(res.get(2).getStatus()).isEqualTo(LetterStatus.CORRECT);
-    assertThat(res.get(3).getStatus()).isEqualTo(LetterStatus.CORRECT);
-    assertThat(res.get(4).getStatus()).isEqualTo(LetterStatus.ABSENT);
+    // Act
+    List<LetterResult> results = evaluator.evaluate(target, guess);
+
+    // Assert
+    assertThat(results).hasSize(5);
+    assertStatuses(results, PRESENT, PRESENT, CORRECT, CORRECT, CORRECT);
+  }
+
+  @Test
+  void evaluate_guessHasExcessDuplicates_respectsCounts() {
+    // Arrange
+    var target = "PIZZA";
+    var guess = "ZZZZZ";
+
+    // Act
+    List<LetterResult> results = evaluator.evaluate(target, guess);
+
+    // Assert
+    assertThat(results).hasSize(5);
+    assertStatuses(results, ABSENT, ABSENT, CORRECT, CORRECT, ABSENT);
+  }
+
+  @Test
+  void evaluate_guessHasExtraDuplicates_doesNotMarkExtrasPresent() {
+    // Arrange
+    var target = "ABCDE";
+    var guess = "EAAAA";
+
+    // Act
+    List<LetterResult> results = evaluator.evaluate(target, guess);
+
+    // Assert
+    assertThat(results).hasSize(5);
+    assertStatuses(results, PRESENT, PRESENT, ABSENT, ABSENT, ABSENT);
+  }
+
+  @Test
+  void evaluate_correctAndPresentMatches_prioritizesCorrect() {
+    // Arrange
+    var target = "BALSA";
+    var guess = "AAAAA";
+
+    // Act
+    List<LetterResult> results = evaluator.evaluate(target, guess);
+
+    // Assert
+    assertThat(results).hasSize(5);
+    assertStatuses(results, ABSENT, CORRECT, ABSENT, ABSENT, CORRECT);
+  }
+
+  @Test
+  void evaluate_guessHasMoreOccurrencesThanTarget_limitsPresentMatches() {
+    // Arrange
+    var target = "AABCD";
+    var guess = "EEAAA";
+
+    // Act
+    List<LetterResult> results = evaluator.evaluate(target, guess);
+
+    // Assert
+    assertThat(results).hasSize(5);
+    assertStatuses(results, ABSENT, ABSENT, PRESENT, PRESENT, ABSENT);
+  }
+
+  private static void assertStatuses(List<LetterResult> results, LetterStatus... expected) {
+    assertThat(results)
+        .extracting(LetterResult::status)
+        .containsExactly(expected);
   }
 }

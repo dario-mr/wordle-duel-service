@@ -19,9 +19,17 @@ public class GuessValidator {
   private final WordleProperties properties;
   private final DictionaryRepository dictionaryRepository;
 
-  public void validateGuess(String guess, Language language) {
+  public void validateGuess(String guess, String targetWord, Language language) {
+    validateLength(guess, targetWord);
     validateGuessFormat(guess);
     validateGuessAllowed(guess, language);
+  }
+
+  private void validateLength(String guess, String targetWord) {
+    if (targetWord.length() != guess.length()) {
+      throw new InvalidGuessException(INVALID_LENGTH,
+          "Target word and guess word must have same length");
+    }
   }
 
   private void validateGuessFormat(String guess) {
