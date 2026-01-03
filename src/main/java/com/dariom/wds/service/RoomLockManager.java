@@ -1,6 +1,8 @@
 package com.dariom.wds.service;
 
-import java.util.concurrent.ConcurrentHashMap;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 import org.springframework.stereotype.Component;
@@ -8,16 +10,55 @@ import org.springframework.stereotype.Component;
 @Component
 public class RoomLockManager {
 
-  private final ConcurrentHashMap<String, ReentrantLock> locksByRoomId = new ConcurrentHashMap<>();
+  private static final int INITIAL_CACHE_CAPACITY = 128;
+
+  private final Cache<String, RoomLockEntry> locksByRoomId = Caffeine.newBuilder()
+      .initialCapacity(INITIAL_CACHE_CAPACITY)
+      .build();
 
   public <T> T withRoomLock(String roomId, Supplier<T> supplier) {
-    var lock = locksByRoomId.computeIfAbsent(roomId, ignored -> new ReentrantLock());
-    lock.lock();
+    var entry = acquireEntry(roomId);
+    entry.lock.lock();
     try {
       return supplier.get();
     } finally {
-      lock.unlock();
+      entry.lock.unlock();
+      releaseEntry(roomId, entry);
     }
   }
 
+  long registeredLockCount() {
+    return locksByRoomId.estimatedSize();
+  }
+
+  private RoomLockEntry acquireEntry(String roomId) {
+    return locksByRoomId.asMap().compute(roomId, (ignored, existing) -> {
+      var entry = existing != null ? existing : new RoomLockEntry();
+      entry.users.incrementAndGet();
+      return entry;
+    });
+  }
+
+  private void releaseEntry(String roomId, RoomLockEntry entry) {
+    locksByRoomId.asMap().computeIfPresent(roomId, (ignored, existing) -> {
+      if (existing != entry) {
+        return existing;
+      }
+
+      if (entry.users.decrementAndGet() == 0) {
+        return null;
+      }
+
+      return existing;
+    });
+  }
+
+  private static final class RoomLockEntry {
+
+    private final ReentrantLock lock = new ReentrantLock();
+    private final AtomicInteger users = new AtomicInteger(0);
+
+    private RoomLockEntry() {
+    }
+  }
 }
