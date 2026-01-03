@@ -5,6 +5,7 @@ import static com.dariom.wds.api.v1.error.ErrorCode.INVALID_LANGUAGE;
 import static com.dariom.wds.api.v1.error.ErrorCode.INVALID_PLAYER_ID;
 import static com.dariom.wds.api.v1.error.ErrorCode.INVALID_WORD;
 import static com.dariom.wds.api.v1.error.ErrorCode.PLAYER_NOT_IN_ROOM;
+import static com.dariom.wds.api.v1.error.ErrorCode.ROOM_CLOSED;
 import static com.dariom.wds.api.v1.error.ErrorCode.ROOM_FULL;
 import static com.dariom.wds.api.v1.error.ErrorCode.ROOM_NOT_FOUND;
 import static com.dariom.wds.api.v1.error.ErrorCode.UNKNOWN_ERROR;
@@ -17,6 +18,7 @@ import static org.springframework.http.HttpStatus.NOT_FOUND;
 
 import com.dariom.wds.exception.InvalidGuessException;
 import com.dariom.wds.exception.PlayerNotInRoomException;
+import com.dariom.wds.exception.RoomClosedException;
 import com.dariom.wds.exception.RoomFullException;
 import com.dariom.wds.exception.RoomNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -49,6 +51,13 @@ public class RoomErrorHandler {
     log.warn(ex.getMessage());
     return ResponseEntity.status(CONFLICT)
         .body(new ErrorResponse(ROOM_FULL, ex.getMessage()));
+  }
+
+  @ExceptionHandler(RoomClosedException.class)
+  public ResponseEntity<ErrorResponse> handleRoomClosed(RoomClosedException ex) {
+    log.warn(ex.getMessage());
+    return ResponseEntity.status(CONFLICT)
+        .body(new ErrorResponse(ROOM_CLOSED, ex.getMessage()));
   }
 
   @ExceptionHandler(PlayerNotInRoomException.class)
