@@ -75,7 +75,9 @@ public class RoomService {
           new PlayerJoinedPayload(playerId, saved.getSortedPlayerIds())
       ));
 
-      var currentRound = startedRound.or(() -> roundService.getCurrentRound(saved)).orElse(null);
+      var currentRound = startedRound
+          .or(() -> roundService.getCurrentRound(saved.getId(), saved.getCurrentRoundNumber()))
+          .orElse(null);
       return domainMapper.toRoom(saved, currentRound);
     });
   }
@@ -83,7 +85,8 @@ public class RoomService {
   @Transactional(readOnly = true)
   public Room getRoom(String roomId) {
     var room = findRoom(roomId);
-    var currentRound = roundService.getCurrentRound(room).orElse(null);
+    var currentRound = roundService.getCurrentRound(room.getId(), room.getCurrentRoundNumber())
+        .orElse(null);
     return domainMapper.toRoom(room, currentRound);
   }
 
@@ -126,8 +129,7 @@ public class RoomService {
       return Optional.empty();
     }
 
-    var round = roundService.startNewRound(room);
-    return Optional.of(domainMapper.toRound(round));
+    return Optional.of(roundService.startNewRound(room.getId()));
   }
 
   private void publishRoomEvent(String roomId, RoomEvent roomEvent) {
