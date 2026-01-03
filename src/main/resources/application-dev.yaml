@@ -1,7 +1,6 @@
 spring:
   datasource:
-    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;INIT=CREATE SCHEMA IF NOT EXISTS MY_SCHEMA\;
+    url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;INIT=CREATE SCHEMA IF NOT EXISTS wordle\;SET SCHEMA wordle\;
   jpa:
-    defer-datasource-initialization: true
-    hibernate.ddl-auto: create-drop
+    hibernate.ddl-auto: validate
   h2.console.enabled: true

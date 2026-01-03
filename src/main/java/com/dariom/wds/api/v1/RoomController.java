@@ -36,7 +36,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 @RequestMapping("/api/v1/rooms")
 @Tag(name = "Rooms", description = "Room management and gameplay actions")
 public class RoomController {
-  // todo security
+  // TODO security
 
   private final RoomService roomService;
   private final GameService gameService;

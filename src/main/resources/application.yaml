@@ -6,6 +6,12 @@ spring:
   application.name: wordle-duel-service
   profiles.active: ${PROFILE:prod}
   config.import: optional:file:.env[.properties] # enable scanning of .env file
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    default-schema: wordle
+    liquibase-schema: wordle
+  jpa:
+    properties.hibernate.default_schema: wordle
 
 management:
   endpoints:
