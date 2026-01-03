@@ -67,17 +67,18 @@ public class RoomService {
       addPlayerAndInitializeScore(room, playerId);
       var startedRound = maybeStartRound(room);
 
-      var saved = roomJpaRepository.save(room);
+      var savedRoom = roomJpaRepository.save(room);
 
-      publishRoomEvent(saved.getId(), new RoomEvent(
+      publishRoomEvent(savedRoom.getId(), new RoomEvent(
           PLAYER_JOINED,
-          new PlayerJoinedPayload(playerId, saved.getSortedPlayerIds())
+          new PlayerJoinedPayload(playerId, savedRoom.getSortedPlayerIds())
       ));
 
       var currentRound = startedRound
-          .or(() -> roundService.getCurrentRound(saved.getId(), saved.getCurrentRoundNumber()))
+          .or(() -> roundService.getCurrentRound(
+              savedRoom.getId(), savedRoom.getCurrentRoundNumber()))
           .orElse(null);
-      return domainMapper.toRoom(saved, currentRound);
+      return domainMapper.toRoom(savedRoom, currentRound);
     });
   }
 

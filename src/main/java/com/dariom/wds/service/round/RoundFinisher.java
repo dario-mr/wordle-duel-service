@@ -44,15 +44,19 @@ class RoundFinisher {
       }
     }
 
-    applicationEventPublisher.publishEvent(new RoomEventToPublish(room.getId(), new RoomEvent(
+    publishRoomEvent(room.getId(), new RoomEvent(
         ROUND_FINISHED,
         new RoundFinishedPayload(round.getRoundNumber())
-    )));
+    ));
 
     var scoresSnapshot = new TreeMap<>(room.getScoresByPlayerId());
-    applicationEventPublisher.publishEvent(new RoomEventToPublish(room.getId(), new RoomEvent(
+    publishRoomEvent(room.getId(), new RoomEvent(
         SCORES_UPDATED,
         new ScoresUpdatedPayload(scoresSnapshot)
-    )));
+    ));
+  }
+
+  private void publishRoomEvent(String roomId, RoomEvent roomEvent) {
+    applicationEventPublisher.publishEvent(new RoomEventToPublish(roomId, roomEvent));
   }
 }

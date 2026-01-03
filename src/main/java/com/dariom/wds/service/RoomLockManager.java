@@ -7,6 +7,10 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 import org.springframework.stereotype.Component;
 
+/**
+ * Provides per-room mutual exclusion by executing code under a lock scoped to a room id. Locks are
+ * created on demand and released from the cache when no longer in use.
+ */
 @Component
 public class RoomLockManager {
 
