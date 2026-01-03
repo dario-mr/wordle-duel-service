@@ -3,7 +3,6 @@ package com.dariom.wds.persistence.entity;
 import static jakarta.persistence.EnumType.STRING;
 import static jakarta.persistence.GenerationType.IDENTITY;
 
-import com.dariom.wds.domain.DictionaryWordType;
 import com.dariom.wds.domain.Language;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -29,10 +28,8 @@ public class DictionaryWordEntity {
   @Column(name = "language")
   private Language language;
 
-  // TODO type (duplicate entries) or flag isAnswer (no duplication)?
-  @Enumerated(STRING)
-  @Column(name = "type")
-  private DictionaryWordType type;
+  @Column(name = "is_answer", nullable = false)
+  private boolean answer;
 
   @Column(name = "word", nullable = false)
   private String word;

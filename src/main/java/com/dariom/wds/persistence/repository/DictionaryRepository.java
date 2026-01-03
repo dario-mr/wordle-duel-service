@@ -1,10 +1,7 @@
 package com.dariom.wds.persistence.repository;
 
-import static com.dariom.wds.domain.DictionaryWordType.ALLOWED;
-import static com.dariom.wds.domain.DictionaryWordType.ANSWER;
 import static java.util.stream.Collectors.toUnmodifiableSet;
 
-import com.dariom.wds.domain.DictionaryWordType;
 import com.dariom.wds.domain.Language;
 import com.dariom.wds.persistence.repository.jpa.DictionaryWordJpaRepository;
 import java.util.Set;
@@ -19,17 +16,14 @@ public class DictionaryRepository {
   private final DictionaryWordJpaRepository jpaRepository;
 
   public Set<String> getAllowedGuesses(Language language) {
-    return getWordsByLanguageAndType(language, ALLOWED);
-  }
-
-  public Set<String> getAnswerWords(Language language) {
-    return getWordsByLanguageAndType(language, ANSWER);
-  }
-
-  private Set<String> getWordsByLanguageAndType(Language language, DictionaryWordType wordType) {
-    return jpaRepository.findByLanguageAndType(language, wordType).stream()
+    return jpaRepository.findByLanguage(language).stream()
         .map(dictionaryWord -> dictionaryWord.getWord().toUpperCase())
         .collect(toUnmodifiableSet());
   }
 
+  public Set<String> getAnswerWords(Language language) {
+    return jpaRepository.findByLanguageAndAnswerTrue(language).stream()
+        .map(dictionaryWord -> dictionaryWord.getWord().toUpperCase())
+        .collect(toUnmodifiableSet());
+  }
 }
