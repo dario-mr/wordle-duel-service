@@ -37,7 +37,6 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 @Tag(name = "Rooms", description = "Room management and gameplay actions")
 public class RoomController {
   // todo security
-  // todo trace id
 
   private final RoomService roomService;
   private final GameService gameService;
