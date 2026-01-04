@@ -16,7 +16,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-class RoomValidationIntegrationTest {
+class RoomValidationIT {
 
   private static final String BASE_URL = "/api/v1/rooms";
 

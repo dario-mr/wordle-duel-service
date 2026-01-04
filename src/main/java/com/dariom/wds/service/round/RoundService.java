@@ -9,15 +9,20 @@ import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.repository.jpa.RoomJpaRepository;
 import com.dariom.wds.persistence.repository.jpa.RoundJpaRepository;
 import com.dariom.wds.service.DomainMapper;
+import com.dariom.wds.service.room.RoomLockManager;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 @RequiredArgsConstructor
 public class RoundService {
 
+  private final RoomLockManager roomLockManager;
+  private final PlatformTransactionManager transactionManager;
   private final RoomJpaRepository roomJpaRepository;
   private final RoundJpaRepository roundJpaRepository;
   private final DomainMapper domainMapper;
@@ -42,8 +47,15 @@ public class RoundService {
     return domainMapper.toRound(round);
   }
 
-  @Transactional
   public Room handleGuess(String roomId, String playerId, String guess) {
+    return roomLockManager.withRoomLock(roomId, () -> {
+      var transactionTemplate = new TransactionTemplate(transactionManager);
+      return transactionTemplate.execute(
+          status -> handleGuessInTransaction(roomId, playerId, guess));
+    });
+  }
+
+  private Room handleGuessInTransaction(String roomId, String playerId, String guess) {
     var roomEntity = findRoom(roomId);
     validateRoomStatus(playerId, domainMapper.toRoom(roomEntity, null));
 

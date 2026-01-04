@@ -19,7 +19,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-class TraceIdIntegrationTest {
+class TraceIdIT {
 
   private static final String BASE_URL = "/api/v1/rooms";
 

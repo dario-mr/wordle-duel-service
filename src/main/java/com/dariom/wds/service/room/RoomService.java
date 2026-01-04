@@ -22,7 +22,9 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 @RequiredArgsConstructor
@@ -33,6 +35,7 @@ public class RoomService {
 
   private final RoomJpaRepository roomJpaRepository;
   private final RoomLockManager roomLockManager;
+  private final PlatformTransactionManager transactionManager;
   private final RoundService roundService;
   private final DomainMapper domainMapper;
   private final ApplicationEventPublisher applicationEventPublisher;
@@ -57,28 +60,34 @@ public class RoomService {
     return domainMapper.toRoom(saved, null);
   }
 
-  @Transactional
   public Room joinRoom(String roomId, String playerId) {
     return roomLockManager.withRoomLock(roomId, () -> {
-      var room = findRoom(roomId);
-      validateRoom(playerId, domainMapper.toRoom(room, null), MAX_PLAYERS);
-
-      addPlayerAndInitializeScore(room, playerId);
-      var startedRound = maybeStartRound(room);
-
-      var savedRoom = roomJpaRepository.save(room);
-
-      publishRoomEvent(savedRoom.getId(), new RoomEvent(
-          PLAYER_JOINED,
-          new PlayerJoinedPayload(playerId, savedRoom.getSortedPlayerIds())
-      ));
-
-      var currentRound = startedRound
-          .or(() -> roundService.getCurrentRound(
-              savedRoom.getId(), savedRoom.getCurrentRoundNumber()))
-          .orElse(null);
-      return domainMapper.toRoom(savedRoom, currentRound);
+      var transactionTemplate = new TransactionTemplate(transactionManager);
+      return transactionTemplate.execute(
+          status -> joinRoomInTransaction(roomId, playerId));
     });
+  }
+
+  private Room joinRoomInTransaction(String roomId, String playerId) {
+    var room = findRoom(roomId);
+    validateRoom(playerId, domainMapper.toRoom(room, null), MAX_PLAYERS);
+
+    addPlayerAndInitializeScore(room, playerId);
+    var startedRound = maybeStartRound(room);
+
+    var savedRoom = roomJpaRepository.save(room);
+
+    publishRoomEvent(savedRoom.getId(), new RoomEvent(
+        PLAYER_JOINED,
+        new PlayerJoinedPayload(playerId, savedRoom.getSortedPlayerIds())
+    ));
+
+    var currentRound = startedRound
+        .or(() -> roundService.getCurrentRound(
+            savedRoom.getId(), savedRoom.getCurrentRoundNumber()))
+        .orElse(null);
+
+    return domainMapper.toRoom(savedRoom, currentRound);
   }
 
   @Transactional(readOnly = true)

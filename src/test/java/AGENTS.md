@@ -45,3 +45,7 @@ class GreetingServiceTest {
   }
 }
 ```
+
+## Integration tests
+
+- Integration test class names must end with `IT`.

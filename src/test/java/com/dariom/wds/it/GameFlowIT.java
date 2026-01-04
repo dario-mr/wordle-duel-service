@@ -25,7 +25,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-class GameFlowIntegrationTest {
+class GameFlowIT {
 
   private static final String BASE_URL = "/api/v1/rooms";
   private static final String PLAYER_ID_1 = "p1";
