@@ -77,6 +77,7 @@ Room events are published to: `/topic/rooms/{roomId}`
 
 - Run tests: `mvn test`
 - Build JAR: `mvn package`
+- Coverage report: `mvn -Pcoverage verify` (HTML report at `target/site/jacoco/index.html`)
 
 ## Docker
 
