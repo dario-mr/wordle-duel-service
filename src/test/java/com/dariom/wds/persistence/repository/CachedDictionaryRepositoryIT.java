@@ -4,30 +4,31 @@ import static com.dariom.wds.config.CacheConfig.ALLOWED_GUESSES_CACHE;
 import static com.dariom.wds.config.CacheConfig.ANSWER_WORDS_CACHE;
 import static com.dariom.wds.domain.Language.IT;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.dariom.wds.config.CacheConfig;
 import com.dariom.wds.persistence.entity.DictionaryWordEntity;
 import com.dariom.wds.persistence.repository.jpa.DictionaryWordJpaRepository;
-import jakarta.annotation.Resource;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.cache.CacheManager;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @SpringBootTest(classes = {CacheConfig.class, DictionaryRepository.class})
-class DictionaryRepositoryTest {
+class CachedDictionaryRepositoryIT {
 
   @MockitoBean
   private DictionaryWordJpaRepository jpaRepository;
 
-  @Resource
+  @Autowired
   private DictionaryRepository repository;
 
-  @Resource
+  @Autowired
   private CacheManager cacheManager;
 
   @BeforeEach
@@ -44,9 +45,9 @@ class DictionaryRepositoryTest {
   }
 
   @Test
-  void getAllowedGuesses_givenSameLanguage_returnsCachedResult() {
+  void getAllowedGuesses_sameLanguage_returnsCachedResult() {
     // Arrange
-    when(jpaRepository.findByLanguage(IT))
+    when(jpaRepository.findByLanguage(any()))
         .thenReturn(List.of(word("pizza"), word("fuoco")));
 
     // Act
@@ -60,9 +61,9 @@ class DictionaryRepositoryTest {
   }
 
   @Test
-  void getAnswerWords_givenSameLanguage_returnsCachedResult() {
+  void getAnswerWords_sameLanguage_returnsCachedResult() {
     // Arrange
-    when(jpaRepository.findByLanguageAndAnswerTrue(IT))
+    when(jpaRepository.findByLanguageAndAnswerTrue(any()))
         .thenReturn(List.of(word("pizza")));
 
     // Act
@@ -76,11 +77,11 @@ class DictionaryRepositoryTest {
   }
 
   @Test
-  void getAllowedGuessesAndAnswerWords_givenSameLanguage_usesSeparateCaches() {
+  void getAllowedGuessesAndAnswerWords_sameLanguage_usesSeparateCaches() {
     // Arrange
-    when(jpaRepository.findByLanguage(IT))
+    when(jpaRepository.findByLanguage(any()))
         .thenReturn(List.of(word("pizza"), word("fuoco")));
-    when(jpaRepository.findByLanguageAndAnswerTrue(IT))
+    when(jpaRepository.findByLanguageAndAnswerTrue(any()))
         .thenReturn(List.of(word("pizza")));
 
     // Act

@@ -12,4 +12,4 @@ Backend service for the Wordle Duel game.
 
 For a sample env file, see [.env.example](.env.example).
 
-[//]: # (TODO complete this)
+[//]: # (TODO complete readme)

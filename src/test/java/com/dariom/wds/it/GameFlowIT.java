@@ -22,14 +22,18 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultActions;
 
 @SpringBootTest
 @AutoConfigureMockMvc
 class GameFlowIT {
 
   private static final String BASE_URL = "/api/v1/rooms";
+  private static final String LANGUAGE = "IT";
   private static final String PLAYER_ID_1 = "p1";
   private static final String PLAYER_ID_2 = "p2";
+  private static final String WORD = "FUOCO";
+  private static final int MAX_ATTEMPTS = 1;
 
   @Resource
   private MockMvc mockMvc;
@@ -40,167 +44,149 @@ class GameFlowIT {
   @Test
   void roundFinishesWhenBothPlayersDone() throws Exception {
     // player1 creates the room
-    var createReq = Map.of("playerId", PLAYER_ID_1, "language", "IT");
-    var createRes = mockMvc.perform(post(BASE_URL)
-            .contentType(APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(createReq)))
+    var roomId = createRoom(PLAYER_ID_1);
+
+    // player2 joins the room
+    var joinRoomRes = joinRoom(roomId, PLAYER_ID_2).andExpect(status().isOk());
+    expectRoomInProgress(joinRoomRes, "$", roomId, 1, false, "PLAYING", "PLAYING");
+    joinRoomRes.andExpect(jsonPath("$.currentRound.guessesByPlayerId").value(anEmptyMap()));
+
+    // player1 submits guess
+    var player1GuessRes = submitGuess(roomId, PLAYER_ID_1, WORD).andExpect(status().isOk());
+    expectRoomInProgress(player1GuessRes, "$.room", roomId, 1, false, "LOST", "PLAYING");
+    expectSingleGuess(player1GuessRes, "$.room", PLAYER_ID_1, WORD, 1);
+    expectNoGuesses(player1GuessRes, "$.room", PLAYER_ID_2);
+
+    // player2 submits guess
+    var player2GuessRes = submitGuess(roomId, PLAYER_ID_2, WORD).andExpect(status().isOk());
+    expectRoomInProgress(player2GuessRes, "$.room", roomId, 1, true, "LOST", "LOST");
+    expectSingleGuess(player2GuessRes, "$.room", PLAYER_ID_1, WORD, 1);
+    expectSingleGuess(player2GuessRes, "$.room", PLAYER_ID_2, WORD, 1);
+
+    // round is finished (both players lost)
+    var roomRes = getRoom(roomId).andExpect(status().isOk());
+    expectRoomInProgress(roomRes, "$", roomId, 1, true, "LOST", "LOST");
+    expectGuessWordOnly(roomRes, "$", PLAYER_ID_1, WORD);
+    expectGuessWordOnly(roomRes, "$", PLAYER_ID_2, WORD);
+
+    // submitting another guess starts a new round
+    var nextRoundGuessRes = submitGuess(roomId, PLAYER_ID_1, WORD).andExpect(status().isOk());
+    expectRoomInProgress(nextRoundGuessRes, "$.room", roomId, 2, false, "LOST", "PLAYING");
+    expectSingleGuess(nextRoundGuessRes, "$.room", PLAYER_ID_1, WORD, 1);
+    expectNoGuesses(nextRoundGuessRes, "$.room", PLAYER_ID_2);
+  }
+
+  private String createRoom(String playerId) throws Exception {
+    var createReq = Map.of("playerId", playerId, "language", LANGUAGE);
+
+    var createRes = postJson(BASE_URL, createReq)
         .andExpect(status().isCreated())
         .andExpect(header().exists("Location"))
         .andExpect(jsonPath("$.id", not(emptyOrNullString())))
-        .andExpect(jsonPath("$.language").value("IT"))
+        .andExpect(jsonPath("$.language").value(LANGUAGE))
         .andExpect(jsonPath("$.status").value("WAITING_FOR_PLAYERS"))
-        .andExpect(jsonPath("$.players", contains(PLAYER_ID_1)))
+        .andExpect(jsonPath("$.players", contains(playerId)))
         .andExpect(jsonPath("$.scores.p1").value(0))
         .andExpect(jsonPath("$.scores.p2").doesNotExist())
         .andExpect(jsonPath("$.currentRound").value(nullValue()))
         .andReturn();
 
     var createdJson = createRes.getResponse().getContentAsString();
-    var roomId = objectMapper.readTree(createdJson).get("id").asText();
+    return objectMapper.readTree(createdJson).get("id").asText();
+  }
 
-    // player2 joins the room
-    mockMvc.perform(post(BASE_URL + "/{roomId}/join", roomId)
-            .contentType(APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(Map.of("playerId", PLAYER_ID_2))))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.id").value(roomId))
-        .andExpect(jsonPath("$.language").value("IT"))
-        .andExpect(jsonPath("$.status").value("IN_PROGRESS"))
-        .andExpect(jsonPath("$.players", contains(PLAYER_ID_1, PLAYER_ID_2)))
-        .andExpect(jsonPath("$.scores.p1").value(0))
-        .andExpect(jsonPath("$.scores.p2").value(0))
-        .andExpect(jsonPath("$.currentRound.roundNumber").value(1))
-        .andExpect(jsonPath("$.currentRound.maxAttempts").value(1))
-        .andExpect(jsonPath("$.currentRound.finished").value(false))
-        .andExpect(jsonPath("$.currentRound.statusByPlayerId.p1").value("PLAYING"))
-        .andExpect(jsonPath("$.currentRound.statusByPlayerId.p2").value("PLAYING"))
-        .andExpect(jsonPath("$.currentRound.guessesByPlayerId").value(anEmptyMap()));
+  private ResultActions joinRoom(String roomId, String playerId) throws Exception {
+    return postJson(BASE_URL + "/{roomId}/join", Map.of("playerId", playerId), roomId);
+  }
 
-    // player1 submits guess
-    mockMvc.perform(post(BASE_URL + "/{roomId}/guess", roomId)
-            .contentType(APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(Map.of("playerId", PLAYER_ID_1, "word", "FUOCO"))))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.room.id").value(roomId))
-        .andExpect(jsonPath("$.room.language").value("IT"))
-        .andExpect(jsonPath("$.room.status").value("IN_PROGRESS"))
-        .andExpect(jsonPath("$.room.players", contains(PLAYER_ID_1, PLAYER_ID_2)))
-        .andExpect(jsonPath("$.room.scores.p1").value(0))
-        .andExpect(jsonPath("$.room.scores.p2").value(0))
-        .andExpect(jsonPath("$.room.currentRound.roundNumber").value(1))
-        .andExpect(jsonPath("$.room.currentRound.maxAttempts").value(1))
-        .andExpect(jsonPath("$.room.currentRound.finished").value(false))
-        .andExpect(jsonPath("$.room.currentRound.statusByPlayerId.p1").value("LOST"))
-        .andExpect(jsonPath("$.room.currentRound.statusByPlayerId.p2").value("PLAYING"))
-        .andExpect(jsonPath("$.room.currentRound.guessesByPlayerId.p1", hasSize(1)))
-        .andExpect(jsonPath("$.room.currentRound.guessesByPlayerId.p1[0].word").value("FUOCO"))
-        .andExpect(jsonPath("$.room.currentRound.guessesByPlayerId.p1[0].attemptNumber").value(1))
-        .andExpect(jsonPath("$.room.currentRound.guessesByPlayerId.p1[0].letters", hasSize(5)))
-        .andExpect(
-            jsonPath("$.room.currentRound.guessesByPlayerId.p1[0].letters[0].letter").value("F"))
-        .andExpect(
-            jsonPath("$.room.currentRound.guessesByPlayerId.p1[0].letters[1].letter").value("U"))
-        .andExpect(
-            jsonPath("$.room.currentRound.guessesByPlayerId.p1[0].letters[2].letter").value("O"))
-        .andExpect(
-            jsonPath("$.room.currentRound.guessesByPlayerId.p1[0].letters[3].letter").value("C"))
-        .andExpect(
-            jsonPath("$.room.currentRound.guessesByPlayerId.p1[0].letters[4].letter").value("O"))
-        .andExpect(jsonPath("$.room.currentRound.guessesByPlayerId.p1[0].letters[0].status")
-            .value(is(oneOf("ABSENT", "PRESENT", "CORRECT"))))
-        .andExpect(jsonPath("$.room.currentRound.guessesByPlayerId.p1[0].letters[1].status")
-            .value(is(oneOf("ABSENT", "PRESENT", "CORRECT"))))
-        .andExpect(jsonPath("$.room.currentRound.guessesByPlayerId.p1[0].letters[2].status")
-            .value(is(oneOf("ABSENT", "PRESENT", "CORRECT"))))
-        .andExpect(jsonPath("$.room.currentRound.guessesByPlayerId.p1[0].letters[3].status")
-            .value(is(oneOf("ABSENT", "PRESENT", "CORRECT"))))
-        .andExpect(jsonPath("$.room.currentRound.guessesByPlayerId.p1[0].letters[4].status")
-            .value(is(oneOf("ABSENT", "PRESENT", "CORRECT"))))
-        .andExpect(jsonPath("$.room.currentRound.guessesByPlayerId.p2").doesNotExist());
+  private ResultActions submitGuess(String roomId, String playerId, String word) throws Exception {
+    return postJson(BASE_URL + "/{roomId}/guess", Map.of("playerId", playerId, "word", word),
+        roomId);
+  }
 
-    // player2 submits guess
-    mockMvc.perform(post(BASE_URL + "/{roomId}/guess", roomId)
-            .contentType(APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(Map.of("playerId", PLAYER_ID_2, "word", "FUOCO"))))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.room.id").value(roomId))
-        .andExpect(jsonPath("$.room.language").value("IT"))
-        .andExpect(jsonPath("$.room.status").value("IN_PROGRESS"))
-        .andExpect(jsonPath("$.room.players", contains(PLAYER_ID_1, PLAYER_ID_2)))
-        .andExpect(jsonPath("$.room.scores.p1").value(0))
-        .andExpect(jsonPath("$.room.scores.p2").value(0))
-        .andExpect(jsonPath("$.room.currentRound.roundNumber").value(1))
-        .andExpect(jsonPath("$.room.currentRound.maxAttempts").value(1))
-        .andExpect(jsonPath("$.room.currentRound.finished").value(true))
-        .andExpect(jsonPath("$.room.currentRound.statusByPlayerId.p1").value("LOST"))
-        .andExpect(jsonPath("$.room.currentRound.statusByPlayerId.p2").value("LOST"))
-        .andExpect(jsonPath("$.room.currentRound.guessesByPlayerId.p1", hasSize(1)))
-        .andExpect(jsonPath("$.room.currentRound.guessesByPlayerId.p1[0].word").value("FUOCO"))
-        .andExpect(jsonPath("$.room.currentRound.guessesByPlayerId.p1[0].attemptNumber").value(1))
-        .andExpect(jsonPath("$.room.currentRound.guessesByPlayerId.p2", hasSize(1)))
-        .andExpect(jsonPath("$.room.currentRound.guessesByPlayerId.p2[0].word").value("FUOCO"))
-        .andExpect(jsonPath("$.room.currentRound.guessesByPlayerId.p2[0].attemptNumber").value(1))
-        .andExpect(jsonPath("$.room.currentRound.guessesByPlayerId.p2[0].letters", hasSize(5)))
-        .andExpect(
-            jsonPath("$.room.currentRound.guessesByPlayerId.p2[0].letters[0].letter").value("F"))
-        .andExpect(
-            jsonPath("$.room.currentRound.guessesByPlayerId.p2[0].letters[1].letter").value("U"))
-        .andExpect(
-            jsonPath("$.room.currentRound.guessesByPlayerId.p2[0].letters[2].letter").value("O"))
-        .andExpect(
-            jsonPath("$.room.currentRound.guessesByPlayerId.p2[0].letters[3].letter").value("C"))
-        .andExpect(
-            jsonPath("$.room.currentRound.guessesByPlayerId.p2[0].letters[4].letter").value("O"))
-        .andExpect(jsonPath("$.room.currentRound.guessesByPlayerId.p2[0].letters[0].status")
-            .value(is(oneOf("ABSENT", "PRESENT", "CORRECT"))))
-        .andExpect(jsonPath("$.room.currentRound.guessesByPlayerId.p2[0].letters[1].status")
-            .value(is(oneOf("ABSENT", "PRESENT", "CORRECT"))))
-        .andExpect(jsonPath("$.room.currentRound.guessesByPlayerId.p2[0].letters[2].status")
-            .value(is(oneOf("ABSENT", "PRESENT", "CORRECT"))))
-        .andExpect(jsonPath("$.room.currentRound.guessesByPlayerId.p2[0].letters[3].status")
-            .value(is(oneOf("ABSENT", "PRESENT", "CORRECT"))))
-        .andExpect(jsonPath("$.room.currentRound.guessesByPlayerId.p2[0].letters[4].status")
-            .value(is(oneOf("ABSENT", "PRESENT", "CORRECT"))));
+  private ResultActions getRoom(String roomId) throws Exception {
+    return mockMvc.perform(get(BASE_URL + "/{roomId}", roomId));
+  }
 
-    // round is finished
-    mockMvc.perform(get(BASE_URL + "/{roomId}", roomId))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.id").value(roomId))
-        .andExpect(jsonPath("$.language").value("IT"))
-        .andExpect(jsonPath("$.status").value("IN_PROGRESS"))
-        .andExpect(jsonPath("$.players", contains(PLAYER_ID_1, PLAYER_ID_2)))
-        .andExpect(jsonPath("$.scores.p1").value(0))
-        .andExpect(jsonPath("$.scores.p2").value(0))
-        .andExpect(jsonPath("$.currentRound.roundNumber").value(1))
-        .andExpect(jsonPath("$.currentRound.maxAttempts").value(1))
-        .andExpect(jsonPath("$.currentRound.finished").value(true))
-        .andExpect(jsonPath("$.currentRound.statusByPlayerId.p1").value("LOST"))
-        .andExpect(jsonPath("$.currentRound.statusByPlayerId.p2").value("LOST"))
-        .andExpect(jsonPath("$.currentRound.guessesByPlayerId.p1", hasSize(1)))
-        .andExpect(jsonPath("$.currentRound.guessesByPlayerId.p1[0].word").value("FUOCO"))
-        .andExpect(jsonPath("$.currentRound.guessesByPlayerId.p2", hasSize(1)))
-        .andExpect(jsonPath("$.currentRound.guessesByPlayerId.p2[0].word").value("FUOCO"));
+  private ResultActions postJson(String urlTemplate, Object body, Object... uriVars)
+      throws Exception {
+    return mockMvc.perform(post(urlTemplate, uriVars)
+        .contentType(APPLICATION_JSON)
+        .content(objectMapper.writeValueAsString(body)));
+  }
 
-    // submitting another guess starts a new round
-    mockMvc.perform(post(BASE_URL + "/{roomId}/guess", roomId)
-            .contentType(APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(Map.of("playerId", PLAYER_ID_1, "word", "FUOCO"))))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.room.id").value(roomId))
-        .andExpect(jsonPath("$.room.language").value("IT"))
-        .andExpect(jsonPath("$.room.status").value("IN_PROGRESS"))
-        .andExpect(jsonPath("$.room.players", contains(PLAYER_ID_1, PLAYER_ID_2)))
-        .andExpect(jsonPath("$.room.scores.p1").value(0))
-        .andExpect(jsonPath("$.room.scores.p2").value(0))
-        .andExpect(jsonPath("$.room.currentRound.roundNumber").value(2))
-        .andExpect(jsonPath("$.room.currentRound.maxAttempts").value(1))
-        .andExpect(jsonPath("$.room.currentRound.finished").value(false))
-        .andExpect(jsonPath("$.room.currentRound.statusByPlayerId.p1").value("LOST"))
-        .andExpect(jsonPath("$.room.currentRound.statusByPlayerId.p2").value("PLAYING"))
-        .andExpect(jsonPath("$.room.currentRound.guessesByPlayerId.p1", hasSize(1)))
-        .andExpect(jsonPath("$.room.currentRound.guessesByPlayerId.p1[0].word").value("FUOCO"))
-        .andExpect(jsonPath("$.room.currentRound.guessesByPlayerId.p1[0].attemptNumber").value(1))
-        .andExpect(jsonPath("$.room.currentRound.guessesByPlayerId.p1[0].letters", hasSize(5)))
-        .andExpect(jsonPath("$.room.currentRound.guessesByPlayerId.p2").doesNotExist());
+  private void expectRoomInProgress(
+      ResultActions res,
+      String root,
+      String roomId,
+      int roundNumber,
+      boolean finished,
+      String p1Status,
+      String p2Status) throws Exception {
+    res.andExpectAll(
+        jsonPath(path(root, ".id")).value(roomId),
+        jsonPath(path(root, ".language")).value(LANGUAGE),
+        jsonPath(path(root, ".status")).value("IN_PROGRESS"),
+        jsonPath(path(root, ".players"), contains(PLAYER_ID_1, PLAYER_ID_2)),
+        jsonPath(path(root, ".scores.p1")).value(0),
+        jsonPath(path(root, ".scores.p2")).value(0),
+        jsonPath(path(root, ".currentRound.roundNumber")).value(roundNumber),
+        jsonPath(path(root, ".currentRound.maxAttempts")).value(MAX_ATTEMPTS),
+        jsonPath(path(root, ".currentRound.finished")).value(finished),
+        jsonPath(path(root, ".currentRound.statusByPlayerId.p1")).value(p1Status),
+        jsonPath(path(root, ".currentRound.statusByPlayerId.p2")).value(p2Status));
+  }
+
+  private void expectSingleGuess(
+      ResultActions res,
+      String root,
+      String playerId,
+      String word,
+      int attemptNumber) throws Exception {
+    res.andExpectAll(
+        jsonPath(path(root, ".currentRound.guessesByPlayerId." + playerId), hasSize(1)),
+        jsonPath(path(root, ".currentRound.guessesByPlayerId." + playerId + "[0].word")).value(
+            word),
+        jsonPath(
+            path(root, ".currentRound.guessesByPlayerId." + playerId + "[0].attemptNumber")).value(
+            attemptNumber),
+        jsonPath(path(root, ".currentRound.guessesByPlayerId." + playerId + "[0].letters"),
+            hasSize(word.length())));
+
+    expectGuessLetters(res, root, playerId, 0, word);
+  }
+
+  private void expectGuessWordOnly(ResultActions res, String root, String playerId, String word)
+      throws Exception {
+    res.andExpectAll(
+        jsonPath(path(root, ".currentRound.guessesByPlayerId." + playerId), hasSize(1)),
+        jsonPath(path(root, ".currentRound.guessesByPlayerId." + playerId + "[0].word"))
+            .value(word));
+  }
+
+  private void expectNoGuesses(ResultActions res, String root, String playerId) throws Exception {
+    res.andExpect(
+        jsonPath(path(root, ".currentRound.guessesByPlayerId." + playerId)).doesNotExist());
+  }
+
+  private void expectGuessLetters(
+      ResultActions res,
+      String root,
+      String playerId,
+      int guessIndex,
+      String word) throws Exception {
+    for (var i = 0; i < word.length(); i++) {
+      res.andExpect(jsonPath(
+          path(root, ".currentRound.guessesByPlayerId." + playerId + "[" + guessIndex
+              + "].letters[" + i + "].letter")).value(String.valueOf(word.charAt(i))));
+
+      res.andExpect(jsonPath(
+          path(root, ".currentRound.guessesByPlayerId." + playerId + "[" + guessIndex
+              + "].letters[" + i + "].status")).value(is(oneOf("ABSENT", "PRESENT", "CORRECT"))));
+    }
+  }
+
+  private static String path(String root, String suffix) {
+    return root + suffix;
   }
 }

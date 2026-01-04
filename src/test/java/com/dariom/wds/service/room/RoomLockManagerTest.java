@@ -13,7 +13,7 @@ class RoomLockManagerTest {
   private final RoomLockManager roomLockManager = new RoomLockManager();
 
   @Test
-  void withRoomLock_givenSameRoomId_serializesAccess() throws Exception {
+  void withRoomLock_sameRoomId_serializesAccess() throws Exception {
     // Arrange
     var inCriticalSection = new AtomicInteger(0);
     var maxConcurrentInCriticalSection = new AtomicInteger(0);
@@ -62,7 +62,7 @@ class RoomLockManagerTest {
   }
 
   @Test
-  void withRoomLock_givenManyRoomIds_doesNotLeakLocks() {
+  void withRoomLock_manyRoomIds_doesNotLeakLocks() {
     // Arrange
     var iterations = 2_000;
 
