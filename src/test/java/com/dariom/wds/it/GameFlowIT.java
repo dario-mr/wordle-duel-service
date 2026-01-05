@@ -85,9 +85,9 @@ class GameFlowIT {
         .andExpect(jsonPath("$.id", not(emptyOrNullString())))
         .andExpect(jsonPath("$.language").value(LANGUAGE))
         .andExpect(jsonPath("$.status").value("WAITING_FOR_PLAYERS"))
-        .andExpect(jsonPath("$.players", contains(playerId)))
-        .andExpect(jsonPath("$.scores.p1").value(0))
-        .andExpect(jsonPath("$.scores.p2").doesNotExist())
+        .andExpect(jsonPath("$.players[*].id", contains(playerId)))
+        .andExpect(jsonPath("$.players[0].score").value(0))
+        .andExpect(jsonPath("$.players", hasSize(1)))
         .andExpect(jsonPath("$.currentRound").value(nullValue()))
         .andReturn();
 
@@ -127,9 +127,9 @@ class GameFlowIT {
         jsonPath(path(root, ".id")).value(roomId),
         jsonPath(path(root, ".language")).value(LANGUAGE),
         jsonPath(path(root, ".status")).value("IN_PROGRESS"),
-        jsonPath(path(root, ".players"), contains(PLAYER_ID_1, PLAYER_ID_2)),
-        jsonPath(path(root, ".scores.p1")).value(0),
-        jsonPath(path(root, ".scores.p2")).value(0),
+        jsonPath(path(root, ".players[*].id"), contains(PLAYER_ID_1, PLAYER_ID_2)),
+        jsonPath(path(root, ".players[0].score")).value(0),
+        jsonPath(path(root, ".players[1].score")).value(0),
         jsonPath(path(root, ".currentRound.roundNumber")).value(roundNumber),
         jsonPath(path(root, ".currentRound.maxAttempts")).value(MAX_ATTEMPTS),
         jsonPath(path(root, ".currentRound.finished")).value(finished),

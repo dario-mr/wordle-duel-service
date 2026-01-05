@@ -23,8 +23,7 @@ public class RoomValidator {
   }
 
   private static void validateRoomNotFull(Room room, String playerId, int maxPlayers) {
-    if (!room.players().contains(playerId)
-        && room.players().size() >= maxPlayers) {
+    if (!room.hasPlayer(playerId) && room.players().size() >= maxPlayers) {
       throw new RoomFullException(room.id());
     }
   }

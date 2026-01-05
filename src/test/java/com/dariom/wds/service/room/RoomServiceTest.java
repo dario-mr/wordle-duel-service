@@ -12,6 +12,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.dariom.wds.domain.Player;
 import com.dariom.wds.domain.Round;
 import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.repository.jpa.RoomJpaRepository;
@@ -75,8 +76,8 @@ class RoomServiceTest {
     // Assert
     assertThat(room.id()).isNotBlank();
     assertThat(room.status()).isEqualTo(WAITING_FOR_PLAYERS);
-    assertThat(room.players()).containsExactly("p1");
-    assertThat(room.scoresByPlayerId()).containsEntry("p1", 0);
+    assertThat(room.players()).extracting(Player::id).containsExactly("p1");
+    assertThat(room.players()).singleElement().satisfies(p -> assertThat(p.score()).isEqualTo(0));
 
     var eventCaptor = ArgumentCaptor.forClass(RoomEventToPublish.class);
     verify(applicationEventPublisher).publishEvent(eventCaptor.capture());
@@ -110,8 +111,11 @@ class RoomServiceTest {
 
     // Assert
     assertThat(room.status()).isEqualTo(IN_PROGRESS);
-    assertThat(room.players()).containsExactly("p1", "p2");
-    assertThat(room.scoresByPlayerId()).containsEntry("p2", 0);
+    assertThat(room.players()).extracting(Player::id).containsExactly("p1", "p2");
+    assertThat(room.players())
+        .filteredOn(p -> p.id().equals("p2"))
+        .singleElement()
+        .satisfies(p -> assertThat(p.score()).isEqualTo(0));
     assertThat(room.currentRound()).isNotNull();
 
     verify(roundService).startNewRound("room-1");
@@ -139,8 +143,8 @@ class RoomServiceTest {
     var room = roomService.joinRoom("room-1", "p1");
 
     // Assert
-    assertThat(room.players()).containsExactly("p1");
-    assertThat(room.scoresByPlayerId()).containsEntry("p1", 5);
+    assertThat(room.players()).extracting(Player::id).containsExactly("p1");
+    assertThat(room.players()).singleElement().satisfies(p -> assertThat(p.score()).isEqualTo(5));
 
     verify(roundService, never()).startNewRound(anyString());
   }
@@ -159,8 +163,8 @@ class RoomServiceTest {
 
     // Assert
     assertThat(room.status()).isEqualTo(WAITING_FOR_PLAYERS);
-    assertThat(room.players()).containsExactly("p1");
-    assertThat(room.scoresByPlayerId()).containsEntry("p1", 0);
+    assertThat(room.players()).extracting(Player::id).containsExactly("p1");
+    assertThat(room.players()).singleElement().satisfies(p -> assertThat(p.score()).isEqualTo(0));
     assertThat(room.id()).isEqualTo("room-1");
     assertThat(room.language()).isEqualTo(IT);
     assertThat(room.currentRound()).isNull();

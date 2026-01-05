@@ -6,8 +6,10 @@ import static com.dariom.wds.domain.LetterStatus.CORRECT;
 import static com.dariom.wds.domain.RoomStatus.WAITING_FOR_PLAYERS;
 import static com.dariom.wds.domain.RoundPlayerStatus.PLAYING;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import com.dariom.wds.domain.Guess;
+import com.dariom.wds.domain.Player;
 import com.dariom.wds.persistence.entity.GuessEntity;
 import com.dariom.wds.persistence.entity.LetterResultEmbeddable;
 import com.dariom.wds.persistence.entity.RoomEntity;
@@ -37,11 +39,12 @@ class DomainMapperTest {
     var room = mapper.toRoom(entity, null);
 
     // Assert
-    assertThat(room.players()).containsExactly("a", "b");
-    assertThat(room.scoresByPlayerId().keySet()).containsExactly("a", "b");
-    assertThat(room.scoresByPlayerId())
-        .containsEntry("a", 2)
-        .containsEntry("b", 1);
+    assertThat(room.players())
+        .extracting(Player::id, Player::score)
+        .containsExactly(
+            tuple("a", 2),
+            tuple("b", 1)
+        );
   }
 
   @Test

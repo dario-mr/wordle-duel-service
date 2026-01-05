@@ -43,7 +43,7 @@ public class GuessEntity {
   @Column(name = "attempt_number")
   private int attemptNumber;
 
-  @Column(name = "created_at")
+  @Column(name = "created_at", updatable = false)
   private Instant createdAt;
 
   @ElementCollection(fetch = LAZY)

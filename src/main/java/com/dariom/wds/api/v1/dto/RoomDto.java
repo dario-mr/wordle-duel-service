@@ -4,7 +4,6 @@ import com.dariom.wds.domain.Language;
 import com.dariom.wds.domain.RoomStatus;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.util.List;
-import java.util.Map;
 
 public record RoomDto(
     @JsonProperty("id")
@@ -14,9 +13,7 @@ public record RoomDto(
     @JsonProperty("status")
     RoomStatus status,
     @JsonProperty("players")
-    List<String> players,
-    @JsonProperty("scores")
-    Map<String, Integer> scoresByPlayerId,
+    List<PlayerDto> players,
     @JsonProperty("currentRound")
     RoundDto currentRound
 ) {

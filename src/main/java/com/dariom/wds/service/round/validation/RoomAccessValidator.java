@@ -17,7 +17,7 @@ public class RoomAccessValidator {
       throw new InvalidGuessException(ROOM_NOT_IN_PROGRESS, "Room is not in progress");
     }
 
-    if (!room.players().contains(playerId)) {
+    if (!room.hasPlayer(playerId)) {
       throw new PlayerNotInRoomException(playerId, room.id());
     }
   }

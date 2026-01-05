@@ -7,11 +7,11 @@ import static com.dariom.wds.domain.RoomStatus.WAITING_FOR_PLAYERS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
+import com.dariom.wds.domain.Player;
 import com.dariom.wds.domain.Room;
 import com.dariom.wds.exception.InvalidGuessException;
 import com.dariom.wds.exception.PlayerNotInRoomException;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class RoomAccessValidatorTest {
@@ -23,8 +23,7 @@ class RoomAccessValidatorTest {
         "room-1",
         IT,
         WAITING_FOR_PLAYERS,
-        List.of("p1"),
-        Map.of("p1", 0),
+        List.of(new Player("p1", 0)),
         null
     );
 
@@ -45,8 +44,7 @@ class RoomAccessValidatorTest {
         "room-1",
         IT,
         IN_PROGRESS,
-        List.of("p1"),
-        Map.of("p1", 0),
+        List.of(new Player("p1", 0)),
         null
     );
 
@@ -67,8 +65,7 @@ class RoomAccessValidatorTest {
         "room-1",
         IT,
         IN_PROGRESS,
-        List.of("p1"),
-        Map.of("p1", 0),
+        List.of(new Player("p1", 0)),
         null
     );
 

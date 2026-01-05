@@ -14,11 +14,11 @@ import com.dariom.wds.api.v1.dto.JoinRoomRequest;
 import com.dariom.wds.api.v1.dto.SubmitGuessRequest;
 import com.dariom.wds.api.v1.mapper.RoomMapper;
 import com.dariom.wds.domain.Language;
+import com.dariom.wds.domain.Player;
 import com.dariom.wds.domain.Room;
 import com.dariom.wds.service.room.RoomService;
 import com.dariom.wds.service.round.RoundService;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -64,8 +64,7 @@ class RoomControllerTest {
         "room-1",
         IT,
         WAITING_FOR_PLAYERS,
-        List.of("p1"),
-        Map.of("p1", 0),
+        List.of(new Player("p1", 0)),
         null
     );
     var expectedDto = roomMapper.toDto(domainRoom);
@@ -91,8 +90,7 @@ class RoomControllerTest {
         "room-1",
         IT,
         WAITING_FOR_PLAYERS,
-        List.of("p1"),
-        Map.of("p1", 0),
+        List.of(new Player("p1", 0)),
         null
     );
     var expectedDto = roomMapper.toDto(domainRoom);
@@ -116,8 +114,7 @@ class RoomControllerTest {
         "room-1",
         IT,
         IN_PROGRESS,
-        List.of("p1"),
-        Map.of("p1", 0),
+        List.of(new Player("p1", 0)),
         null
     );
     var expectedDto = roomMapper.toDto(domainRoom);

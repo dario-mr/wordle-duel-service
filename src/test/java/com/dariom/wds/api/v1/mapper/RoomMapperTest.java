@@ -6,8 +6,10 @@ import static com.dariom.wds.domain.RoomStatus.IN_PROGRESS;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.dariom.wds.api.v1.dto.GuessDto;
+import com.dariom.wds.api.v1.dto.PlayerDto;
 import com.dariom.wds.domain.Guess;
 import com.dariom.wds.domain.LetterResult;
+import com.dariom.wds.domain.Player;
 import com.dariom.wds.domain.Room;
 import com.dariom.wds.domain.Round;
 import com.dariom.wds.domain.RoundPlayerStatus;
@@ -32,7 +34,7 @@ class RoomMapperTest {
     );
 
     var room = new Room("room-1", IT, IN_PROGRESS,
-        List.of("p1"), Map.of("p1", 0),
+        List.of(new Player("p1", 0)),
         round
     );
 
@@ -45,6 +47,8 @@ class RoomMapperTest {
     assertThat(dto.currentRound().guessesByPlayerId().get("p1"))
         .extracting(GuessDto::attemptNumber)
         .containsExactly(1, 2);
-    assertThat(dto.scoresByPlayerId().keySet()).containsExactly("p1");
+    assertThat(dto.players())
+        .extracting(PlayerDto::id)
+        .containsExactly("p1");
   }
 }

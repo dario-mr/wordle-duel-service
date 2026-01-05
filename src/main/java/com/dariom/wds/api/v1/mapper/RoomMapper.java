@@ -1,17 +1,20 @@
 package com.dariom.wds.api.v1.mapper;
 
+import static java.util.Collections.emptyList;
 import static java.util.Comparator.comparingInt;
 import static java.util.stream.Collectors.toMap;
 
 import com.dariom.wds.api.v1.dto.GuessDto;
 import com.dariom.wds.api.v1.dto.LetterResultDto;
+import com.dariom.wds.api.v1.dto.PlayerDto;
 import com.dariom.wds.api.v1.dto.RoomDto;
 import com.dariom.wds.api.v1.dto.RoundDto;
 import com.dariom.wds.domain.Guess;
+import com.dariom.wds.domain.Player;
 import com.dariom.wds.domain.Room;
 import com.dariom.wds.domain.Round;
+import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -22,10 +25,19 @@ public class RoomMapper {
         room.id(),
         room.language(),
         room.status(),
-        room.players(),
-        new TreeMap<>(room.scoresByPlayerId()),
+        toPlayerDto(room.players()),
         toRoundDto(room.currentRound())
     );
+  }
+
+  private List<PlayerDto> toPlayerDto(List<Player> players) {
+    if (players == null) {
+      return emptyList();
+    }
+
+    return players.stream()
+        .map(p -> new PlayerDto(p.id(), p.score()))
+        .toList();
   }
 
   private RoundDto toRoundDto(Round round) {

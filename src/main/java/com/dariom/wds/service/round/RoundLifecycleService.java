@@ -97,7 +97,7 @@ class RoundLifecycleService {
 
     for (var pid : room.getPlayerIds()) {
       if (round.getPlayerStatus(pid) == WON) {
-        room.getScoresByPlayerId().merge(pid, 1, Integer::sum);
+        room.incrementPlayerScore(pid, 1);
       }
     }
 
