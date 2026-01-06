@@ -55,6 +55,22 @@ public class DomainMapper {
     );
   }
 
+  public int safePlayersCount(RoomEntity room) {
+    if (room == null || room.getRoomPlayers() == null) {
+      return 0;
+    }
+
+    return room.getRoomPlayers().size();
+  }
+
+  public boolean hasAnyScore(RoomEntity room) {
+    if (room == null || room.getRoomPlayers() == null) {
+      return false;
+    }
+
+    return room.getRoomPlayers().stream().anyMatch(p -> p.getScore() > 0);
+  }
+
   private List<Player> toPlayers(Set<RoomPlayerEntity> roomPlayers) {
     if (roomPlayers == null) {
       return emptyList();

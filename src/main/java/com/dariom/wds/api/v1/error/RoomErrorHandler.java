@@ -43,6 +43,13 @@ public class RoomErrorHandler {
         .body(new ErrorResponse(UNKNOWN_ERROR, "Unexpected error"));
   }
 
+  @ExceptionHandler(RuntimeException.class)
+  public ResponseEntity<ErrorResponse> handleDummy(RuntimeException ex, HttpServletRequest req) {
+    log.error("Unhandled error: {} {}", req.getMethod(), req.getRequestURI(), ex);
+    return ResponseEntity.status(INTERNAL_SERVER_ERROR)
+        .body(new ErrorResponse(UNKNOWN_ERROR, "Unexpected error"));
+  }
+
   @ExceptionHandler(RoomNotFoundException.class)
   public ResponseEntity<ErrorResponse> handleRoomNotFound(RoomNotFoundException ex) {
     log.warn(ex.getMessage());
