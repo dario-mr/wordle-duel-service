@@ -9,6 +9,7 @@ permissions:
 
 jobs:
   coverage:
-    uses: dario-mr/ci-pipelines/.github/workflows/java-coverage.yml@main
+    uses: dario-mr/ci-pipelines/.github/workflows/java-coverage.yml@feature/coverage-diff
     with:
       pull-request-number: ${{ github.event.pull_request.number }}
+      ci-pipelines-ref: 'feature/coverage-diff'
