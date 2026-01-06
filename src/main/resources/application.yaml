@@ -3,9 +3,15 @@ server:
   forward-headers-strategy: framework # honor the original external request context (host, scheme, prefix)
 
 spring:
-  application.name: wordle
+  application.name: wordle-duel-service
   profiles.active: ${PROFILE:prod}
   config.import: optional:file:.env[.properties] # enable scanning of .env file
+  liquibase:
+    change-log: classpath:db/changelog/db.changelog-master.yaml
+    default-schema: wordle
+    liquibase-schema: wordle
+  jpa:
+    properties.hibernate.default_schema: wordle
 
 management:
   endpoints:
@@ -15,3 +21,7 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+
+wordle:
+  max-attempts: 6
+  word-length: 5

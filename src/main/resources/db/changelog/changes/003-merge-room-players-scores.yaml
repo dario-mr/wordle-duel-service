@@ -1,0 +1,36 @@
+databaseChangeLog:
+  - changeSet:
+      id: 004-merge-room-players-scores
+      author: dariom
+      changes:
+        - addColumn:
+            schemaName: wordle
+            tableName: room_players
+            columns:
+              - column:
+                  name: score
+                  type: int
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+
+        - sql:
+            sql: >
+              UPDATE wordle.room_players rp
+              SET score = COALESCE(
+                (
+                  SELECT rs.score
+                  FROM wordle.room_scores rs
+                  WHERE rs.room_id = rp.room_id AND rs.player_id = rp.player_id
+                ),
+                0
+              );
+
+        - dropForeignKeyConstraint:
+            baseTableSchemaName: wordle
+            baseTableName: room_scores
+            constraintName: fk_room_scores_room
+
+        - dropTable:
+            schemaName: wordle
+            tableName: room_scores

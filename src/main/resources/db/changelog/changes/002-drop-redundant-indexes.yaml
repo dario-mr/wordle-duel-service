@@ -1,0 +1,32 @@
+databaseChangeLog:
+  - changeSet:
+      id: 002-drop-redundant-rounds-index
+      author: dariom
+      preConditions:
+        - onFail: MARK_RAN
+        - onError: HALT
+        - indexExists:
+            schemaName: wordle
+            tableName: rounds
+            indexName: idx_rounds_room_id_round_number
+      changes:
+        - dropIndex:
+            schemaName: wordle
+            tableName: rounds
+            indexName: idx_rounds_room_id_round_number
+
+  - changeSet:
+      id: 003-drop-redundant-dictionary-language-index
+      author: dariom
+      preConditions:
+        - onFail: MARK_RAN
+        - onError: HALT
+        - indexExists:
+            schemaName: wordle
+            tableName: dictionary_words
+            indexName: idx_dictionary_words_language
+      changes:
+        - dropIndex:
+            schemaName: wordle
+            tableName: dictionary_words
+            indexName: idx_dictionary_words_language

@@ -1,0 +1,363 @@
+databaseChangeLog:
+  - changeSet:
+      id: 000-create-schema
+      author: dariom
+      changes:
+        - sql:
+            sql: CREATE SCHEMA IF NOT EXISTS wordle;
+
+  - changeSet:
+      id: 001-initial-schema
+      author: dariom
+      changes:
+        - createTable:
+            schemaName: wordle
+            tableName: rooms
+            columns:
+              - column:
+                  name: id
+                  type: varchar(36)
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: language
+                  type: varchar(10)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: varchar(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: current_round_number
+                  type: int
+              - column:
+                  name: created_at
+                  type: timestamp
+              - column:
+                  name: last_updated_at
+                  type: timestamp
+
+        - createTable:
+            schemaName: wordle
+            tableName: rounds
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: round_number
+                  type: int
+                  constraints:
+                    nullable: false
+              - column:
+                  name: room_id
+                  type: varchar(36)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: target_word
+                  type: varchar(16)
+              - column:
+                  name: max_attempts
+                  type: int
+                  constraints:
+                    nullable: false
+              - column:
+                  name: finished
+                  type: boolean
+                  constraints:
+                    nullable: false
+              - column:
+                  name: started_at
+                  type: timestamp
+              - column:
+                  name: finished_at
+                  type: timestamp
+
+        - createTable:
+            schemaName: wordle
+            tableName: guesses
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: round_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: guess_order
+                  type: int
+              - column:
+                  name: player_id
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: word
+                  type: varchar(16)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: attempt_number
+                  type: int
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+
+        - createTable:
+            schemaName: wordle
+            tableName: dictionary_words
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: language
+                  type: varchar(10)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: is_answer
+                  type: boolean
+                  constraints:
+                    nullable: false
+              - column:
+                  name: word
+                  type: varchar(16)
+                  constraints:
+                    nullable: false
+
+        - createTable:
+            schemaName: wordle
+            tableName: room_players
+            columns:
+              - column:
+                  name: room_id
+                  type: varchar(36)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: player_id
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+
+        - createTable:
+            schemaName: wordle
+            tableName: room_scores
+            columns:
+              - column:
+                  name: room_id
+                  type: varchar(36)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: player_id
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: score
+                  type: int
+                  constraints:
+                    nullable: false
+
+        - createTable:
+            schemaName: wordle
+            tableName: round_player_status
+            columns:
+              - column:
+                  name: round_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: player_id
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: varchar(32)
+                  constraints:
+                    nullable: false
+
+        - createTable:
+            schemaName: wordle
+            tableName: guess_letters
+            columns:
+              - column:
+                  name: guess_id
+                  type: bigint
+                  constraints:
+                    nullable: false
+              - column:
+                  name: letter_order
+                  type: int
+                  constraints:
+                    nullable: false
+              - column:
+                  name: letter
+                  type: char(1)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: status
+                  type: varchar(32)
+                  constraints:
+                    nullable: false
+
+        - addPrimaryKey:
+            schemaName: wordle
+            tableName: room_players
+            columnNames: room_id, player_id
+            constraintName: pk_room_players
+
+        - addPrimaryKey:
+            schemaName: wordle
+            tableName: room_scores
+            columnNames: room_id, player_id
+            constraintName: pk_room_scores
+
+        - addPrimaryKey:
+            schemaName: wordle
+            tableName: round_player_status
+            columnNames: round_id, player_id
+            constraintName: pk_round_player_status
+
+        - addPrimaryKey:
+            schemaName: wordle
+            tableName: guess_letters
+            columnNames: guess_id, letter_order
+            constraintName: pk_guess_letters
+
+        - addForeignKeyConstraint:
+            baseTableSchemaName: wordle
+            baseTableName: rounds
+            baseColumnNames: room_id
+            referencedTableSchemaName: wordle
+            referencedTableName: rooms
+            referencedColumnNames: id
+            constraintName: fk_rounds_room
+            onDelete: CASCADE
+
+        - addForeignKeyConstraint:
+            baseTableSchemaName: wordle
+            baseTableName: guesses
+            baseColumnNames: round_id
+            referencedTableSchemaName: wordle
+            referencedTableName: rounds
+            referencedColumnNames: id
+            constraintName: fk_guesses_round
+            onDelete: CASCADE
+
+        - addForeignKeyConstraint:
+            baseTableSchemaName: wordle
+            baseTableName: room_players
+            baseColumnNames: room_id
+            referencedTableSchemaName: wordle
+            referencedTableName: rooms
+            referencedColumnNames: id
+            constraintName: fk_room_players_room
+            onDelete: CASCADE
+
+        - addForeignKeyConstraint:
+            baseTableSchemaName: wordle
+            baseTableName: room_scores
+            baseColumnNames: room_id
+            referencedTableSchemaName: wordle
+            referencedTableName: rooms
+            referencedColumnNames: id
+            constraintName: fk_room_scores_room
+            onDelete: CASCADE
+
+        - addForeignKeyConstraint:
+            baseTableSchemaName: wordle
+            baseTableName: round_player_status
+            baseColumnNames: round_id
+            referencedTableSchemaName: wordle
+            referencedTableName: rounds
+            referencedColumnNames: id
+            constraintName: fk_round_player_status_round
+            onDelete: CASCADE
+
+        - addForeignKeyConstraint:
+            baseTableSchemaName: wordle
+            baseTableName: guess_letters
+            baseColumnNames: guess_id
+            referencedTableSchemaName: wordle
+            referencedTableName: guesses
+            referencedColumnNames: id
+            constraintName: fk_guess_letters_guess
+            onDelete: CASCADE
+
+        - addUniqueConstraint:
+            schemaName: wordle
+            tableName: dictionary_words
+            columnNames: language, word
+            constraintName: uk_dictionary_words_language_word
+
+        - createIndex:
+            schemaName: wordle
+            tableName: dictionary_words
+            indexName: idx_dictionary_words_language
+            columns:
+              - column:
+                  name: language
+
+        - createIndex:
+            schemaName: wordle
+            tableName: dictionary_words
+            indexName: idx_dictionary_words_language_is_answer
+            columns:
+              - column:
+                  name: language
+              - column:
+                  name: is_answer
+
+        - addUniqueConstraint:
+            schemaName: wordle
+            tableName: rounds
+            columnNames: room_id, round_number
+            constraintName: uk_rounds_room_round_number
+
+        - createIndex:
+            schemaName: wordle
+            tableName: rounds
+            indexName: idx_rounds_room_id_round_number
+            columns:
+              - column:
+                  name: room_id
+              - column:
+                  name: round_number
+
+        - createIndex:
+            schemaName: wordle
+            tableName: guesses
+            indexName: idx_guesses_round_id_guess_order
+            columns:
+              - column:
+                  name: round_id
+              - column:
+                  name: guess_order
