@@ -4,3 +4,9 @@ spring:
   jpa:
     hibernate.ddl-auto: validate
   h2.console.enabled: true
+
+wds:
+  websocket:
+    allowed-origins:
+      - "http://localhost:${server.port}"
+      - "http://localhost:3000"

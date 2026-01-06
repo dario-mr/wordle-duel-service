@@ -7,3 +7,8 @@ spring:
 wordle:
   max-attempts: 1
   word-length: 5
+
+wds:
+  websocket:
+    allowed-origins:
+      - "http://allowed-origin.test"

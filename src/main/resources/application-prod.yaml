@@ -3,3 +3,8 @@ spring:
     url: jdbc:postgresql://aws-0-eu-central-1.pooler.supabase.com:${DB_PORT}/postgres?prepareThreshold=0&currentSchema=wordle
     username: ${DB_USER}
     password: ${DB_PASSWORD}
+
+wds:
+  websocket:
+    allowed-origins:
+      - "https://dariolab.com"
