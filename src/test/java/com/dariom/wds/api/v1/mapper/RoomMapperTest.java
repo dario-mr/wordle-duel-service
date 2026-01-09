@@ -13,6 +13,7 @@ import com.dariom.wds.domain.Player;
 import com.dariom.wds.domain.Room;
 import com.dariom.wds.domain.Round;
 import com.dariom.wds.domain.RoundPlayerStatus;
+import com.dariom.wds.domain.RoundStatus;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -30,7 +31,8 @@ class RoomMapperTest {
     var round = new Round(1, 6,
         Map.of("p1", List.of(guess2, guess1)),
         Map.of("p1", RoundPlayerStatus.PLAYING),
-        false
+        RoundStatus.PLAYING,
+        null
     );
 
     var room = new Room("room-1", IT, IN_PROGRESS,

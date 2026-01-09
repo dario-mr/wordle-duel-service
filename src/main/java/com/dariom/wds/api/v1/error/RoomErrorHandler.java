@@ -4,6 +4,7 @@ import static com.dariom.wds.api.v1.error.ErrorCode.DICTIONARY_EMPTY;
 import static com.dariom.wds.api.v1.error.ErrorCode.GENERIC_BAD_REQUEST;
 import static com.dariom.wds.api.v1.error.ErrorCode.INVALID_LANGUAGE;
 import static com.dariom.wds.api.v1.error.ErrorCode.INVALID_PLAYER_ID;
+import static com.dariom.wds.api.v1.error.ErrorCode.INVALID_ROUND_NUMBER;
 import static com.dariom.wds.api.v1.error.ErrorCode.INVALID_WORD;
 import static com.dariom.wds.api.v1.error.ErrorCode.PLAYER_NOT_IN_ROOM;
 import static com.dariom.wds.api.v1.error.ErrorCode.ROOM_CLOSED;
@@ -25,6 +26,7 @@ import com.dariom.wds.exception.RoomClosedException;
 import com.dariom.wds.exception.RoomFullException;
 import com.dariom.wds.exception.RoomNotFoundException;
 import com.dariom.wds.exception.RoomNotReadyException;
+import com.dariom.wds.exception.RoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -85,6 +87,13 @@ public class RoomErrorHandler {
         .body(new ErrorResponse(ex.getCode(), ex.getMessage()));
   }
 
+  @ExceptionHandler(RoundException.class)
+  public ResponseEntity<ErrorResponse> handleRoundException(RoundException ex) {
+    log.warn("Invalid round: code={}, message={}", ex.getCode(), ex.getMessage());
+    return ResponseEntity.status(CONFLICT)
+        .body(new ErrorResponse(ex.getCode(), ex.getMessage()));
+  }
+
   @ExceptionHandler(DictionaryEmptyException.class)
   public ResponseEntity<ErrorResponse> handleDictionaryEmpty(DictionaryEmptyException ex) {
     log.error(ex.getMessage());
@@ -111,6 +120,7 @@ public class RoomErrorHandler {
       case "playerId" -> INVALID_PLAYER_ID;
       case "word" -> INVALID_WORD;
       case "language" -> INVALID_LANGUAGE;
+      case "roundNumber" -> INVALID_ROUND_NUMBER;
       default -> GENERIC_BAD_REQUEST;
     };
 

@@ -9,4 +9,4 @@ wds:
   websocket:
     allowed-origins:
       - "http://localhost:${server.port}"
-      - "http://localhost:3000"
+      - "http://localhost:3001"

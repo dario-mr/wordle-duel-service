@@ -2,18 +2,22 @@ package com.dariom.wds.service.round;
 
 import static com.dariom.wds.domain.RoundPlayerStatus.PLAYING;
 import static com.dariom.wds.domain.RoundPlayerStatus.WON;
-import static com.dariom.wds.websocket.model.EventType.ROUND_FINISHED;
+import static com.dariom.wds.domain.RoundStatus.ENDED;
 import static com.dariom.wds.websocket.model.EventType.ROUND_STARTED;
 import static com.dariom.wds.websocket.model.EventType.SCORES_UPDATED;
 
+import com.dariom.wds.api.v1.error.ErrorCode;
 import com.dariom.wds.config.WordleProperties;
 import com.dariom.wds.domain.Language;
+import com.dariom.wds.domain.RoundStatus;
 import com.dariom.wds.exception.DictionaryEmptyException;
+import com.dariom.wds.exception.InvalidGuessException;
 import com.dariom.wds.exception.RoomNotReadyException;
 import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.entity.RoundEntity;
 import com.dariom.wds.persistence.repository.DictionaryRepository;
 import com.dariom.wds.persistence.repository.jpa.RoundJpaRepository;
+import com.dariom.wds.websocket.model.EventType;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
 import com.dariom.wds.websocket.model.RoundFinishedPayload;
@@ -42,10 +46,18 @@ class RoundLifecycleService {
       return startNewRoundEntity(room);
     }
 
-    return roundJpaRepository
+    var round = roundJpaRepository
         .findWithDetailsByRoomIdAndRoundNumber(room.getId(), room.getCurrentRoundNumber())
-        .filter(round -> !round.isFinished())
         .orElseGet(() -> startNewRoundEntity(room));
+
+    if (round.getRoundStatus() == ENDED) {
+      throw new InvalidGuessException(
+          ErrorCode.ROUND_FINISHED,
+          "Round is finished. Start a new round before submitting guesses."
+      );
+    }
+
+    return round;
   }
 
   public RoundEntity startNewRoundEntity(RoomEntity room) {
@@ -64,7 +76,7 @@ class RoundLifecycleService {
     round.setRoundNumber(nextRoundNumber);
     round.setTargetWord(targetWord);
     round.setMaxAttempts(properties.maxAttempts());
-    round.setFinished(false);
+    round.setRoundStatus(RoundStatus.PLAYING);
     round.setStartedAt(Instant.now(clock));
 
     for (var playerId : room.getPlayerIds()) {
@@ -92,7 +104,7 @@ class RoundLifecycleService {
   }
 
   public void finishRound(RoundEntity round, RoomEntity room) {
-    round.setFinished(true);
+    round.setRoundStatus(ENDED);
     round.setFinishedAt(Instant.now(clock));
 
     for (var pid : room.getPlayerIds()) {
@@ -102,7 +114,7 @@ class RoundLifecycleService {
     }
 
     publishRoomEvent(room.getId(), new RoomEvent(
-        ROUND_FINISHED,
+        EventType.ROUND_FINISHED,
         new RoundFinishedPayload(round.getRoundNumber())
     ));
 

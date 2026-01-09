@@ -3,6 +3,7 @@ package com.dariom.wds.service.room;
 import static com.dariom.wds.domain.Language.IT;
 import static com.dariom.wds.domain.RoomStatus.IN_PROGRESS;
 import static com.dariom.wds.domain.RoomStatus.WAITING_FOR_PLAYERS;
+import static com.dariom.wds.domain.RoundStatus.PLAYING;
 import static com.dariom.wds.websocket.model.EventType.PLAYER_JOINED;
 import static com.dariom.wds.websocket.model.EventType.ROOM_CREATED;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -104,7 +105,7 @@ class RoomServiceTest {
     when(roomJpaRepository.save(any(RoomEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
     when(roundService.startNewRound("room-1")).thenReturn(
-        new Round(1, 6, Map.of(), Map.of(), false));
+        new Round(1, 6, Map.of(), Map.of(), PLAYING, null));
 
     // Act
     var room = roomService.joinRoom("room-1", "p2");
@@ -179,7 +180,7 @@ class RoomServiceTest {
     entity.setStatus(IN_PROGRESS);
     entity.setCurrentRoundNumber(1);
 
-    var currentRound = new Round(1, 6, Map.of(), Map.of(), false);
+    var currentRound = new Round(1, 6, Map.of(), Map.of(), PLAYING, null);
 
     when(roomJpaRepository.findWithPlayersAndScoresById(anyString()))
         .thenReturn(Optional.of(entity));

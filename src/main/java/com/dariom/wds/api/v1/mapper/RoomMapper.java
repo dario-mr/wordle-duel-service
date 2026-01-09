@@ -60,7 +60,8 @@ public class RoomMapper {
         guessesByPlayerId,
         round.statusByPlayerId().entrySet().stream()
             .collect(toMap(Map.Entry::getKey, e -> e.getValue().name())),
-        round.finished()
+        round.roundStatus(),
+        round.solution()
     );
   }
 

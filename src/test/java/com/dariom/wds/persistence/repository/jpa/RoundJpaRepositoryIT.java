@@ -6,6 +6,7 @@ import static com.dariom.wds.domain.RoomStatus.IN_PROGRESS;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.dariom.wds.domain.RoundPlayerStatus;
+import com.dariom.wds.domain.RoundStatus;
 import com.dariom.wds.persistence.entity.GuessEntity;
 import com.dariom.wds.persistence.entity.LetterResultEmbeddable;
 import com.dariom.wds.persistence.entity.RoomEntity;
@@ -41,7 +42,7 @@ class RoundJpaRepositoryIT {
     round.setRoundNumber(1);
     round.setTargetWord("PIZZA");
     round.setMaxAttempts(6);
-    round.setFinished(false);
+    round.setRoundStatus(RoundStatus.PLAYING);
 
     round.setPlayerStatus("p1", RoundPlayerStatus.PLAYING);
     round.setPlayerStatus("p2", RoundPlayerStatus.PLAYING);

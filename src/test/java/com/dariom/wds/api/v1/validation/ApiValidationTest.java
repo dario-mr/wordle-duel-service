@@ -21,7 +21,7 @@ class ApiValidationTest {
   private ConstraintViolationBuilder violationBuilder;
 
   @Test
-  void isValid_nullWord_returnsFalse() {
+  void isValidWord_nullWord_returnsFalse() {
     // Arrange
     var validator = new ValidWord.Validator();
 
@@ -33,7 +33,7 @@ class ApiValidationTest {
   }
 
   @Test
-  void isValid_blankWord_returnsFalse() {
+  void isValidWord_blankWord_returnsFalse() {
     // Arrange
     var validator = new ValidWord.Validator();
 
@@ -45,7 +45,7 @@ class ApiValidationTest {
   }
 
   @Test
-  void isValid_nonBlankWord_returnsTrue() {
+  void isValidWord_nonBlankWord_returnsTrue() {
     // Arrange
     var validator = new ValidWord.Validator();
 
@@ -57,7 +57,7 @@ class ApiValidationTest {
   }
 
   @Test
-  void isValid_nullPlayerId_returnsFalse() {
+  void isValidPlayerId_nullPlayerId_returnsFalse() {
     // Arrange
     var validator = new ValidPlayerId.Validator();
 
@@ -69,7 +69,7 @@ class ApiValidationTest {
   }
 
   @Test
-  void isValid_blankPlayerId_returnsFalse() {
+  void isValidPlayerId_blankPlayerId_returnsFalse() {
     // Arrange
     var validator = new ValidPlayerId.Validator();
 
@@ -81,7 +81,7 @@ class ApiValidationTest {
   }
 
   @Test
-  void isValid_nonBlankPlayerId_returnsTrue() {
+  void isValidPlayerId_nonBlankPlayerId_returnsTrue() {
     // Arrange
     var validator = new ValidPlayerId.Validator();
 
@@ -93,7 +93,7 @@ class ApiValidationTest {
   }
 
   @Test
-  void isValid_validLanguage_returnsTrue() {
+  void isValidLanguage_validLanguage_returnsTrue() {
     // Arrange
     var validator = new ValidLanguage.Validator();
 
@@ -107,7 +107,7 @@ class ApiValidationTest {
   }
 
   @Test
-  void isValid_invalidLanguage_returnsFalseAndOverridesMessage() {
+  void isValidLanguage_invalidLanguage_returnsFalseAndOverridesMessage() {
     // Arrange
     var validator = new ValidLanguage.Validator();
     when(context.buildConstraintViolationWithTemplate("language is invalid"))
@@ -121,5 +121,46 @@ class ApiValidationTest {
     verify(context).disableDefaultConstraintViolation();
     verify(context).buildConstraintViolationWithTemplate("language is invalid");
     verify(violationBuilder).addConstraintViolation();
+  }
+
+  @Test
+  void isValidRoundNumber_nullRoundNumber_returnsFalse() {
+    // Arrange
+    var validator = new ValidRoundNumber.Validator();
+
+    // Act
+    var result = validator.isValid(null, context);
+
+    // Assert
+    assertThat(result).isFalse();
+  }
+
+  @Test
+  void isValidRoundNumber_nonPositiveRoundNumber_returnsFalseAndOverridesMessage() {
+    // Arrange
+    var validator = new ValidRoundNumber.Validator();
+    when(context.buildConstraintViolationWithTemplate("roundNumber must be greater than 1"))
+        .thenReturn(violationBuilder);
+
+    // Act
+    var result = validator.isValid(0, context);
+
+    // Assert
+    assertThat(result).isFalse();
+    verify(context).disableDefaultConstraintViolation();
+    verify(context).buildConstraintViolationWithTemplate("roundNumber must be greater than 1");
+    verify(violationBuilder).addConstraintViolation();
+  }
+
+  @Test
+  void isValidRoundNumber_positiveRoundNumber_returnsTrue() {
+    // Arrange
+    var validator = new ValidRoundNumber.Validator();
+
+    // Act
+    var result = validator.isValid(1, context);
+
+    // Assert
+    assertThat(result).isTrue();
   }
 }

@@ -6,6 +6,7 @@ import static jakarta.persistence.FetchType.LAZY;
 import static jakarta.persistence.GenerationType.IDENTITY;
 
 import com.dariom.wds.domain.RoundPlayerStatus;
+import com.dariom.wds.domain.RoundStatus;
 import jakarta.persistence.CollectionTable;
 import jakarta.persistence.Column;
 import jakarta.persistence.ElementCollection;
@@ -58,8 +59,9 @@ public class RoundEntity {
   @Enumerated(STRING)
   private Map<String, RoundPlayerStatus> statusByPlayerId = new HashMap<>();
 
-  @Column(name = "finished")
-  private boolean finished;
+  @Column(name = "status", nullable = false)
+  @Enumerated(STRING)
+  private RoundStatus roundStatus;
 
   @Column(name = "started_at")
   private Instant startedAt;
