@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import com.dariom.wds.api.v1.dto.CreateRoomRequest;
 import com.dariom.wds.api.v1.dto.JoinRoomRequest;
+import com.dariom.wds.api.v1.dto.ReadyRequest;
 import com.dariom.wds.api.v1.dto.SubmitGuessRequest;
 import com.dariom.wds.api.v1.mapper.RoomMapper;
 import com.dariom.wds.domain.Language;
@@ -130,6 +131,31 @@ class RoomControllerTest {
     assertThat(response.getBody().room()).isEqualTo(expectedDto);
 
     verify(roundService).handleGuess("room-1", "p1", "pizza");
+  }
+
+  @Test
+  void ready_validRequest_returnsOk() {
+    // Arrange
+    var domainRoom = new Room(
+        "room-1",
+        IT,
+        IN_PROGRESS,
+        List.of(new Player("p1", 0)),
+        null
+    );
+    var expectedDto = roomMapper.toDto(domainRoom);
+
+    when(roundService.handleReady(anyString(), anyString(), any(Integer.class))).thenReturn(
+        domainRoom);
+
+    // Act
+    var response = roomController.ready("room-1", new ReadyRequest("p1", 1));
+
+    // Assert
+    assertThat(response.getStatusCode().value()).isEqualTo(200);
+    assertThat(response.getBody()).isEqualTo(expectedDto);
+
+    verify(roundService).handleReady("room-1", "p1", 1);
   }
 
 }

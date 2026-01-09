@@ -8,7 +8,8 @@ public record Round(
     int maxAttempts,
     Map<String, List<Guess>> guessesByPlayerId,
     Map<String, RoundPlayerStatus> statusByPlayerId,
-    boolean finished
+    RoundStatus roundStatus,
+    String solution
 ) {
 
 }

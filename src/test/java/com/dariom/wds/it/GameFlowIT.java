@@ -3,6 +3,7 @@ package com.dariom.wds.it;
 import static org.hamcrest.Matchers.anEmptyMap;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.emptyOrNullString;
+import static org.hamcrest.Matchers.hasLength;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
@@ -48,32 +49,73 @@ class GameFlowIT {
 
     // player2 joins the room
     var joinRoomRes = joinRoom(roomId, PLAYER_ID_2).andExpect(status().isOk());
-    expectRoomInProgress(joinRoomRes, "$", roomId, 1, false, "PLAYING", "PLAYING");
+    expectRoomInProgress(joinRoomRes, "$", roomId, 1, "PLAYING", "PLAYING", "PLAYING");
+    joinRoomRes.andExpect(jsonPath("$.currentRound.solution").doesNotExist());
     joinRoomRes.andExpect(jsonPath("$.currentRound.guessesByPlayerId").value(anEmptyMap()));
+
+    // ready not allowed while round is still playing
+    ready(roomId, PLAYER_ID_1, 1)
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.code").value("ROUND_NOT_ENDED"))
+        .andExpect(jsonPath("$.message", not(emptyOrNullString())));
 
     // player1 submits guess
     var player1GuessRes = submitGuess(roomId, PLAYER_ID_1, WORD).andExpect(status().isOk());
-    expectRoomInProgress(player1GuessRes, "$.room", roomId, 1, false, "LOST", "PLAYING");
+    expectRoomInProgress(player1GuessRes, "$.room", roomId, 1, "PLAYING", "LOST", "PLAYING");
+    player1GuessRes.andExpect(jsonPath("$.room.currentRound.solution").doesNotExist());
     expectSingleGuess(player1GuessRes, "$.room", PLAYER_ID_1, WORD, 1);
     expectNoGuesses(player1GuessRes, "$.room", PLAYER_ID_2);
 
     // player2 submits guess
     var player2GuessRes = submitGuess(roomId, PLAYER_ID_2, WORD).andExpect(status().isOk());
-    expectRoomInProgress(player2GuessRes, "$.room", roomId, 1, true, "LOST", "LOST");
+    expectRoomInProgress(player2GuessRes, "$.room", roomId, 1, "ENDED", "LOST", "LOST");
+    player2GuessRes.andExpect(
+        jsonPath("$.room.currentRound.solution").value(not(emptyOrNullString())));
+    player2GuessRes.andExpect(
+        jsonPath("$.room.currentRound.solution").value(hasLength(WORD.length())));
     expectSingleGuess(player2GuessRes, "$.room", PLAYER_ID_1, WORD, 1);
     expectSingleGuess(player2GuessRes, "$.room", PLAYER_ID_2, WORD, 1);
 
     // round is finished (both players lost)
     var roomRes = getRoom(roomId).andExpect(status().isOk());
-    expectRoomInProgress(roomRes, "$", roomId, 1, true, "LOST", "LOST");
+    expectRoomInProgress(roomRes, "$", roomId, 1, "ENDED", "LOST", "LOST");
+    roomRes.andExpect(jsonPath("$.currentRound.solution").value(not(emptyOrNullString())));
+    roomRes.andExpect(jsonPath("$.currentRound.solution").value(hasLength(WORD.length())));
     expectGuessWordOnly(roomRes, "$", PLAYER_ID_1, WORD);
     expectGuessWordOnly(roomRes, "$", PLAYER_ID_2, WORD);
 
-    // submitting another guess starts a new round
-    var nextRoundGuessRes = submitGuess(roomId, PLAYER_ID_1, WORD).andExpect(status().isOk());
-    expectRoomInProgress(nextRoundGuessRes, "$.room", roomId, 2, false, "LOST", "PLAYING");
-    expectSingleGuess(nextRoundGuessRes, "$.room", PLAYER_ID_1, WORD, 1);
-    expectNoGuesses(nextRoundGuessRes, "$.room", PLAYER_ID_2);
+    // submitting another guess is illegal once round is finished
+    submitGuess(roomId, PLAYER_ID_1, WORD)
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("ROUND_FINISHED"))
+        .andExpect(jsonPath("$.message", not(emptyOrNullString())));
+
+    // room still has the same finished round
+    var roomAfterIllegalGuessRes = getRoom(roomId).andExpect(status().isOk());
+    expectRoomInProgress(roomAfterIllegalGuessRes, "$", roomId, 1, "ENDED", "LOST", "LOST");
+    roomAfterIllegalGuessRes.andExpect(
+        jsonPath("$.currentRound.solution").value(not(emptyOrNullString())));
+
+    // player1 ready (idempotent)
+    var readyP1Res = ready(roomId, PLAYER_ID_1, 1).andExpect(status().isOk());
+    expectRoomInProgress(readyP1Res, "$", roomId, 1, "ENDED", "READY", "LOST");
+    readyP1Res.andExpect(jsonPath("$.currentRound.solution").value(not(emptyOrNullString())));
+
+    ready(roomId, PLAYER_ID_1, 1)
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.currentRound.statusByPlayerId.p1").value("READY"));
+
+    // wrong round number rejected
+    ready(roomId, PLAYER_ID_2, 2)
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.code").value("ROUND_NOT_CURRENT"))
+        .andExpect(jsonPath("$.message", not(emptyOrNullString())));
+
+    // player2 ready triggers next round start
+    var readyP2Res = ready(roomId, PLAYER_ID_2, 1).andExpect(status().isOk());
+    expectRoomInProgress(readyP2Res, "$", roomId, 2, "PLAYING", "PLAYING", "PLAYING");
+    readyP2Res.andExpect(jsonPath("$.currentRound.solution").doesNotExist());
+    readyP2Res.andExpect(jsonPath("$.currentRound.guessesByPlayerId").value(anEmptyMap()));
   }
 
   private String createRoom(String playerId) throws Exception {
@@ -104,6 +146,12 @@ class GameFlowIT {
         roomId);
   }
 
+  private ResultActions ready(String roomId, String playerId, int roundNumber) throws Exception {
+    return postJson(BASE_URL + "/{roomId}/ready",
+        Map.of("playerId", playerId, "roundNumber", roundNumber),
+        roomId);
+  }
+
   private ResultActions getRoom(String roomId) throws Exception {
     return mockMvc.perform(get(BASE_URL + "/{roomId}", roomId));
   }
@@ -120,7 +168,7 @@ class GameFlowIT {
       String root,
       String roomId,
       int roundNumber,
-      boolean finished,
+      String roundStatus,
       String p1Status,
       String p2Status) throws Exception {
     res.andExpectAll(
@@ -132,7 +180,7 @@ class GameFlowIT {
         jsonPath(path(root, ".players[1].score")).value(0),
         jsonPath(path(root, ".currentRound.roundNumber")).value(roundNumber),
         jsonPath(path(root, ".currentRound.maxAttempts")).value(MAX_ATTEMPTS),
-        jsonPath(path(root, ".currentRound.finished")).value(finished),
+        jsonPath(path(root, ".currentRound.roundStatus")).value(roundStatus),
         jsonPath(path(root, ".currentRound.statusByPlayerId.p1")).value(p1Status),
         jsonPath(path(root, ".currentRound.statusByPlayerId.p2")).value(p2Status));
   }

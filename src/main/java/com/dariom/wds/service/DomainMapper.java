@@ -1,5 +1,6 @@
 package com.dariom.wds.service;
 
+import static com.dariom.wds.domain.RoundStatus.ENDED;
 import static java.util.Collections.emptyList;
 import static java.util.Comparator.comparing;
 import static java.util.Comparator.comparingInt;
@@ -46,12 +47,15 @@ public class DomainMapper {
             mapping(this::toGuess, toList())
         ));
 
+    var solution = round.getRoundStatus() == ENDED ? round.getTargetWord() : null;
+
     return new Round(
         round.getRoundNumber(),
         round.getMaxAttempts(),
         guessesByPlayerId,
         Map.copyOf(round.getStatusByPlayerId()),
-        round.isFinished()
+        round.getRoundStatus(),
+        solution
     );
   }
 

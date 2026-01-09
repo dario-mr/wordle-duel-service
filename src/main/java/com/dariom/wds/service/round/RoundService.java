@@ -1,17 +1,28 @@
 package com.dariom.wds.service.round;
 
+import static com.dariom.wds.api.v1.error.ErrorCode.ROUND_NOT_CURRENT;
+import static com.dariom.wds.api.v1.error.ErrorCode.ROUND_NOT_ENDED;
+import static com.dariom.wds.domain.RoundPlayerStatus.READY;
+import static com.dariom.wds.domain.RoundStatus.ENDED;
+import static com.dariom.wds.domain.RoundStatus.PLAYING;
 import static com.dariom.wds.service.round.validation.RoomAccessValidator.validateRoomStatus;
+import static com.dariom.wds.websocket.model.EventType.PLAYER_READY;
 
 import com.dariom.wds.domain.Room;
 import com.dariom.wds.domain.Round;
 import com.dariom.wds.exception.RoomNotFoundException;
+import com.dariom.wds.exception.RoundException;
 import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.repository.jpa.RoomJpaRepository;
 import com.dariom.wds.persistence.repository.jpa.RoundJpaRepository;
 import com.dariom.wds.service.DomainMapper;
 import com.dariom.wds.service.room.RoomLockManager;
+import com.dariom.wds.websocket.model.PlayerReadyPayload;
+import com.dariom.wds.websocket.model.RoomEvent;
+import com.dariom.wds.websocket.model.RoomEventToPublish;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +39,7 @@ public class RoundService {
   private final DomainMapper domainMapper;
   private final RoundLifecycleService roundLifecycleService;
   private final GuessSubmissionService guessSubmissionService;
+  private final ApplicationEventPublisher applicationEventPublisher;
 
   @Transactional(readOnly = true)
   public Optional<Round> getCurrentRound(String roomId, Integer currentRoundNumber) {
@@ -55,20 +67,67 @@ public class RoundService {
     });
   }
 
+  public Room handleReady(String roomId, String playerId, Integer roundNumber) {
+    return roomLockManager.withRoomLock(roomId, () -> {
+      var transactionTemplate = new TransactionTemplate(transactionManager);
+      return transactionTemplate.execute(
+          status -> handleReadyInTransaction(roomId, playerId, roundNumber));
+    });
+  }
+
   private Room handleGuessInTransaction(String roomId, String playerId, String guess) {
     var roomEntity = findRoom(roomId);
-    validateRoomStatus(playerId, domainMapper.toRoom(roomEntity, null));
+    validateRoomStatus(playerId, roomId, roomEntity.getStatus(), roomEntity.getPlayerIds());
 
     var roundEntity = roundLifecycleService.ensureActiveRound(roomEntity);
     guessSubmissionService.applyGuess(roomId, playerId, guess, roomEntity, roundEntity);
 
-    if (!roundEntity.isFinished()
+    if (roundEntity.getRoundStatus() == PLAYING
         && roundLifecycleService.isRoundFinished(roomEntity, roundEntity)) {
       roundLifecycleService.finishRound(roundEntity, roomEntity);
     }
 
     roomJpaRepository.save(roomEntity);
     return domainMapper.toRoom(roomEntity, domainMapper.toRound(roundEntity));
+  }
+
+  private Room handleReadyInTransaction(String roomId, String playerId, Integer roundNumber) {
+    var roomEntity = findRoom(roomId);
+    validateRoomStatus(playerId, roomId, roomEntity.getStatus(), roomEntity.getPlayerIds());
+
+    var currentRoundNumber = roomEntity.getCurrentRoundNumber();
+    if (currentRoundNumber == null || !currentRoundNumber.equals(roundNumber)) {
+      throw new RoundException(
+          ROUND_NOT_CURRENT, "Round <%s> is not the current round".formatted(roundNumber)
+      );
+    }
+
+    var roundEntity = roundJpaRepository
+        .findWithDetailsByRoomIdAndRoundNumber(roomId, currentRoundNumber)
+        .orElseThrow(() -> new RoundException(
+            ROUND_NOT_CURRENT, "Round <%s> is not the current round".formatted(roundNumber)));
+
+    if (roundEntity.getRoundStatus() != ENDED) {
+      throw new RoundException(ROUND_NOT_ENDED, "Round is not ended");
+    }
+
+    if (roundEntity.getPlayerStatus(playerId) != READY) {
+      roundEntity.setPlayerStatus(playerId, READY);
+    }
+
+    var allPlayersReady = roomEntity.getPlayerIds().stream()
+        .allMatch(pid -> roundEntity.getPlayerStatus(pid) == READY);
+
+    var currentRoundEntity = roundEntity;
+    if (allPlayersReady) {
+      currentRoundEntity = roundLifecycleService.startNewRoundEntity(roomEntity);
+    } else { // todo unit tests
+      applicationEventPublisher.publishEvent(new RoomEventToPublish(roomId,
+          new RoomEvent(PLAYER_READY, new PlayerReadyPayload(playerId))));
+    }
+
+    roomJpaRepository.save(roomEntity);
+    return domainMapper.toRoom(roomEntity, domainMapper.toRound(currentRoundEntity));
   }
 
   private RoomEntity findRoom(String roomId) {

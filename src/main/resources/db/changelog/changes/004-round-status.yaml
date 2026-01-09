@@ -1,0 +1,26 @@
+databaseChangeLog:
+  - changeSet:
+      id: 005-round-status
+      author: dariom
+      changes:
+        - addColumn:
+            schemaName: wordle
+            tableName: rounds
+            columns:
+              - column:
+                  name: status
+                  type: varchar(20)
+                  defaultValue: PLAYING
+                  constraints:
+                    nullable: false
+
+        - sql:
+            sql: >
+              UPDATE wordle.rounds
+              SET status = 'ENDED'
+              WHERE finished = TRUE;
+
+        - dropColumn:
+            schemaName: wordle
+            tableName: rounds
+            columnName: finished

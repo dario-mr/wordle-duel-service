@@ -1,19 +1,23 @@
 package com.dariom.wds.service.round;
 
+import static com.dariom.wds.api.v1.error.ErrorCode.ROUND_FINISHED;
 import static com.dariom.wds.domain.Language.IT;
 import static com.dariom.wds.domain.RoundPlayerStatus.PLAYING;
+import static com.dariom.wds.domain.RoundStatus.ENDED;
 import static com.dariom.wds.websocket.model.EventType.ROUND_STARTED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.dariom.wds.config.WordleProperties;
+import com.dariom.wds.domain.RoundStatus;
+import com.dariom.wds.exception.InvalidGuessException;
 import com.dariom.wds.exception.RoomNotReadyException;
 import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.entity.RoundEntity;
@@ -139,7 +143,7 @@ class RoundLifecycleServiceTest {
   @Test
   void ensureActiveRound_existingRoundUnfinished_returnsExistingRound() {
     // Arrange
-    var spied = org.mockito.Mockito.spy(service);
+    var spied = spy(service);
 
     var room = new RoomEntity();
     room.setId("room-1");
@@ -147,7 +151,7 @@ class RoundLifecycleServiceTest {
     room.setCurrentRoundNumber(1);
 
     var existingRound = new RoundEntity();
-    existingRound.setFinished(false);
+    existingRound.setRoundStatus(RoundStatus.PLAYING);
 
     when(roundJpaRepository.findWithDetailsByRoomIdAndRoundNumber(anyString(), anyInt()))
         .thenReturn(Optional.of(existingRound));
@@ -162,31 +166,32 @@ class RoundLifecycleServiceTest {
   }
 
   @Test
-  void ensureActiveRound_existingRoundFinished_startsNewRound() {
+  void ensureActiveRound_existingRoundFinished_throwsInvalidGuessException() {
     // Arrange
-    var spied = org.mockito.Mockito.spy(service);
+    var spied = spy(service);
 
     var room = new RoomEntity();
     room.setId("room-1");
     room.setLanguage(IT);
     room.setCurrentRoundNumber(1);
-    room.addPlayer("p1");
-    room.addPlayer("p2");
 
     var finishedRound = new RoundEntity();
-    finishedRound.setFinished(true);
+    finishedRound.setRoundStatus(ENDED);
 
     when(roundJpaRepository.findWithDetailsByRoomIdAndRoundNumber(anyString(), anyInt()))
         .thenReturn(Optional.of(finishedRound));
 
-    doReturn(new RoundEntity()).when(spied).startNewRoundEntity(any(RoomEntity.class));
-
     // Act
-    var actual = spied.ensureActiveRound(room);
+    var thrown = catchThrowable(() -> spied.ensureActiveRound(room));
 
     // Assert
-    assertThat(actual).isNotSameAs(finishedRound);
-    verify(spied).startNewRoundEntity(any(RoomEntity.class));
+    assertThat(thrown)
+        .isInstanceOfSatisfying(
+            InvalidGuessException.class,
+            ex -> assertThat(ex.getCode()).isEqualTo(ROUND_FINISHED)
+        );
+
+    verify(spied, never()).startNewRoundEntity(any(RoomEntity.class));
     verify(roundJpaRepository).findWithDetailsByRoomIdAndRoundNumber("room-1", 1);
   }
 

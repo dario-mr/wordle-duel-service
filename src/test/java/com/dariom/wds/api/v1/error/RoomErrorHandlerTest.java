@@ -3,6 +3,7 @@ package com.dariom.wds.api.v1.error;
 import static com.dariom.wds.api.v1.error.ErrorCode.GENERIC_BAD_REQUEST;
 import static com.dariom.wds.api.v1.error.ErrorCode.INVALID_LANGUAGE;
 import static com.dariom.wds.api.v1.error.ErrorCode.INVALID_PLAYER_ID;
+import static com.dariom.wds.api.v1.error.ErrorCode.INVALID_ROUND_NUMBER;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.dariom.wds.api.v1.dto.CreateRoomRequest;
@@ -25,7 +26,6 @@ class RoomErrorHandlerTest {
     var bindingResult = new BeanPropertyBindingResult(new Object(), "request");
     bindingResult.addError(new FieldError("request", "playerId", "", false, null, null,
         "playerId is required"));
-
     var ex = new MethodArgumentNotValidException(dummyParameter(), bindingResult);
     var request = httpRequest("POST", "/api/v1/rooms");
 
@@ -45,7 +45,6 @@ class RoomErrorHandlerTest {
     var bindingResult = new BeanPropertyBindingResult(new Object(), "request");
     bindingResult.addError(new FieldError("request", "language", "", false, null, null,
         "language is invalid"));
-
     var ex = new MethodArgumentNotValidException(dummyParameter(), bindingResult);
 
     // Act
@@ -56,6 +55,24 @@ class RoomErrorHandlerTest {
     assertThat(response.getBody()).isNotNull();
     assertThat(response.getBody().code()).isEqualTo(INVALID_LANGUAGE);
     assertThat(response.getBody().message()).isEqualTo("language is invalid");
+  }
+
+  @Test
+  void handleArgumentNotValid_fieldIsRoundNumber_returnsInvalidRoundNumber() throws Exception {
+    // Arrange
+    var bindingResult = new BeanPropertyBindingResult(new Object(), "request");
+    bindingResult.addError(new FieldError("request", "roundNumber", "", false, null, null,
+        "roundNumber is invalid"));
+    var ex = new MethodArgumentNotValidException(dummyParameter(), bindingResult);
+
+    // Act
+    var response = handler.handleArgumentNotValid(ex, httpRequest("POST", "/api/v1/rooms"));
+
+    // Assert
+    assertThat(response.getStatusCode().value()).isEqualTo(400);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().code()).isEqualTo(INVALID_ROUND_NUMBER);
+    assertThat(response.getBody().message()).isEqualTo("roundNumber is invalid");
   }
 
   @Test

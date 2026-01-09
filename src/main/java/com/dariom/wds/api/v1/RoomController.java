@@ -3,13 +3,14 @@ package com.dariom.wds.api.v1;
 import com.dariom.wds.api.v1.dto.CreateRoomRequest;
 import com.dariom.wds.api.v1.dto.GuessResponse;
 import com.dariom.wds.api.v1.dto.JoinRoomRequest;
+import com.dariom.wds.api.v1.dto.ReadyRequest;
 import com.dariom.wds.api.v1.dto.RoomDto;
 import com.dariom.wds.api.v1.dto.SubmitGuessRequest;
 import com.dariom.wds.api.v1.error.ErrorResponse;
 import com.dariom.wds.api.v1.mapper.RoomMapper;
 import com.dariom.wds.domain.Language;
-import com.dariom.wds.service.round.RoundService;
 import com.dariom.wds.service.room.RoomService;
+import com.dariom.wds.service.round.RoundService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -37,6 +38,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 @Tag(name = "Rooms", description = "Room management and gameplay actions")
 public class RoomController {
   // TODO security
+  // todo review amount of events sent when one player is done with guesses
 
   private final RoomService roomService;
   private final RoundService roundService;
@@ -103,6 +105,23 @@ public class RoomController {
     var room = roundService.handleGuess(roomId, request.playerId(), request.word());
     var response = new GuessResponse(roomMapper.toDto(room));
     return ResponseEntity.ok(response);
+  }
+
+  @Operation(summary = "Ready for next round", description = "Marks a player as ready for the next round. When both players are ready, the next round starts.")
+  @ApiResponses({
+      @ApiResponse(responseCode = "200", description = "Ready accepted", content = @Content(schema = @Schema(implementation = RoomDto.class))),
+      @ApiResponse(responseCode = "400", description = "Invalid request", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+      @ApiResponse(responseCode = "404", description = "Room not found", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+      @ApiResponse(responseCode = "409", description = "Conflict", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+  })
+  @PostMapping("/{roomId}/ready")
+  public ResponseEntity<RoomDto> ready(
+      @Parameter(description = "Room identifier", required = true) @PathVariable String roomId,
+      @Valid @RequestBody ReadyRequest request
+  ) {
+    log.info("Player ready in room <{}>: {}", roomId, request);
+    var room = roundService.handleReady(roomId, request.playerId(), request.roundNumber());
+    return ResponseEntity.ok(roomMapper.toDto(room));
   }
 
   private static URI getRoomUri(String roomId) {
