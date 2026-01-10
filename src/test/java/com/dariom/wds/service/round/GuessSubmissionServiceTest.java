@@ -7,12 +7,10 @@ import static com.dariom.wds.domain.LetterStatus.PRESENT;
 import static com.dariom.wds.domain.RoundPlayerStatus.LOST;
 import static com.dariom.wds.domain.RoundPlayerStatus.PLAYING;
 import static com.dariom.wds.domain.RoundPlayerStatus.WON;
-import static com.dariom.wds.websocket.model.EventType.SCORES_UPDATED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.dariom.wds.domain.LetterResult;
@@ -22,20 +20,15 @@ import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.entity.RoundEntity;
 import com.dariom.wds.service.WordleEvaluator;
 import com.dariom.wds.service.round.validation.GuessValidator;
-import com.dariom.wds.websocket.model.RoomEvent;
-import com.dariom.wds.websocket.model.RoomEventToPublish;
-import com.dariom.wds.websocket.model.ScoresUpdatedPayload;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.context.ApplicationEventPublisher;
 
 @ExtendWith(MockitoExtension.class)
 class GuessSubmissionServiceTest {
@@ -44,17 +37,13 @@ class GuessSubmissionServiceTest {
   private GuessValidator guessValidator;
   @Mock
   private WordleEvaluator evaluator;
-  @Mock
-  private ApplicationEventPublisher eventPublisher;
-
   private final Clock clock = Clock.fixed(Instant.parse("2025-01-01T12:00:00Z"), ZoneOffset.UTC);
 
   private GuessSubmissionService service;
 
   @BeforeEach
   void setUp() {
-    service = new GuessSubmissionService(clock, evaluator, guessValidator,
-        eventPublisher);
+    service = new GuessSubmissionService(clock, evaluator, guessValidator);
   }
 
   @Test
@@ -78,13 +67,12 @@ class GuessSubmissionServiceTest {
     when(evaluator.evaluate(anyString(), anyString())).thenReturn(evaluated);
 
     // Act
-    service.applyGuess("room-1", "p1", "  pizza  ", room, round);
+    var statusUpdate = service.applyGuess("room-1", "p1", "  pizza  ", room, round);
 
     // Assert
     verify(guessValidator).validateGuess("PIZZA", "PIZZA", IT);
     verify(evaluator).evaluate("PIZZA", "PIZZA");
-    verify(eventPublisher).publishEvent(new RoomEventToPublish(room.getId(),
-        new RoomEvent(SCORES_UPDATED, new ScoresUpdatedPayload(Map.of()))));
+    assertThat(statusUpdate).contains(WON);
 
     assertThat(round.getGuesses()).hasSize(1);
 
@@ -119,7 +107,6 @@ class GuessSubmissionServiceTest {
         .isInstanceOfSatisfying(
             InvalidGuessException.class,
             ex -> assertThat(ex.getCode()).isEqualTo(NO_ATTEMPTS_LEFT));
-    verifyNoInteractions(eventPublisher);
   }
 
   @Test
@@ -138,12 +125,11 @@ class GuessSubmissionServiceTest {
     ));
 
     // Act
-    service.applyGuess("room-1", "p1", "pasta", room, round);
+    var statusUpdate = service.applyGuess("room-1", "p1", "pasta", room, round);
 
     // Assert
+    assertThat(statusUpdate).contains(LOST);
     assertThat(round.getPlayerStatus("p1")).isEqualTo(LOST);
-    verify(eventPublisher).publishEvent(new RoomEventToPublish(room.getId(),
-        new RoomEvent(SCORES_UPDATED, new ScoresUpdatedPayload(Map.of()))));
   }
 
   private static GuessEntity previousGuess(RoundEntity round, String playerId, int attemptNumber) {

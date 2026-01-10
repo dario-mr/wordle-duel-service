@@ -3,7 +3,6 @@ package com.dariom.wds.service.room;
 import static com.dariom.wds.domain.RoomStatus.IN_PROGRESS;
 import static com.dariom.wds.domain.RoomStatus.WAITING_FOR_PLAYERS;
 import static com.dariom.wds.service.room.RoomValidator.validateRoom;
-import static com.dariom.wds.websocket.model.EventType.PLAYER_JOINED;
 import static com.dariom.wds.websocket.model.EventType.ROOM_CREATED;
 
 import com.dariom.wds.domain.Language;
@@ -38,7 +37,7 @@ public class RoomService {
   private final PlatformTransactionManager transactionManager;
   private final RoundService roundService;
   private final DomainMapper domainMapper;
-  private final ApplicationEventPublisher applicationEventPublisher;
+  private final ApplicationEventPublisher eventPublisher;
 
   @Transactional
   public Room createRoom(Language language, String creatorPlayerId) {
@@ -74,14 +73,7 @@ public class RoomService {
 
     addPlayerAndInitializeScore(room, playerId);
     var startedRound = maybeStartRound(room);
-
     var savedRoom = roomJpaRepository.save(room);
-
-    publishRoomEvent(savedRoom.getId(), new RoomEvent(
-        PLAYER_JOINED,
-        new PlayerJoinedPayload(playerId, savedRoom.getSortedPlayerIds())
-    ));
-
     var currentRound = startedRound
         .or(() -> roundService.getCurrentRound(
             savedRoom.getId(), savedRoom.getCurrentRoundNumber()))
@@ -124,6 +116,6 @@ public class RoomService {
   }
 
   private void publishRoomEvent(String roomId, RoomEvent roomEvent) {
-    applicationEventPublisher.publishEvent(new RoomEventToPublish(roomId, roomEvent));
+    eventPublisher.publishEvent(new RoomEventToPublish(roomId, roomEvent));
   }
 }

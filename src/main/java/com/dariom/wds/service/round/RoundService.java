@@ -6,10 +6,11 @@ import static com.dariom.wds.domain.RoundPlayerStatus.READY;
 import static com.dariom.wds.domain.RoundStatus.ENDED;
 import static com.dariom.wds.domain.RoundStatus.PLAYING;
 import static com.dariom.wds.service.round.validation.RoomAccessValidator.validateRoomStatus;
-import static com.dariom.wds.websocket.model.EventType.PLAYER_READY;
+import static com.dariom.wds.websocket.model.EventType.PLAYER_STATUS_UPDATED;
 
 import com.dariom.wds.domain.Room;
 import com.dariom.wds.domain.Round;
+import com.dariom.wds.domain.RoundPlayerStatus;
 import com.dariom.wds.exception.RoomNotFoundException;
 import com.dariom.wds.exception.RoundException;
 import com.dariom.wds.persistence.entity.RoomEntity;
@@ -17,7 +18,7 @@ import com.dariom.wds.persistence.repository.jpa.RoomJpaRepository;
 import com.dariom.wds.persistence.repository.jpa.RoundJpaRepository;
 import com.dariom.wds.service.DomainMapper;
 import com.dariom.wds.service.room.RoomLockManager;
-import com.dariom.wds.websocket.model.PlayerReadyPayload;
+import com.dariom.wds.websocket.model.PlayerStatusUpdatedPayload;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
 import java.util.Optional;
@@ -39,7 +40,7 @@ public class RoundService {
   private final DomainMapper domainMapper;
   private final RoundLifecycleService roundLifecycleService;
   private final GuessSubmissionService guessSubmissionService;
-  private final ApplicationEventPublisher applicationEventPublisher;
+  private final ApplicationEventPublisher eventPublisher;
 
   @Transactional(readOnly = true)
   public Optional<Round> getCurrentRound(String roomId, Integer currentRoundNumber) {
@@ -80,11 +81,16 @@ public class RoundService {
     validateRoomStatus(playerId, roomId, roomEntity.getStatus(), roomEntity.getPlayerIds());
 
     var roundEntity = roundLifecycleService.ensureActiveRound(roomEntity);
-    guessSubmissionService.applyGuess(roomId, playerId, guess, roomEntity, roundEntity);
+    var statusUpdate =
+        guessSubmissionService.applyGuess(roomId, playerId, guess, roomEntity, roundEntity);
 
-    if (roundEntity.getRoundStatus() == PLAYING
-        && roundLifecycleService.isRoundFinished(roomEntity, roundEntity)) {
+    var shouldFinishRound = roundEntity.getRoundStatus() == PLAYING
+        && roundLifecycleService.isRoundFinished(roomEntity, roundEntity);
+
+    if (shouldFinishRound) {
       roundLifecycleService.finishRound(roundEntity, roomEntity);
+    } else {
+      statusUpdate.ifPresent(status -> publishPlayerStatusUpdated(roomId, status));
     }
 
     roomJpaRepository.save(roomEntity);
@@ -121,9 +127,8 @@ public class RoundService {
     var currentRoundEntity = roundEntity;
     if (allPlayersReady) {
       currentRoundEntity = roundLifecycleService.startNewRoundEntity(roomEntity);
-    } else { // todo unit tests
-      applicationEventPublisher.publishEvent(new RoomEventToPublish(roomId,
-          new RoomEvent(PLAYER_READY, new PlayerReadyPayload(playerId))));
+    } else {
+      publishPlayerStatusUpdated(roomId, READY);
     }
 
     roomJpaRepository.save(roomEntity);
@@ -133,5 +138,10 @@ public class RoundService {
   private RoomEntity findRoom(String roomId) {
     return roomJpaRepository.findWithPlayersAndScoresById(roomId)
         .orElseThrow(() -> new RoomNotFoundException(roomId));
+  }
+
+  private void publishPlayerStatusUpdated(String roomId, RoundPlayerStatus playerStatus) {
+    eventPublisher.publishEvent(new RoomEventToPublish(roomId,
+        new RoomEvent(PLAYER_STATUS_UPDATED, new PlayerStatusUpdatedPayload(playerStatus))));
   }
 }

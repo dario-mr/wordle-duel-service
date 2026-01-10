@@ -9,7 +9,7 @@ import static com.dariom.wds.domain.RoundPlayerStatus.READY;
 import static com.dariom.wds.domain.RoundPlayerStatus.WON;
 import static com.dariom.wds.domain.RoundStatus.ENDED;
 import static com.dariom.wds.domain.RoundStatus.PLAYING;
-import static com.dariom.wds.websocket.model.EventType.PLAYER_READY;
+import static com.dariom.wds.websocket.model.EventType.PLAYER_STATUS_UPDATED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -31,7 +31,7 @@ import com.dariom.wds.persistence.repository.jpa.RoundJpaRepository;
 import com.dariom.wds.service.DomainMapper;
 import com.dariom.wds.service.NoOpTransactionManager;
 import com.dariom.wds.service.room.RoomLockManager;
-import com.dariom.wds.websocket.model.PlayerReadyPayload;
+import com.dariom.wds.websocket.model.PlayerStatusUpdatedPayload;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
 import java.util.Map;
@@ -124,6 +124,8 @@ class RoundServiceTest {
     when(roomJpaRepository.findWithPlayersAndScoresById(anyString())).thenReturn(
         Optional.of(roomEntity));
     when(roundLifecycleService.ensureActiveRound(roomEntity)).thenReturn(roundEntity);
+    when(guessSubmissionService.applyGuess(ROOM_ID, PLAYER_1, "pizza", roomEntity, roundEntity))
+        .thenReturn(Optional.empty());
     when(roundLifecycleService.isRoundFinished(roomEntity, roundEntity)).thenReturn(false);
 
     // Act
@@ -140,7 +142,7 @@ class RoundServiceTest {
   }
 
   @Test
-  void handleGuess_roundBecomesFinished_callsFinishRound() {
+  void handleGuess_playerStatusUpdatedButRoundNotFinished_publishesPlayerStatusUpdated() {
     // Arrange
     var roomEntity = inProgressRoom(ROOM_ID, PLAYER_1, PLAYER_2);
 
@@ -149,6 +151,31 @@ class RoundServiceTest {
     when(roomJpaRepository.findWithPlayersAndScoresById(anyString())).thenReturn(
         Optional.of(roomEntity));
     when(roundLifecycleService.ensureActiveRound(roomEntity)).thenReturn(roundEntity);
+    when(guessSubmissionService.applyGuess(ROOM_ID, PLAYER_1, "pizza", roomEntity, roundEntity))
+        .thenReturn(Optional.of(WON));
+    when(roundLifecycleService.isRoundFinished(roomEntity, roundEntity)).thenReturn(false);
+
+    // Act
+    service.handleGuess(ROOM_ID, PLAYER_1, "pizza");
+
+    // Assert
+    verify(eventPublisher).publishEvent(new RoomEventToPublish(ROOM_ID,
+        new RoomEvent(PLAYER_STATUS_UPDATED, new PlayerStatusUpdatedPayload(WON))));
+    verify(roundLifecycleService, never()).finishRound(roundEntity, roomEntity);
+  }
+
+  @Test
+  void handleGuess_roundBecomesFinished_callsFinishRoundAndSuppressesStatusEvent() {
+    // Arrange
+    var roomEntity = inProgressRoom(ROOM_ID, PLAYER_1, PLAYER_2);
+
+    var roundEntity = round(1, PLAYING);
+
+    when(roomJpaRepository.findWithPlayersAndScoresById(anyString())).thenReturn(
+        Optional.of(roomEntity));
+    when(roundLifecycleService.ensureActiveRound(roomEntity)).thenReturn(roundEntity);
+    when(guessSubmissionService.applyGuess(ROOM_ID, PLAYER_1, "pizza", roomEntity, roundEntity))
+        .thenReturn(Optional.of(LOST));
     when(roundLifecycleService.isRoundFinished(roomEntity, roundEntity)).thenReturn(true);
 
     // Act
@@ -156,6 +183,7 @@ class RoundServiceTest {
 
     // Assert
     verify(roundLifecycleService).finishRound(roundEntity, roomEntity);
+    verifyNoInteractions(eventPublisher);
   }
 
   @Test
@@ -244,7 +272,7 @@ class RoundServiceTest {
     assertThat(currentRound.statusByPlayerId().get(PLAYER_2)).isEqualTo(LOST);
 
     verify(eventPublisher).publishEvent(new RoomEventToPublish(ROOM_ID,
-        new RoomEvent(PLAYER_READY, new PlayerReadyPayload(PLAYER_1))));
+        new RoomEvent(PLAYER_STATUS_UPDATED, new PlayerStatusUpdatedPayload(READY))));
     verifyNoMoreInteractions(eventPublisher);
     verify(roundLifecycleService, never()).startNewRoundEntity(roomEntity);
     verify(roomJpaRepository).save(roomEntity);

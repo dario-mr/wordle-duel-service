@@ -4,13 +4,13 @@ import static com.dariom.wds.domain.Language.IT;
 import static com.dariom.wds.domain.RoomStatus.IN_PROGRESS;
 import static com.dariom.wds.domain.RoomStatus.WAITING_FOR_PLAYERS;
 import static com.dariom.wds.domain.RoundStatus.PLAYING;
-import static com.dariom.wds.websocket.model.EventType.PLAYER_JOINED;
 import static com.dariom.wds.websocket.model.EventType.ROOM_CREATED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.dariom.wds.domain.Player;
@@ -38,19 +38,15 @@ import org.springframework.transaction.PlatformTransactionManager;
 class RoomServiceTest {
 
   private final RoomLockManager roomLockManager = new RoomLockManager();
-
   private final PlatformTransactionManager transactionManager = new NoOpTransactionManager();
-
   private final DomainMapper domainMapper = new DomainMapper();
 
   @Mock
   private RoomJpaRepository roomJpaRepository;
-
   @Mock
   private RoundService roundService;
-
   @Mock
-  private ApplicationEventPublisher applicationEventPublisher;
+  private ApplicationEventPublisher eventPublisher;
 
   private RoomService roomService;
 
@@ -62,7 +58,7 @@ class RoomServiceTest {
         transactionManager,
         roundService,
         domainMapper,
-        applicationEventPublisher
+        eventPublisher
     );
   }
 
@@ -81,7 +77,7 @@ class RoomServiceTest {
     assertThat(room.players()).singleElement().satisfies(p -> assertThat(p.score()).isEqualTo(0));
 
     var eventCaptor = ArgumentCaptor.forClass(RoomEventToPublish.class);
-    verify(applicationEventPublisher).publishEvent(eventCaptor.capture());
+    verify(eventPublisher).publishEvent(eventCaptor.capture());
 
     var published = eventCaptor.getValue();
     assertThat(published.roomId()).isEqualTo(room.id());
@@ -96,7 +92,7 @@ class RoomServiceTest {
   }
 
   @Test
-  void joinRoom_secondPlayerJoins_returnsInProgressRoomAndPublishesPlayerJoinedEvent() {
+  void joinRoom_secondPlayerJoins_returnsInProgressRoom() {
     // Arrange
     var entity = waitingRoom("room-1", "p1");
 
@@ -120,13 +116,7 @@ class RoomServiceTest {
     assertThat(room.currentRound()).isNotNull();
 
     verify(roundService).startNewRound("room-1");
-
-    var eventCaptor = ArgumentCaptor.forClass(RoomEventToPublish.class);
-    verify(applicationEventPublisher).publishEvent(eventCaptor.capture());
-
-    var published = eventCaptor.getValue();
-    assertThat(published.roomId()).isEqualTo("room-1");
-    assertThat(published.event().type()).isEqualTo(PLAYER_JOINED);
+    verifyNoInteractions(eventPublisher);
   }
 
   @Test

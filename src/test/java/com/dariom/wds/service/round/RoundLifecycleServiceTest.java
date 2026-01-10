@@ -5,6 +5,7 @@ import static com.dariom.wds.domain.Language.IT;
 import static com.dariom.wds.domain.RoundPlayerStatus.PLAYING;
 import static com.dariom.wds.domain.RoundStatus.ENDED;
 import static com.dariom.wds.websocket.model.EventType.ROUND_STARTED;
+import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
@@ -28,7 +29,6 @@ import com.dariom.wds.websocket.model.RoomEventToPublish;
 import com.dariom.wds.websocket.model.RoundStartedPayload;
 import java.time.Clock;
 import java.time.Instant;
-import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
@@ -49,17 +49,17 @@ class RoundLifecycleServiceTest {
   private RoundJpaRepository roundJpaRepository;
 
   @Mock
-  private ApplicationEventPublisher applicationEventPublisher;
+  private ApplicationEventPublisher eventPublisher;
 
   private final WordleProperties properties = new WordleProperties(6, 5);
-  private final Clock clock = Clock.fixed(Instant.parse("2025-01-01T12:00:00Z"), ZoneOffset.UTC);
+  private final Clock clock = Clock.fixed(Instant.parse("2025-01-01T12:00:00Z"), UTC);
 
   private RoundLifecycleService service;
 
   @BeforeEach
   void setUp() {
     service = new RoundLifecycleService(dictionaryRepository, roundJpaRepository, properties,
-        applicationEventPublisher, clock);
+        eventPublisher, clock);
 
   }
 
@@ -107,7 +107,7 @@ class RoundLifecycleServiceTest {
     assertThat(round.getPlayerStatus("p2")).isEqualTo(PLAYING);
 
     var eventCaptor = ArgumentCaptor.forClass(RoomEventToPublish.class);
-    verify(applicationEventPublisher).publishEvent(eventCaptor.capture());
+    verify(eventPublisher).publishEvent(eventCaptor.capture());
 
     var published = eventCaptor.getValue();
     assertThat(published.roomId()).isEqualTo("room-1");

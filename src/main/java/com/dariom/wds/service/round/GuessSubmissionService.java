@@ -4,10 +4,10 @@ import static com.dariom.wds.api.v1.error.ErrorCode.NO_ATTEMPTS_LEFT;
 import static com.dariom.wds.domain.RoundPlayerStatus.LOST;
 import static com.dariom.wds.domain.RoundPlayerStatus.WON;
 import static com.dariom.wds.service.round.validation.PlayerStatusValidator.validatePlayerStatus;
-import static com.dariom.wds.websocket.model.EventType.SCORES_UPDATED;
 import static java.util.stream.Collectors.toCollection;
 
 import com.dariom.wds.domain.LetterResult;
+import com.dariom.wds.domain.RoundPlayerStatus;
 import com.dariom.wds.exception.InvalidGuessException;
 import com.dariom.wds.persistence.entity.GuessEntity;
 import com.dariom.wds.persistence.entity.LetterResultEmbeddable;
@@ -15,18 +15,14 @@ import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.entity.RoundEntity;
 import com.dariom.wds.service.WordleEvaluator;
 import com.dariom.wds.service.round.validation.GuessValidator;
-import com.dariom.wds.websocket.model.RoomEvent;
-import com.dariom.wds.websocket.model.RoomEventToPublish;
-import com.dariom.wds.websocket.model.ScoresUpdatedPayload;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
-import java.util.TreeMap;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -36,9 +32,8 @@ class GuessSubmissionService {
   private final Clock clock;
   private final WordleEvaluator evaluator;
   private final GuessValidator guessValidator;
-  private final ApplicationEventPublisher applicationEventPublisher;
 
-  public void applyGuess(
+  public Optional<RoundPlayerStatus> applyGuess(
       String roomId,
       String playerId,
       String rawGuess,
@@ -59,7 +54,7 @@ class GuessSubmissionService {
     var guessEntity = createGuessEntity(round, playerId, guess, attemptNumber, letterResults);
     round.addGuess(guessEntity);
 
-    updatePlayerStatusAfterGuess(round, playerId, guess, attemptNumber, room);
+    return updatePlayerStatusAfterGuess(round, playerId, guess, attemptNumber);
   }
 
   private String normalizeGuess(String guess) {
@@ -94,25 +89,21 @@ class GuessSubmissionService {
     return guessEntity;
   }
 
-  private void updatePlayerStatusAfterGuess(
+  private Optional<RoundPlayerStatus> updatePlayerStatusAfterGuess(
       RoundEntity round,
       String playerId,
       String guess,
-      int attemptNumber,
-      RoomEntity room) {
+      int attemptNumber) {
     if (guess.equals(round.getTargetWord())) {
       round.setPlayerStatus(playerId, WON);
-      publishScoreUpdated(room);
-    } else if (attemptNumber >= round.getMaxAttempts()) {
-      round.setPlayerStatus(playerId, LOST);
-      publishScoreUpdated(room);
+      return Optional.of(WON);
     }
-  }
 
-  private void publishScoreUpdated(RoomEntity room) {
-    var scoresSnapshot = new TreeMap<>(room.getScoresByPlayerId());
-    applicationEventPublisher.publishEvent(new RoomEventToPublish(room.getId(),
-        new RoomEvent(SCORES_UPDATED, new ScoresUpdatedPayload(scoresSnapshot)))
-    );
+    if (attemptNumber >= round.getMaxAttempts()) {
+      round.setPlayerStatus(playerId, LOST);
+      return Optional.of(LOST);
+    }
+
+    return Optional.empty();
   }
 }

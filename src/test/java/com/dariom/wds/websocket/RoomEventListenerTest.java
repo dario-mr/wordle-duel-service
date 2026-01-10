@@ -4,10 +4,9 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 
 import com.dariom.wds.websocket.model.EventType;
-import com.dariom.wds.websocket.model.PlayerJoinedPayload;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
-import java.util.List;
+import com.dariom.wds.websocket.model.RoundStartedPayload;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -25,11 +24,11 @@ class RoomEventListenerTest {
   private RoomEventListener roomEventListener;
 
   @Test
-  void on_validEvent_sendsToRoomTopic() {
+  void onValidEvent_sendsToRoomTopic() {
     // Arrange
     var event = new RoomEvent(
-        EventType.PLAYER_JOINED,
-        new PlayerJoinedPayload("p1", List.of("p1"))
+        EventType.ROUND_STARTED,
+        new RoundStartedPayload(1, 6)
     );
     var toPublish = new RoomEventToPublish("room-1", event);
 
@@ -41,11 +40,11 @@ class RoomEventListenerTest {
   }
 
   @Test
-  void on_messagingThrows_doesNotPropagateException() {
+  void onMessagingThrows_doesNotPropagateException() {
     // Arrange
     var event = new RoomEvent(
-        EventType.PLAYER_JOINED,
-        new PlayerJoinedPayload("p1", List.of("p1"))
+        EventType.ROUND_STARTED,
+        new RoundStartedPayload(1, 6)
     );
     var toPublish = new RoomEventToPublish("room-1", event);
 

@@ -4,7 +4,6 @@ import static com.dariom.wds.domain.RoundPlayerStatus.PLAYING;
 import static com.dariom.wds.domain.RoundPlayerStatus.WON;
 import static com.dariom.wds.domain.RoundStatus.ENDED;
 import static com.dariom.wds.websocket.model.EventType.ROUND_STARTED;
-import static com.dariom.wds.websocket.model.EventType.SCORES_UPDATED;
 
 import com.dariom.wds.api.v1.error.ErrorCode;
 import com.dariom.wds.config.WordleProperties;
@@ -22,10 +21,8 @@ import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
 import com.dariom.wds.websocket.model.RoundFinishedPayload;
 import com.dariom.wds.websocket.model.RoundStartedPayload;
-import com.dariom.wds.websocket.model.ScoresUpdatedPayload;
 import java.time.Clock;
 import java.time.Instant;
-import java.util.TreeMap;
 import java.util.concurrent.ThreadLocalRandom;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -38,7 +35,7 @@ class RoundLifecycleService {
   private final DictionaryRepository dictionaryRepository;
   private final RoundJpaRepository roundJpaRepository;
   private final WordleProperties properties;
-  private final ApplicationEventPublisher applicationEventPublisher;
+  private final ApplicationEventPublisher eventPublisher;
   private final Clock clock;
 
   public RoundEntity ensureActiveRound(RoomEntity room) {
@@ -117,12 +114,6 @@ class RoundLifecycleService {
         EventType.ROUND_FINISHED,
         new RoundFinishedPayload(round.getRoundNumber())
     ));
-
-    var scoresSnapshot = new TreeMap<>(room.getScoresByPlayerId());
-    publishRoomEvent(room.getId(), new RoomEvent(
-        SCORES_UPDATED,
-        new ScoresUpdatedPayload(scoresSnapshot)
-    ));
   }
 
   private String randomTargetWord(Language language) {
@@ -137,6 +128,6 @@ class RoundLifecycleService {
   }
 
   private void publishRoomEvent(String roomId, RoomEvent roomEvent) {
-    applicationEventPublisher.publishEvent(new RoomEventToPublish(roomId, roomEvent));
+    eventPublisher.publishEvent(new RoomEventToPublish(roomId, roomEvent));
   }
 }
