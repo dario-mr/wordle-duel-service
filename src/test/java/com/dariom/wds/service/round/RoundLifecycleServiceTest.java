@@ -2,7 +2,9 @@ package com.dariom.wds.service.round;
 
 import static com.dariom.wds.api.v1.error.ErrorCode.ROUND_FINISHED;
 import static com.dariom.wds.domain.Language.IT;
+import static com.dariom.wds.domain.RoundPlayerStatus.LOST;
 import static com.dariom.wds.domain.RoundPlayerStatus.PLAYING;
+import static com.dariom.wds.domain.RoundPlayerStatus.WON;
 import static com.dariom.wds.domain.RoundStatus.ENDED;
 import static com.dariom.wds.websocket.model.EventType.ROUND_STARTED;
 import static java.time.ZoneOffset.UTC;
@@ -20,15 +22,19 @@ import com.dariom.wds.config.WordleProperties;
 import com.dariom.wds.domain.RoundStatus;
 import com.dariom.wds.exception.InvalidGuessException;
 import com.dariom.wds.exception.RoomNotReadyException;
+import com.dariom.wds.persistence.entity.GuessEntity;
 import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.entity.RoundEntity;
 import com.dariom.wds.persistence.repository.DictionaryRepository;
 import com.dariom.wds.persistence.repository.jpa.RoundJpaRepository;
+import com.dariom.wds.websocket.model.EventType;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
+import com.dariom.wds.websocket.model.RoundFinishedPayload;
 import com.dariom.wds.websocket.model.RoundStartedPayload;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
@@ -193,6 +199,49 @@ class RoundLifecycleServiceTest {
 
     verify(spied, never()).startNewRoundEntity(any(RoomEntity.class));
     verify(roundJpaRepository).findWithDetailsByRoomIdAndRoundNumber("room-1", 1);
+  }
+
+  @Test
+  void finishRound_playerWon_incrementPlayerScore() {
+    // Arrange
+    var round = new RoundEntity();
+    round.setRoundStatus(RoundStatus.PLAYING);
+    round.setRoundNumber(1);
+    round.setPlayerStatus("p1", WON);
+    round.setPlayerStatus("p2", LOST);
+    round.setGuesses(List.of(
+        guess("p1", 1),
+        guess("p1", 2)
+    ));
+    round.setMaxAttempts(6);
+
+    var room = new RoomEntity();
+    room.setId("room-1");
+    room.addPlayer("p1");
+    room.addPlayer("p2");
+
+    // Act
+    service.finishRound(round, room);
+
+    // Assert
+    assertThat(round.getRoundStatus()).isEqualTo(ENDED);
+    assertThat(round.getFinishedAt()).isNotNull();
+    assertThat(room.getScoresByPlayerId().get("p1")).isEqualTo(5);
+    assertThat(room.getScoresByPlayerId().get("p2")).isEqualTo(0);
+
+    verify(eventPublisher).publishEvent(
+        new RoomEventToPublish("room-1", new RoomEvent(
+            EventType.ROUND_FINISHED,
+            new RoundFinishedPayload(1)
+        )));
+  }
+
+  private static GuessEntity guess(String playerId, int attemptNumber) {
+    var guess = new GuessEntity();
+    guess.setPlayerId(playerId);
+    guess.setAttemptNumber(attemptNumber);
+
+    return guess;
   }
 
 }

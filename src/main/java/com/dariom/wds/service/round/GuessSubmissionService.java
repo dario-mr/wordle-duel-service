@@ -20,7 +20,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
-import java.util.Objects;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -42,7 +41,7 @@ class GuessSubmissionService {
     var guess = normalizeGuess(rawGuess);
     validatePlayerStatus(roomId, playerId, round.getPlayerStatus(playerId));
 
-    var attemptNumber = nextAttemptNumber(playerId, round);
+    var attemptNumber = round.nextAttemptNumber(playerId);
     if (attemptNumber > round.getMaxAttempts()) {
       throw new InvalidGuessException(NO_ATTEMPTS_LEFT, "No attempts left for this round");
     }
@@ -59,13 +58,6 @@ class GuessSubmissionService {
 
   private String normalizeGuess(String guess) {
     return guess.strip().toUpperCase(Locale.ROOT);
-  }
-
-  private int nextAttemptNumber(String playerId, RoundEntity round) {
-    var previousAttemptCount = (int) round.getGuesses().stream()
-        .filter(g -> Objects.equals(g.getPlayerId(), playerId))
-        .count();
-    return previousAttemptCount + 1;
   }
 
   private GuessEntity createGuessEntity(

@@ -91,6 +91,7 @@ class RoundLifecycleService {
     return round;
   }
 
+  // todo coverage
   public boolean isRoundFinished(RoomEntity room, RoundEntity round) {
     for (var playerId : room.getPlayerIds()) {
       if (round.getPlayerStatus(playerId) == PLAYING) {
@@ -106,7 +107,9 @@ class RoundLifecycleService {
 
     for (var pid : room.getPlayerIds()) {
       if (round.getPlayerStatus(pid) == WON) {
-        room.incrementPlayerScore(pid, 1);
+        var maxAttempts = round.getMaxAttempts();
+        var attemptNumber = round.currentAttemptNumber(pid);
+        room.incrementPlayerScore(pid, maxAttempts - attemptNumber + 1);
       }
     }
 

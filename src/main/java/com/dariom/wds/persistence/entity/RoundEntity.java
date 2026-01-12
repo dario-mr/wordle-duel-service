@@ -25,6 +25,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -88,4 +89,13 @@ public class RoundEntity {
     guesses.add(guessEntity);
   }
 
+  public int currentAttemptNumber(String playerId) {
+    return (int) guesses.stream()
+        .filter(g -> Objects.equals(g.getPlayerId(), playerId))
+        .count();
+  }
+
+  public int nextAttemptNumber(String playerId) {
+    return currentAttemptNumber(playerId) + 1;
+  }
 }
