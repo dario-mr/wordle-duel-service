@@ -20,8 +20,10 @@ public class CacheConfig {
   @Bean
   public CacheManager cacheManager() {
     var cacheManager = new CaffeineCacheManager(ALLOWED_GUESSES_CACHE, ANSWER_WORDS_CACHE);
-    cacheManager.setCaffeine(Caffeine.newBuilder()
-        .expireAfterWrite(DICTIONARY_CACHE_TTL));
+    cacheManager
+        .setCaffeine(Caffeine.newBuilder()
+            .expireAfterWrite(DICTIONARY_CACHE_TTL)
+            .recordStats());
 
     return cacheManager;
   }

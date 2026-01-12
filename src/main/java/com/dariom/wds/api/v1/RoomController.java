@@ -38,7 +38,6 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 @Tag(name = "Rooms", description = "Room management and gameplay actions")
 public class RoomController {
   // TODO security
-  // todo review amount of events sent when one player is done with guesses
 
   private final RoomService roomService;
   private final RoundService roundService;

@@ -56,6 +56,7 @@ Notes:
 - `POST /api/v1/rooms/{roomId}/join` – join a room
 - `GET /api/v1/rooms/{roomId}` – fetch room state
 - `POST /api/v1/rooms/{roomId}/guess` – submit a guess
+- `POST /api/v1/rooms/{roomId}/ready` – mark a player as ready for the next round
 
 ## WebSocket
 
