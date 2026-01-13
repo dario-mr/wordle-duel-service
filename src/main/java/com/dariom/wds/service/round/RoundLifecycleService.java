@@ -91,7 +91,6 @@ class RoundLifecycleService {
     return round;
   }
 
-  // todo coverage
   public boolean isRoundFinished(RoomEntity room, RoundEntity round) {
     for (var playerId : room.getPlayerIds()) {
       if (round.getPlayerStatus(playerId) == PLAYING) {

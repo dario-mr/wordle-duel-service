@@ -48,12 +48,13 @@ import org.springframework.context.ApplicationEventPublisher;
 @ExtendWith(MockitoExtension.class)
 class RoundLifecycleServiceTest {
 
+  private static final String PLAYER_1 = "p1";
+  private static final String PLAYER_2 = "p2";
+
   @Mock
   private DictionaryRepository dictionaryRepository;
-
   @Mock
   private RoundJpaRepository roundJpaRepository;
-
   @Mock
   private ApplicationEventPublisher eventPublisher;
 
@@ -75,7 +76,7 @@ class RoundLifecycleServiceTest {
     var room = new RoomEntity();
     room.setId("room-1");
     room.setLanguage(IT);
-    room.addPlayer("p1");
+    room.addPlayer(PLAYER_1);
 
     // Act
     var thrown = catchThrowable(() -> service.startNewRoundEntity(room));
@@ -93,8 +94,8 @@ class RoundLifecycleServiceTest {
     var room = new RoomEntity();
     room.setId("room-1");
     room.setLanguage(IT);
-    room.addPlayer("p2");
-    room.addPlayer("p1");
+    room.addPlayer(PLAYER_2);
+    room.addPlayer(PLAYER_1);
 
     when(dictionaryRepository.getAnswerWords(any())).thenReturn(Set.of("PIZZA"));
 
@@ -109,8 +110,8 @@ class RoundLifecycleServiceTest {
     assertThat(round.getMaxAttempts()).isEqualTo(6);
     assertThat(round.getStartedAt()).isEqualTo(clock.instant());
 
-    assertThat(round.getPlayerStatus("p1")).isEqualTo(PLAYING);
-    assertThat(round.getPlayerStatus("p2")).isEqualTo(PLAYING);
+    assertThat(round.getPlayerStatus(PLAYER_1)).isEqualTo(PLAYING);
+    assertThat(round.getPlayerStatus(PLAYER_2)).isEqualTo(PLAYING);
 
     var eventCaptor = ArgumentCaptor.forClass(RoomEventToPublish.class);
     verify(eventPublisher).publishEvent(eventCaptor.capture());
@@ -133,8 +134,8 @@ class RoundLifecycleServiceTest {
     var room = new RoomEntity();
     room.setId("room-1");
     room.setLanguage(IT);
-    room.addPlayer("p1");
-    room.addPlayer("p2");
+    room.addPlayer(PLAYER_1);
+    room.addPlayer(PLAYER_2);
 
     when(dictionaryRepository.getAnswerWords(any())).thenReturn(Set.of("PIZZA"));
 
@@ -202,23 +203,23 @@ class RoundLifecycleServiceTest {
   }
 
   @Test
-  void finishRound_playerWon_incrementPlayerScore() {
+  void finishRound_playerWon_finishRoundAndIncrementPlayerScore() {
     // Arrange
     var round = new RoundEntity();
     round.setRoundStatus(RoundStatus.PLAYING);
     round.setRoundNumber(1);
-    round.setPlayerStatus("p1", WON);
-    round.setPlayerStatus("p2", LOST);
-    round.setGuesses(List.of(
-        guess("p1", 1),
-        guess("p1", 2)
-    ));
     round.setMaxAttempts(6);
+    round.setPlayerStatus(PLAYER_1, WON);
+    round.setPlayerStatus(PLAYER_2, LOST);
+    round.setGuesses(List.of(
+        guess(PLAYER_1, 1),
+        guess(PLAYER_1, 2)
+    ));
 
     var room = new RoomEntity();
     room.setId("room-1");
-    room.addPlayer("p1");
-    room.addPlayer("p2");
+    room.addPlayer(PLAYER_1);
+    room.addPlayer(PLAYER_2);
 
     // Act
     service.finishRound(round, room);
@@ -226,14 +227,52 @@ class RoundLifecycleServiceTest {
     // Assert
     assertThat(round.getRoundStatus()).isEqualTo(ENDED);
     assertThat(round.getFinishedAt()).isNotNull();
-    assertThat(room.getScoresByPlayerId().get("p1")).isEqualTo(5);
-    assertThat(room.getScoresByPlayerId().get("p2")).isEqualTo(0);
+    assertThat(room.getScoresByPlayerId().get(PLAYER_1)).isEqualTo(5);
+    assertThat(room.getScoresByPlayerId().get(PLAYER_2)).isEqualTo(0);
 
     verify(eventPublisher).publishEvent(
         new RoomEventToPublish("room-1", new RoomEvent(
             EventType.ROUND_FINISHED,
             new RoundFinishedPayload(1)
         )));
+  }
+
+  @Test
+  void isRoundFinished_playerIsPlaying_returnFalse() {
+    // Arrange
+    var room = new RoomEntity();
+    room.setId("room-1");
+    room.addPlayer(PLAYER_1);
+    room.addPlayer(PLAYER_2);
+
+    var round = new RoundEntity();
+    round.setPlayerStatus(PLAYER_1, PLAYING);
+    round.setPlayerStatus(PLAYER_2, LOST);
+
+    // Act
+    var finished = service.isRoundFinished(room, round);
+
+    // Assert
+    assertThat(finished).isFalse();
+  }
+
+  @Test
+  void isRoundFinished_NoPlayerIsPlaying_returnTrue() {
+    // Arrange
+    var room = new RoomEntity();
+    room.setId("room-1");
+    room.addPlayer(PLAYER_1);
+    room.addPlayer(PLAYER_2);
+
+    var round = new RoundEntity();
+    round.setPlayerStatus(PLAYER_1, WON);
+    round.setPlayerStatus(PLAYER_2, WON);
+
+    // Act
+    var finished = service.isRoundFinished(room, round);
+
+    // Assert
+    assertThat(finished).isTrue();
   }
 
   private static GuessEntity guess(String playerId, int attemptNumber) {
