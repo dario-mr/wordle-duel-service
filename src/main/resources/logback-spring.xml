@@ -7,6 +7,9 @@
 
   <!-- non-dev: JSON logs -->
   <springProfile name="!dev">
+    <!-- Silence WS broker stats -->
+    <logger name="org.springframework.web.socket.config.WebSocketMessageBrokerStats" level="WARN"/>
+
     <appender name="JSON" class="ch.qos.logback.core.ConsoleAppender">
       <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
         <providers>
