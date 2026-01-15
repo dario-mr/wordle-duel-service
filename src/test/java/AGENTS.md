@@ -85,3 +85,4 @@ class GreetingServiceTest {
   provides isolation.
 - Only add explicit cleanup when rollback is disabled or data can be committed outside the test
   transaction.
+- Do not use `EntityManager`, as it is not necessary with `@DataJpaTest`.

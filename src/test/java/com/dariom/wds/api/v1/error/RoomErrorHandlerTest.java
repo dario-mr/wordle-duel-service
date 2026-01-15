@@ -1,9 +1,8 @@
 package com.dariom.wds.api.v1.error;
 
-import static com.dariom.wds.api.v1.error.ErrorCode.GENERIC_BAD_REQUEST;
-import static com.dariom.wds.api.v1.error.ErrorCode.INVALID_LANGUAGE;
-import static com.dariom.wds.api.v1.error.ErrorCode.INVALID_PLAYER_ID;
-import static com.dariom.wds.api.v1.error.ErrorCode.INVALID_ROUND_NUMBER;
+import static com.dariom.wds.api.common.ErrorCode.GENERIC_BAD_REQUEST;
+import static com.dariom.wds.api.common.ErrorCode.INVALID_LANGUAGE;
+import static com.dariom.wds.api.common.ErrorCode.INVALID_ROUND_NUMBER;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.dariom.wds.api.v1.dto.CreateRoomRequest;
@@ -19,25 +18,6 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 class RoomErrorHandlerTest {
 
   private final RoomErrorHandler handler = new RoomErrorHandler();
-
-  @Test
-  void handleArgumentNotValid_fieldIsPlayerId_returnsInvalidPlayerId() throws Exception {
-    // Arrange
-    var bindingResult = new BeanPropertyBindingResult(new Object(), "request");
-    bindingResult.addError(new FieldError("request", "playerId", "", false, null, null,
-        "playerId is required"));
-    var ex = new MethodArgumentNotValidException(dummyParameter(), bindingResult);
-    var request = httpRequest("POST", "/api/v1/rooms");
-
-    // Act
-    var response = handler.handleArgumentNotValid(ex, request);
-
-    // Assert
-    assertThat(response.getStatusCode().value()).isEqualTo(400);
-    assertThat(response.getBody()).isNotNull();
-    assertThat(response.getBody().code()).isEqualTo(INVALID_PLAYER_ID);
-    assertThat(response.getBody().message()).isEqualTo("playerId is required");
-  }
 
   @Test
   void handleArgumentNotValid_fieldIsLanguage_returnsInvalidLanguage() throws Exception {

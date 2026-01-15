@@ -4,7 +4,9 @@ spring:
     username: ${DB_USER}
     password: ${DB_PASSWORD}
 
-wds:
+app:
+  frontend:
+    success-redirect: /wordle-duel/
   websocket:
     allowed-origins:
       - "https://dariolab.com"

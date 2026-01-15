@@ -5,7 +5,13 @@ spring:
     hibernate.ddl-auto: validate
   h2.console.enabled: true
 
-wds:
+app:
+  frontend:
+    success-redirect: "http://localhost:3001/"
+  security:
+    refresh:
+      cookie-name: wd_refresh
+      cookie-secure: false
   websocket:
     allowed-origins:
       - "http://localhost:${server.port}"

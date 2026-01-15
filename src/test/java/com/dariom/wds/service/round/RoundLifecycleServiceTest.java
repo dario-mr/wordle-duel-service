@@ -1,6 +1,6 @@
 package com.dariom.wds.service.round;
 
-import static com.dariom.wds.api.v1.error.ErrorCode.ROUND_FINISHED;
+import static com.dariom.wds.api.common.ErrorCode.ROUND_FINISHED;
 import static com.dariom.wds.domain.Language.IT;
 import static com.dariom.wds.domain.RoundPlayerStatus.LOST;
 import static com.dariom.wds.domain.RoundPlayerStatus.PLAYING;
@@ -16,10 +16,12 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.dariom.wds.config.WordleProperties;
 import com.dariom.wds.domain.RoundStatus;
+import com.dariom.wds.exception.DictionaryEmptyException;
 import com.dariom.wds.exception.InvalidGuessException;
 import com.dariom.wds.exception.RoomNotReadyException;
 import com.dariom.wds.persistence.entity.GuessEntity;
@@ -126,6 +128,30 @@ class RoundLifecycleServiceTest {
     var payload = (RoundStartedPayload) roomEvent.payload();
     assertThat(payload.roundNumber()).isEqualTo(1);
     assertThat(payload.maxAttempts()).isEqualTo(6);
+  }
+
+  @Test
+  void startNewRoundEntity_twoPlayers_dictionaryEmpty_throwsDictionaryEmptyException() {
+    // Arrange
+    var room = new RoomEntity();
+    room.setId("room-1");
+    room.setLanguage(IT);
+    room.addPlayer(PLAYER_1);
+    room.addPlayer(PLAYER_2);
+
+    when(dictionaryRepository.getAnswerWords(any())).thenReturn(Set.of());
+
+    // Act
+    var thrown = catchThrowable(() -> service.startNewRoundEntity(room));
+
+    // Assert
+    assertThat(thrown)
+        .isInstanceOf(DictionaryEmptyException.class)
+        .hasMessageContaining("IT");
+    assertThat(room.getCurrentRoundNumber()).isNull();
+
+    verify(dictionaryRepository).getAnswerWords(IT);
+    verifyNoInteractions(eventPublisher);
   }
 
   @Test

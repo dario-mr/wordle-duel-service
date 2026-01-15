@@ -1,6 +1,6 @@
 package com.dariom.wds.service.round;
 
-import static com.dariom.wds.api.v1.error.ErrorCode.NO_ATTEMPTS_LEFT;
+import static com.dariom.wds.api.common.ErrorCode.NO_ATTEMPTS_LEFT;
 import static com.dariom.wds.domain.RoundPlayerStatus.LOST;
 import static com.dariom.wds.domain.RoundPlayerStatus.WON;
 import static com.dariom.wds.service.round.validation.PlayerStatusValidator.validatePlayerStatus;

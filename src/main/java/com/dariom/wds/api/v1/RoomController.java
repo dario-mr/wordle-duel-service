@@ -1,12 +1,11 @@
 package com.dariom.wds.api.v1;
 
+import com.dariom.wds.api.common.ErrorResponse;
 import com.dariom.wds.api.v1.dto.CreateRoomRequest;
 import com.dariom.wds.api.v1.dto.GuessResponse;
-import com.dariom.wds.api.v1.dto.JoinRoomRequest;
 import com.dariom.wds.api.v1.dto.ReadyRequest;
 import com.dariom.wds.api.v1.dto.RoomDto;
 import com.dariom.wds.api.v1.dto.SubmitGuessRequest;
-import com.dariom.wds.api.v1.error.ErrorResponse;
 import com.dariom.wds.api.v1.mapper.RoomMapper;
 import com.dariom.wds.domain.Language;
 import com.dariom.wds.service.room.RoomService;
@@ -23,6 +22,8 @@ import java.net.URI;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -37,7 +38,6 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 @RequestMapping("/api/v1/rooms")
 @Tag(name = "Rooms", description = "Room management and gameplay actions")
 public class RoomController {
-  // TODO security
 
   private final RoomService roomService;
   private final RoundService roundService;
@@ -49,10 +49,14 @@ public class RoomController {
       @ApiResponse(responseCode = "400", description = "Invalid request", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
   @PostMapping
-  public ResponseEntity<RoomDto> createRoom(@Valid @RequestBody CreateRoomRequest request) {
-    log.info("Create room: {}", request);
+  public ResponseEntity<RoomDto> createRoom(
+      @Valid @RequestBody CreateRoomRequest request,
+      @AuthenticationPrincipal Jwt jwt
+  ) {
+    var appUserId = jwt.getClaimAsString("uid");
+    log.info("Create room {} by user <{}>", request, appUserId);
     var language = Language.valueOf(request.language().trim().toUpperCase());
-    var room = roomService.createRoom(language, request.playerId());
+    var room = roomService.createRoom(language, appUserId);
     var roomDto = roomMapper.toDto(room);
     var roomUri = getRoomUri(roomDto.id());
 
@@ -68,10 +72,11 @@ public class RoomController {
   @PostMapping("/{roomId}/join")
   public ResponseEntity<RoomDto> joinRoom(
       @Parameter(description = "Room identifier", required = true) @PathVariable String roomId,
-      @Valid @RequestBody JoinRoomRequest request
+      @AuthenticationPrincipal Jwt jwt
   ) {
-    log.info("Join room <{}>: {}", roomId, request);
-    var room = roomService.joinRoom(roomId, request.playerId());
+    var appUserId = jwt.getClaimAsString("uid");
+    log.info("Join room <{}> by user <{}>", roomId, appUserId);
+    var room = roomService.joinRoom(roomId, appUserId);
     return ResponseEntity.ok(roomMapper.toDto(room));
   }
 
@@ -84,6 +89,7 @@ public class RoomController {
   public ResponseEntity<RoomDto> getRoom(
       @Parameter(description = "Room identifier", required = true) @PathVariable String roomId
   ) {
+    // TODO block inspecting room from a 3rd player who is not in it?
     log.info("Get room <{}>", roomId);
     var room = roomService.getRoom(roomId);
     return ResponseEntity.ok(roomMapper.toDto(room));
@@ -98,10 +104,12 @@ public class RoomController {
   @PostMapping("/{roomId}/guess")
   public ResponseEntity<GuessResponse> submitGuess(
       @Parameter(description = "Room identifier", required = true) @PathVariable String roomId,
-      @Valid @RequestBody SubmitGuessRequest request
+      @Valid @RequestBody SubmitGuessRequest request,
+      @AuthenticationPrincipal Jwt jwt
   ) {
-    log.info("Submit guess in room <{}>: {}", roomId, request);
-    var room = roundService.handleGuess(roomId, request.playerId(), request.word());
+    var appUserId = jwt.getClaimAsString("uid");
+    log.info("Submit guess in room <{}> by user <{}>: {}", roomId, appUserId, request);
+    var room = roundService.handleGuess(roomId, appUserId, request.word());
     var response = new GuessResponse(roomMapper.toDto(room));
     return ResponseEntity.ok(response);
   }
@@ -116,10 +124,12 @@ public class RoomController {
   @PostMapping("/{roomId}/ready")
   public ResponseEntity<RoomDto> ready(
       @Parameter(description = "Room identifier", required = true) @PathVariable String roomId,
-      @Valid @RequestBody ReadyRequest request
+      @Valid @RequestBody ReadyRequest request,
+      @AuthenticationPrincipal Jwt jwt
   ) {
-    log.info("Player ready in room <{}>: {}", roomId, request);
-    var room = roundService.handleReady(roomId, request.playerId(), request.roundNumber());
+    var appUserId = jwt.getClaimAsString("uid");
+    log.info("Player ready in room <{}> by user <{}>: {}", roomId, appUserId, request);
+    var room = roundService.handleReady(roomId, appUserId, request.roundNumber());
     return ResponseEntity.ok(roomMapper.toDto(room));
   }
 

@@ -1,4 +1,4 @@
-package com.dariom.wds.config;
+package com.dariom.wds.config.ws;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Configuration;

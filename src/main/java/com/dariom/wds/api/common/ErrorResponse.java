@@ -1,4 +1,4 @@
-package com.dariom.wds.api.v1.error;
+package com.dariom.wds.api.common;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 

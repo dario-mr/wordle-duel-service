@@ -1,4 +1,4 @@
-package com.dariom.wds.api.v1.error;
+package com.dariom.wds.api.common;
 
 public enum ErrorCode {
   ROOM_NOT_FOUND,
@@ -17,10 +17,11 @@ public enum ErrorCode {
   INVALID_ROUND_NUMBER,
   WORD_NOT_ALLOWED,
   INVALID_WORD,
-  INVALID_PLAYER_ID,
   ROOM_CLOSED,
   DICTIONARY_EMPTY,
   GENERIC_BAD_REQUEST,
+  REFRESH_TOKEN_INVALID,
+  REFRESH_TOKEN_EMPTY,
 
   UNKNOWN_ERROR,
 }
