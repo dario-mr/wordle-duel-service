@@ -6,7 +6,7 @@ spring:
 
 app:
   frontend:
-    success-redirect: /wordle-duel/
+    success-redirect: "https://dariolab.com/wordle-duel/"
   websocket:
     allowed-origins:
       - "https://dariolab.com"
