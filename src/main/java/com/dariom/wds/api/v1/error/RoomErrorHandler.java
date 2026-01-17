@@ -1,17 +1,15 @@
 package com.dariom.wds.api.v1.error;
 
-import static com.dariom.wds.api.v1.error.ErrorCode.DICTIONARY_EMPTY;
-import static com.dariom.wds.api.v1.error.ErrorCode.GENERIC_BAD_REQUEST;
-import static com.dariom.wds.api.v1.error.ErrorCode.INVALID_LANGUAGE;
-import static com.dariom.wds.api.v1.error.ErrorCode.INVALID_PLAYER_ID;
-import static com.dariom.wds.api.v1.error.ErrorCode.INVALID_ROUND_NUMBER;
-import static com.dariom.wds.api.v1.error.ErrorCode.INVALID_WORD;
-import static com.dariom.wds.api.v1.error.ErrorCode.PLAYER_NOT_IN_ROOM;
-import static com.dariom.wds.api.v1.error.ErrorCode.ROOM_CLOSED;
-import static com.dariom.wds.api.v1.error.ErrorCode.ROOM_FULL;
-import static com.dariom.wds.api.v1.error.ErrorCode.ROOM_NOT_FOUND;
-import static com.dariom.wds.api.v1.error.ErrorCode.ROOM_NOT_READY;
-import static com.dariom.wds.api.v1.error.ErrorCode.UNKNOWN_ERROR;
+import static com.dariom.wds.api.common.ErrorCode.DICTIONARY_EMPTY;
+import static com.dariom.wds.api.common.ErrorCode.GENERIC_BAD_REQUEST;
+import static com.dariom.wds.api.common.ErrorCode.INVALID_LANGUAGE;
+import static com.dariom.wds.api.common.ErrorCode.INVALID_ROUND_NUMBER;
+import static com.dariom.wds.api.common.ErrorCode.INVALID_WORD;
+import static com.dariom.wds.api.common.ErrorCode.PLAYER_NOT_IN_ROOM;
+import static com.dariom.wds.api.common.ErrorCode.ROOM_CLOSED;
+import static com.dariom.wds.api.common.ErrorCode.ROOM_FULL;
+import static com.dariom.wds.api.common.ErrorCode.ROOM_NOT_FOUND;
+import static com.dariom.wds.api.common.ErrorCode.ROOM_NOT_READY;
 import static org.apache.commons.lang3.StringUtils.defaultIfBlank;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CONFLICT;
@@ -19,6 +17,7 @@ import static org.springframework.http.HttpStatus.FORBIDDEN;
 import static org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR;
 import static org.springframework.http.HttpStatus.NOT_FOUND;
 
+import com.dariom.wds.api.common.ErrorResponse;
 import com.dariom.wds.exception.DictionaryEmptyException;
 import com.dariom.wds.exception.InvalidGuessException;
 import com.dariom.wds.exception.PlayerNotInRoomException;
@@ -29,21 +28,16 @@ import com.dariom.wds.exception.RoomNotReadyException;
 import com.dariom.wds.exception.RoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 @Slf4j
+@Order(1)
 @RestControllerAdvice
 public class RoomErrorHandler {
-
-  @ExceptionHandler(Exception.class)
-  public ResponseEntity<ErrorResponse> handleUnexpected(Exception ex, HttpServletRequest req) {
-    log.error("Unhandled error: {} {}", req.getMethod(), req.getRequestURI(), ex);
-    return ResponseEntity.status(INTERNAL_SERVER_ERROR)
-        .body(new ErrorResponse(UNKNOWN_ERROR, "Unexpected error"));
-  }
 
   @ExceptionHandler(RoomNotFoundException.class)
   public ResponseEntity<ErrorResponse> handleRoomNotFound(RoomNotFoundException ex) {
@@ -117,7 +111,6 @@ public class RoomErrorHandler {
         fieldError.getField(), fieldError.getRejectedValue(), message);
 
     var errorCode = switch (fieldError.getField()) {
-      case "playerId" -> INVALID_PLAYER_ID;
       case "word" -> INVALID_WORD;
       case "language" -> INVALID_LANGUAGE;
       case "roundNumber" -> INVALID_ROUND_NUMBER;

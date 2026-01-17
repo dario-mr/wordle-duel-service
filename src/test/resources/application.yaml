@@ -3,12 +3,32 @@ spring:
     url: jdbc:h2:mem:testdb${random.long};MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;INIT=CREATE SCHEMA IF NOT EXISTS wordle\;SET SCHEMA wordle\;
   jpa:
     hibernate.ddl-auto: validate
+  security:
+    oauth2.client.registration:
+      google:
+        client-id: test-client
+        client-secret: test-secret
+        scope: openid, profile, email
 
 wordle:
   max-attempts: 1
   word-length: 5
 
-wds:
+app:
+  frontend:
+    success-redirect: "http://frontend.test/"
   websocket:
     allowed-origins:
       - "http://allowed-origin.test"
+  security:
+    whitelist-ant-patterns: /actuator/**,/oauth2/**,/login/**,/public/**,/h2-console/**,/swagger-ui/**,/v3/api-docs/**,/ws,/ws/**
+    jwt:
+      issuer: wordle-duel-service-test
+      ttl-seconds: 900
+      secret: test-secret-test-secret-test-secret-32bytes
+    refresh:
+      ttl-days: 180
+      cookie-name: wd_refresh
+      cookie-samesite: Lax
+      cookie-path: /
+      cookie-secure: false

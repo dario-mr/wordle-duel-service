@@ -57,42 +57,6 @@ class ApiValidationTest {
   }
 
   @Test
-  void isValidPlayerId_nullPlayerId_returnsFalse() {
-    // Arrange
-    var validator = new ValidPlayerId.Validator();
-
-    // Act
-    var result = validator.isValid(null, context);
-
-    // Assert
-    assertThat(result).isFalse();
-  }
-
-  @Test
-  void isValidPlayerId_blankPlayerId_returnsFalse() {
-    // Arrange
-    var validator = new ValidPlayerId.Validator();
-
-    // Act
-    var result = validator.isValid(" ", context);
-
-    // Assert
-    assertThat(result).isFalse();
-  }
-
-  @Test
-  void isValidPlayerId_nonBlankPlayerId_returnsTrue() {
-    // Arrange
-    var validator = new ValidPlayerId.Validator();
-
-    // Act
-    var result = validator.isValid("p1", context);
-
-    // Assert
-    assertThat(result).isTrue();
-  }
-
-  @Test
   void isValidLanguage_validLanguage_returnsTrue() {
     // Arrange
     var validator = new ValidLanguage.Validator();

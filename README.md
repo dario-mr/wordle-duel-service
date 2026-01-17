@@ -22,7 +22,8 @@ The app reads configuration from environment variables and also supports a local
 
 1. Copy the provided example file: `cp .env.example .env`
 2. Set `PROFILE=dev` for local development.
-3. Run: `mvn spring-boot:run`
+3. Set `WORDLE_JWT_SECRET`, `WORDLE_GOOGLE_CLIENT_ID`, and `WORDLE_GOOGLE_CLIENT_SECRET`.
+4. Run: `mvn spring-boot:run`
 
 Service starts on `http://localhost:8088` by default.
 
@@ -35,22 +36,46 @@ Select the profile with the `PROFILE` env var (defaults to `prod`).
 
 ## Environment variables
 
-| Variable      | Description                              | Default |
-|---------------|------------------------------------------|---------|
-| `PORT`        | HTTP server port                         | `8088`  |
-| `PROFILE`     | Spring profile (`dev` / `prod`)          | `prod`  |
-| `DB_PORT`     | PostgreSQL port (used by `prod` profile) | `null`  |
-| `DB_USER`     | PostgreSQL username                      | `null`  |
-| `DB_PASSWORD` | PostgreSQL password                      | `null`  |
+| Variable                      | Description                              | Default |
+|-------------------------------|------------------------------------------|---------|
+| `PORT`                        | HTTP server port                         | `8088`  |
+| `PROFILE`                     | Spring profile (`dev` / `prod`)          | `prod`  |
+| `DB_PORT`                     | PostgreSQL port (used by `prod` profile) | `null`  |
+| `DB_USER`                     | PostgreSQL username                      | `null`  |
+| `DB_PASSWORD`                 | PostgreSQL password                      | `null`  |
+| `WORDLE_GOOGLE_CLIENT_ID`     | Google OAuth2 client id                  | `null`  |
+| `WORDLE_GOOGLE_CLIENT_SECRET` | Google OAuth2 client secret              | `null`  |
+| `WORDLE_JWT_SECRET`           | JWT signing secret (HMAC)                | `null`  |
 
 Notes:
 
 - In `prod`, the JDBC URL is configured
   in [application-prod.yaml](src/main/resources/application-prod.yaml) and expects `DB_PORT`,
   `DB_USER`, and `DB_PASSWORD`.
-- In `dev`, the H2 console is enabled.
+- In `dev`, the H2 console is enabled and no DB env vars are required.
+
+## Authentication
+
+This service uses Google OAuth2 login to issue a long-lived refresh token (stored as an HttpOnly
+cookie) and short-lived access tokens (Bearer JWT).
+
+- OAuth2 login entrypoint: `GET /oauth2/authorization/google`
+- Refresh access token: `POST /auth/refresh` (returns a JWT; requires CSRF)
+- Logout: `POST /auth/logout`
+
+### Obtain an access token via Swagger UI
+
+1. Open Swagger UI: `http://localhost:8088/swagger-ui/index.html`
+2. Complete Google login in the same browser by visiting:
+   `http://localhost:8088/oauth2/authorization/google`
+3. Back in Swagger UI, call `POST /auth/refresh` to get an `accessToken`.
+4. Click Swagger's "Authorize" button and paste the token as a `Bearer` token.
+
+(Non-browser clients must send `X-XSRF-TOKEN` with the value from the `XSRF-TOKEN` cookie)
 
 ## API
+
+All endpoints under `/api/v1/**` require `Authorization: Bearer <accessToken>`.
 
 - `POST /api/v1/rooms` – create a room
 - `POST /api/v1/rooms/{roomId}/join` – join a room

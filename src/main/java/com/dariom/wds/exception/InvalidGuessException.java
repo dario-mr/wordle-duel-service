@@ -1,6 +1,6 @@
 package com.dariom.wds.exception;
 
-import com.dariom.wds.api.v1.error.ErrorCode;
+import com.dariom.wds.api.common.ErrorCode;
 import lombok.Getter;
 
 @Getter

@@ -1,6 +1,6 @@
 package com.dariom.wds.service.round;
 
-import static com.dariom.wds.api.v1.error.ErrorCode.NO_ATTEMPTS_LEFT;
+import static com.dariom.wds.api.common.ErrorCode.NO_ATTEMPTS_LEFT;
 import static com.dariom.wds.domain.Language.IT;
 import static com.dariom.wds.domain.LetterStatus.CORRECT;
 import static com.dariom.wds.domain.LetterStatus.PRESENT;

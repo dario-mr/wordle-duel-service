@@ -10,17 +10,20 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.dariom.wds.api.v1.dto.CreateRoomRequest;
-import com.dariom.wds.api.v1.dto.JoinRoomRequest;
 import com.dariom.wds.api.v1.dto.ReadyRequest;
 import com.dariom.wds.api.v1.dto.SubmitGuessRequest;
 import com.dariom.wds.api.v1.mapper.RoomMapper;
 import com.dariom.wds.domain.Language;
 import com.dariom.wds.domain.Player;
 import com.dariom.wds.domain.Room;
+import com.dariom.wds.domain.RoomStatus;
 import com.dariom.wds.service.room.RoomService;
 import com.dariom.wds.service.round.RoundService;
+import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -61,19 +64,13 @@ class RoomControllerTest {
     request.setServerPort(8080);
     RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
 
-    var domainRoom = new Room(
-        "room-1",
-        IT,
-        WAITING_FOR_PLAYERS,
-        List.of(new Player("p1", 0)),
-        null
-    );
+    var domainRoom = room(WAITING_FOR_PLAYERS);
     var expectedDto = roomMapper.toDto(domainRoom);
 
     when(roomService.createRoom(any(Language.class), anyString())).thenReturn(domainRoom);
 
     // Act
-    var response = roomController.createRoom(new CreateRoomRequest("p1", " it "));
+    var response = roomController.createRoom(new CreateRoomRequest(" it "), jwtWithUid("user-1"));
 
     // Assert
     assertThat(response.getStatusCode().value()).isEqualTo(201);
@@ -81,81 +78,84 @@ class RoomControllerTest {
     assertThat(response.getHeaders().getLocation()).isNotNull();
     assertThat(response.getHeaders().getLocation().toString()).endsWith("/api/v1/rooms/room-1");
 
-    verify(roomService).createRoom(IT, "p1");
+    verify(roomService).createRoom(IT, "user-1");
   }
 
   @Test
   void joinRoom_validRequest_returnsOk() {
     // Arrange
-    var domainRoom = new Room(
-        "room-1",
-        IT,
-        WAITING_FOR_PLAYERS,
-        List.of(new Player("p1", 0)),
-        null
-    );
+    var domainRoom = room(WAITING_FOR_PLAYERS);
     var expectedDto = roomMapper.toDto(domainRoom);
 
     when(roomService.joinRoom(anyString(), anyString())).thenReturn(domainRoom);
 
     // Act
-    var response = roomController.joinRoom("room-1", new JoinRoomRequest("p2"));
+    var response = roomController.joinRoom("room-1", jwtWithUid("user-2"));
 
     // Assert
     assertThat(response.getStatusCode().value()).isEqualTo(200);
     assertThat(response.getBody()).isEqualTo(expectedDto);
 
-    verify(roomService).joinRoom("room-1", "p2");
+    verify(roomService).joinRoom("room-1", "user-2");
   }
 
   @Test
   void submitGuess_validRequest_returnsOkWithGuessResponse() {
     // Arrange
-    var domainRoom = new Room(
-        "room-1",
-        IT,
-        IN_PROGRESS,
-        List.of(new Player("p1", 0)),
-        null
-    );
+    var domainRoom = room(IN_PROGRESS);
     var expectedDto = roomMapper.toDto(domainRoom);
 
     when(roundService.handleGuess(anyString(), anyString(), anyString())).thenReturn(domainRoom);
 
     // Act
-    var response = roomController.submitGuess("room-1", new SubmitGuessRequest("p1", "pizza"));
+    var response = roomController.submitGuess("room-1", new SubmitGuessRequest("pizza"), jwtWithUid("user-1"));
 
     // Assert
     assertThat(response.getStatusCode().value()).isEqualTo(200);
     assertThat(response.getBody()).isNotNull();
     assertThat(response.getBody().room()).isEqualTo(expectedDto);
 
-    verify(roundService).handleGuess("room-1", "p1", "pizza");
+    verify(roundService).handleGuess("room-1", "user-1", "pizza");
   }
 
   @Test
   void ready_validRequest_returnsOk() {
     // Arrange
-    var domainRoom = new Room(
-        "room-1",
-        IT,
-        IN_PROGRESS,
-        List.of(new Player("p1", 0)),
-        null
-    );
+    var domainRoom = room(IN_PROGRESS);
     var expectedDto = roomMapper.toDto(domainRoom);
 
     when(roundService.handleReady(anyString(), anyString(), any(Integer.class))).thenReturn(
         domainRoom);
 
     // Act
-    var response = roomController.ready("room-1", new ReadyRequest("p1", 1));
+    var response = roomController.ready("room-1", new ReadyRequest(1), jwtWithUid("user-1"));
 
     // Assert
     assertThat(response.getStatusCode().value()).isEqualTo(200);
     assertThat(response.getBody()).isEqualTo(expectedDto);
 
-    verify(roundService).handleReady("room-1", "p1", 1);
+    verify(roundService).handleReady("room-1", "user-1", 1);
+  }
+
+  private static Jwt jwtWithUid(String uid) {
+    var now = Instant.now();
+    return new Jwt(
+        "test-token",
+        now,
+        now.plusSeconds(3600),
+        Map.of("alg", "none"),
+        Map.of("uid", uid)
+    );
+  }
+
+  private static Room room(RoomStatus roomStatus) {
+    return new Room(
+        "room-1",
+        IT,
+        roomStatus,
+        List.of(new Player("p1", 0)),
+        null
+    );
   }
 
 }

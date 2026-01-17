@@ -1,9 +1,9 @@
-package com.dariom.wds.config;
+package com.dariom.wds.config.ws;
 
 import java.util.List;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
-@ConfigurationProperties(prefix = "wds.websocket")
+@ConfigurationProperties(prefix = "app.websocket")
 public record WebSocketProperties(
     List<String> allowedOrigins
 ) {

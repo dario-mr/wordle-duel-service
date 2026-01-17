@@ -11,9 +11,9 @@ public class RoomValidator {
   private RoomValidator() {
   }
 
-  public static void validateRoom(String playerId, Room room, int maxPlayers) {
+  public static void validateRoom(String joiningPlayerId, Room room, int maxPlayers) {
     validateRoomNotClosed(room);
-    validateRoomNotFull(room, playerId, maxPlayers);
+    validateRoomNotFull(room, joiningPlayerId, maxPlayers);
   }
 
   private static void validateRoomNotClosed(Room room) {
@@ -22,8 +22,8 @@ public class RoomValidator {
     }
   }
 
-  private static void validateRoomNotFull(Room room, String playerId, int maxPlayers) {
-    if (!room.hasPlayer(playerId) && room.players().size() >= maxPlayers) {
+  private static void validateRoomNotFull(Room room, String joiningPlayerId, int maxPlayers) {
+    if (!room.hasPlayer(joiningPlayerId) && room.players().size() >= maxPlayers) {
       throw new RoomFullException(room.id());
     }
   }

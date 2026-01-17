@@ -1,7 +1,7 @@
 package com.dariom.wds.service.round;
 
-import static com.dariom.wds.api.v1.error.ErrorCode.ROUND_NOT_CURRENT;
-import static com.dariom.wds.api.v1.error.ErrorCode.ROUND_NOT_ENDED;
+import static com.dariom.wds.api.common.ErrorCode.ROUND_NOT_CURRENT;
+import static com.dariom.wds.api.common.ErrorCode.ROUND_NOT_ENDED;
 import static com.dariom.wds.domain.RoundPlayerStatus.READY;
 import static com.dariom.wds.domain.RoundStatus.ENDED;
 import static com.dariom.wds.domain.RoundStatus.PLAYING;

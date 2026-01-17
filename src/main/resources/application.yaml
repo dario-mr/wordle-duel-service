@@ -12,6 +12,13 @@ spring:
     liquibase-schema: wordle
   jpa:
     properties.hibernate.default_schema: wordle
+  security:
+    oauth2.client.registration:
+      google:
+        client-id: ${WORDLE_GOOGLE_CLIENT_ID}
+        client-secret: ${WORDLE_GOOGLE_CLIENT_SECRET}
+        scope: openid, profile, email
+        redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
 
 management:
   endpoints:
@@ -25,3 +32,20 @@ management:
 wordle:
   max-attempts: 6
   word-length: 5
+
+app:
+  security:
+    whitelist-ant-patterns: /actuator/**,/oauth2/**,/login/**,/public/**,/h2-console/**,/swagger-ui/**,/v3/api-docs/**,/ws,/ws/**
+    jwt:
+      issuer: ${spring.application.name}
+      ttl-seconds: 900
+      secret: ${WORDLE_JWT_SECRET}
+    refresh:
+      ttl-days: 180
+      cookie-name: __Host-wd_refresh
+      cookie-samesite: Lax
+      cookie-path: /
+      cookie-secure: true
+
+springdoc:
+  swagger-ui.csrf.enabled: true

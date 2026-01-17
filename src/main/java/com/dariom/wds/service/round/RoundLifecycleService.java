@@ -5,7 +5,7 @@ import static com.dariom.wds.domain.RoundPlayerStatus.WON;
 import static com.dariom.wds.domain.RoundStatus.ENDED;
 import static com.dariom.wds.websocket.model.EventType.ROUND_STARTED;
 
-import com.dariom.wds.api.v1.error.ErrorCode;
+import com.dariom.wds.api.common.ErrorCode;
 import com.dariom.wds.config.WordleProperties;
 import com.dariom.wds.domain.Language;
 import com.dariom.wds.domain.RoundStatus;

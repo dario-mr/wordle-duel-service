@@ -75,10 +75,6 @@ public class DomainMapper {
         .map(l -> new LetterResult(l.getLetter(), l.getStatus()))
         .toList();
 
-    return new Guess(
-        guess.getWord(),
-        letters,
-        guess.getAttemptNumber()
-    );
+    return new Guess(guess.getWord(), letters, guess.getAttemptNumber());
   }
 }

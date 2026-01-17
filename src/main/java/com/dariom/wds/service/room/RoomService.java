@@ -59,27 +59,12 @@ public class RoomService {
     return domainMapper.toRoom(saved, null);
   }
 
-  public Room joinRoom(String roomId, String playerId) {
+  public Room joinRoom(String roomId, String joiningPlayerId) {
     return roomLockManager.withRoomLock(roomId, () -> {
       var transactionTemplate = new TransactionTemplate(transactionManager);
       return transactionTemplate.execute(
-          status -> joinRoomInTransaction(roomId, playerId));
+          status -> joinRoomInTransaction(roomId, joiningPlayerId));
     });
-  }
-
-  private Room joinRoomInTransaction(String roomId, String playerId) {
-    var room = findRoom(roomId);
-    validateRoom(playerId, domainMapper.toRoom(room, null), MAX_PLAYERS);
-
-    addPlayerAndInitializeScore(room, playerId);
-    var startedRound = maybeStartRound(room);
-    var savedRoom = roomJpaRepository.save(room);
-    var currentRound = startedRound
-        .or(() -> roundService.getCurrentRound(
-            savedRoom.getId(), savedRoom.getCurrentRoundNumber()))
-        .orElse(null);
-
-    return domainMapper.toRoom(savedRoom, currentRound);
   }
 
   @Transactional(readOnly = true)
@@ -88,6 +73,21 @@ public class RoomService {
     var currentRound = roundService.getCurrentRound(room.getId(), room.getCurrentRoundNumber())
         .orElse(null);
     return domainMapper.toRoom(room, currentRound);
+  }
+
+  private Room joinRoomInTransaction(String roomId, String joiningPlayerId) {
+    var room = findRoom(roomId);
+    validateRoom(joiningPlayerId, domainMapper.toRoom(room, null), MAX_PLAYERS);
+
+    addPlayerAndInitializeScore(room, joiningPlayerId);
+    var startedRound = maybeStartRound(room);
+    var savedRoom = roomJpaRepository.save(room);
+    var currentRound = startedRound
+        .or(() -> roundService.getCurrentRound(
+            savedRoom.getId(), savedRoom.getCurrentRoundNumber()))
+        .orElse(null);
+
+    return domainMapper.toRoom(savedRoom, currentRound);
   }
 
   private RoomEntity findRoom(String roomId) {

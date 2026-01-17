@@ -1,9 +1,9 @@
 package com.dariom.wds.service.round.validation;
 
-import static com.dariom.wds.api.v1.error.ErrorCode.INVALID_CHARS;
-import static com.dariom.wds.api.v1.error.ErrorCode.INVALID_LANGUAGE;
-import static com.dariom.wds.api.v1.error.ErrorCode.INVALID_LENGTH;
-import static com.dariom.wds.api.v1.error.ErrorCode.WORD_NOT_ALLOWED;
+import static com.dariom.wds.api.common.ErrorCode.INVALID_CHARS;
+import static com.dariom.wds.api.common.ErrorCode.INVALID_LANGUAGE;
+import static com.dariom.wds.api.common.ErrorCode.INVALID_LENGTH;
+import static com.dariom.wds.api.common.ErrorCode.WORD_NOT_ALLOWED;
 import static com.dariom.wds.domain.Language.IT;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
