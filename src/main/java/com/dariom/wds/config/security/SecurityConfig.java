@@ -29,6 +29,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 
 /**
  * Configures Spring Security using two distinct {@link SecurityFilterChain}s.
@@ -96,12 +97,13 @@ public class SecurityConfig {
   @Order(2)
   SecurityFilterChain authSecurityFilterChain(
       HttpSecurity http,
+      CookieCsrfTokenRepository csrfTokenRepository,
       AuthenticationSuccessHandler oauth2SuccessHandler,
       OAuthUserService oAuthUserService
   ) throws Exception {
     http
         .csrf(csrf -> csrf
-            .csrfTokenRepository(withHttpOnlyFalse())
+            .csrfTokenRepository(csrfTokenRepository)
             .csrfTokenRequestHandler(new SpaCsrfTokenRequestHandler())
             .ignoringRequestMatchers("/h2-console/**")
         )
@@ -121,6 +123,13 @@ public class SecurityConfig {
         );
 
     return http.build();
+  }
+
+  @Bean
+  CookieCsrfTokenRepository csrfTokenRepository() {
+    var repository = withHttpOnlyFalse();
+    repository.setCookiePath("/");
+    return repository;
   }
 
   @Bean
