@@ -65,6 +65,9 @@ public class SecurityConfig {
   private static final String ADMIN_MATCHER = "/admin/**";
   private static final String AUTH_MATCHER = "/auth/**";
 
+  private static final String CSRF_COOKIE_NAME = "WD-XSRF-TOKEN";
+  private static final String CSRF_HEADER_NAME = "X-WD-XSRF-TOKEN";
+
   private final SecurityProperties securityProperties;
 
   @Bean
@@ -128,6 +131,8 @@ public class SecurityConfig {
   @Bean
   CookieCsrfTokenRepository csrfTokenRepository() {
     var repository = withHttpOnlyFalse();
+    repository.setCookieName(CSRF_COOKIE_NAME);
+    repository.setHeaderName(CSRF_HEADER_NAME);
     repository.setCookiePath("/");
     return repository;
   }

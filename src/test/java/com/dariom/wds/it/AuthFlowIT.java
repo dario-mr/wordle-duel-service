@@ -33,8 +33,8 @@ import org.springframework.transaction.support.TransactionTemplate;
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 class AuthFlowIT {
 
-  private static final String CSRF_COOKIE_NAME = "XSRF-TOKEN";
-  private static final String CSRF_HEADER_NAME = "X-XSRF-TOKEN";
+  private static final String CSRF_COOKIE_NAME = "WD-XSRF-TOKEN";
+  private static final String CSRF_HEADER_NAME = "X-WD-XSRF-TOKEN";
   private static final String ROOMS_URL = "/api/v1/rooms";
 
   @LocalServerPort

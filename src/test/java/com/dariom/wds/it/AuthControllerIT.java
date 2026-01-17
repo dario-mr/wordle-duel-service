@@ -30,8 +30,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 class AuthControllerIT {
 
-  private static final String CSRF_COOKIE_NAME = "XSRF-TOKEN";
-  private static final String CSRF_HEADER_NAME = "X-XSRF-TOKEN";
+  private static final String CSRF_COOKIE_NAME = "WD-XSRF-TOKEN";
+  private static final String CSRF_HEADER_NAME = "X-WD-XSRF-TOKEN";
 
   @Resource
   private MockMvc mockMvc;
