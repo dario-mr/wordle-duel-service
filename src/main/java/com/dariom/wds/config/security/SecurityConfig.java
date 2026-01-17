@@ -123,6 +123,9 @@ public class SecurityConfig {
         .logout(AbstractHttpConfigurer::disable)
         .headers(headers -> headers
             .frameOptions(FrameOptionsConfig::sameOrigin)
+        )
+        .exceptionHandling(ex -> ex
+            .authenticationEntryPoint(new HttpStatusEntryPoint(UNAUTHORIZED))
         );
 
     return http.build();
