@@ -1,6 +1,5 @@
 package com.dariom.wds.service.auth;
 
-import static com.dariom.wds.config.security.SecurityProperties.JwtProperties;
 import static com.dariom.wds.config.security.SecurityProperties.RefreshProperties;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
@@ -50,8 +49,7 @@ class RefreshTokenServiceTest {
   @BeforeEach
   void setUp() {
     var securityProperties = new SecurityProperties(
-        "",
-        new JwtProperties("issuer", 900, "secret"),
+        "", null, null, null,
         new RefreshProperties(REFRESH_TOKEN_DURATION_DAYS, "wd_refresh", "Lax", "/", false)
     );
 

@@ -4,6 +4,7 @@ import static com.dariom.wds.domain.Language.IT;
 import static com.dariom.wds.domain.LetterStatus.CORRECT;
 import static com.dariom.wds.domain.RoomStatus.IN_PROGRESS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.tuple;
 
 import com.dariom.wds.api.v1.dto.GuessDto;
 import com.dariom.wds.api.v1.dto.PlayerDto;
@@ -35,10 +36,7 @@ class RoomMapperTest {
         null
     );
 
-    var room = new Room("room-1", IT, IN_PROGRESS,
-        List.of(new Player("p1", 0)),
-        round
-    );
+    var room = new Room("room-1", IT, IN_PROGRESS, List.of(new Player("p1", 0, "John")), round);
 
     // Act
     var dto = mapper.toDto(room);
@@ -50,7 +48,7 @@ class RoomMapperTest {
         .extracting(GuessDto::attemptNumber)
         .containsExactly(1, 2);
     assertThat(dto.players())
-        .extracting(PlayerDto::id)
-        .containsExactly("p1");
+        .extracting(PlayerDto::id, PlayerDto::score, PlayerDto::displayName)
+        .containsExactly(tuple("p1", 0, "John"));
   }
 }

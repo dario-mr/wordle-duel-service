@@ -6,7 +6,9 @@ public record PlayerDto(
     @JsonProperty("id")
     String id,
     @JsonProperty("score")
-    int score
+    int score,
+    @JsonProperty("displayName")
+    String displayName
 ) {
 
 }

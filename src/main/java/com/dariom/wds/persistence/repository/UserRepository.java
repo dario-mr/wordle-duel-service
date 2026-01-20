@@ -7,12 +7,15 @@ import com.dariom.wds.domain.Role;
 import com.dariom.wds.persistence.entity.AppUserEntity;
 import com.dariom.wds.persistence.repository.jpa.AppUserJpaRepository;
 import com.dariom.wds.persistence.repository.jpa.RoleJpaRepository;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
+@Slf4j
 @RequiredArgsConstructor
 public class UserRepository {
 
@@ -54,6 +57,16 @@ public class UserRepository {
   public AppUserEntity requireByEmail(String email) {
     return appUserJpaRepository.findByEmail(email)
         .orElseThrow(() -> new IllegalArgumentException("Unknown user: " + email));
+  }
+
+  @Transactional(readOnly = true)
+  public Optional<AppUserEntity> findById(String appUserId) {
+    try {
+      return appUserJpaRepository.findById(UUID.fromString(appUserId));
+    } catch (IllegalArgumentException ex) {
+      log.error("Provided userId <{}> is not a valid UUID, returning empty user entity", appUserId);
+      return Optional.empty();
+    }
   }
 
   private void ensureRole(AppUserEntity user, Role role) {

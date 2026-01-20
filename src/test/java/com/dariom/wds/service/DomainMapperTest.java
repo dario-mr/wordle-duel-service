@@ -15,6 +15,7 @@ import com.dariom.wds.persistence.entity.LetterResultEmbeddable;
 import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.entity.RoundEntity;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class DomainMapperTest {
@@ -35,15 +36,48 @@ class DomainMapperTest {
     entity.setPlayerScore("b", 1);
     entity.setPlayerScore("a", 2);
 
+    var displayNamePerPlayer = Map.of("a", "John", "b", "Bart");
+
     // Act
-    var room = mapper.toRoom(entity, null);
+    var room = mapper.toRoom(entity, null, displayNamePerPlayer);
+
+    // Assert
+    assertThat(room.id()).isEqualTo("room-1");
+    assertThat(room.language()).isEqualTo(IT);
+    assertThat(room.status()).isEqualTo(WAITING_FOR_PLAYERS);
+    assertThat(room.currentRound()).isNull();
+    assertThat(room.players().size()).isEqualTo(2);
+    assertThat(room.players())
+        .extracting(Player::id, Player::score, Player::displayName)
+        .containsExactly(
+            tuple("a", 2, "John"),
+            tuple("b", 1, "Bart")
+        );
+  }
+
+  @Test
+  void toRoom_displayNameMapNull_stillMapsPlayersAndScores() {
+    // Arrange
+    var entity = new RoomEntity();
+    entity.setId("room-1");
+    entity.setLanguage(IT);
+    entity.setStatus(WAITING_FOR_PLAYERS);
+
+    entity.addPlayer("b");
+    entity.addPlayer("a");
+
+    entity.setPlayerScore("b", 1);
+    entity.setPlayerScore("a", 2);
+
+    // Act
+    var room = mapper.toRoom(entity, null, null);
 
     // Assert
     assertThat(room.players())
-        .extracting(Player::id, Player::score)
+        .extracting(Player::id, Player::score, Player::displayName)
         .containsExactly(
-            tuple("a", 2),
-            tuple("b", 1)
+            tuple("a", 2, null),
+            tuple("b", 1, null)
         );
   }
 

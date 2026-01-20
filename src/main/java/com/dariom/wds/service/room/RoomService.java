@@ -13,9 +13,11 @@ import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.repository.jpa.RoomJpaRepository;
 import com.dariom.wds.service.DomainMapper;
 import com.dariom.wds.service.round.RoundService;
+import com.dariom.wds.service.user.UserService;
 import com.dariom.wds.websocket.model.PlayerJoinedPayload;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +40,7 @@ public class RoomService {
   private final RoundService roundService;
   private final DomainMapper domainMapper;
   private final ApplicationEventPublisher eventPublisher;
+  private final UserService userService;
 
   @Transactional
   public Room createRoom(Language language, String creatorPlayerId) {
@@ -50,13 +53,14 @@ public class RoomService {
     room.setCurrentRoundNumber(null);
 
     var saved = roomJpaRepository.save(room);
+    var displayNamePerPlayer = getDisplayNamePerPlayer(saved);
 
     publishRoomEvent(saved.getId(), new RoomEvent(
         ROOM_CREATED,
         new PlayerJoinedPayload(creatorPlayerId, saved.getSortedPlayerIds())
     ));
 
-    return domainMapper.toRoom(saved, null);
+    return domainMapper.toRoom(saved, null, displayNamePerPlayer);
   }
 
   public Room joinRoom(String roomId, String joiningPlayerId) {
@@ -72,12 +76,13 @@ public class RoomService {
     var room = findRoom(roomId);
     var currentRound = roundService.getCurrentRound(room.getId(), room.getCurrentRoundNumber())
         .orElse(null);
-    return domainMapper.toRoom(room, currentRound);
+    var displayNamePerPlayer = getDisplayNamePerPlayer(room);
+    return domainMapper.toRoom(room, currentRound, displayNamePerPlayer);
   }
 
   private Room joinRoomInTransaction(String roomId, String joiningPlayerId) {
     var room = findRoom(roomId);
-    validateRoom(joiningPlayerId, domainMapper.toRoom(room, null), MAX_PLAYERS);
+    validateRoom(joiningPlayerId, domainMapper.toRoom(room, null, null), MAX_PLAYERS);
 
     addPlayerAndInitializeScore(room, joiningPlayerId);
     var startedRound = maybeStartRound(room);
@@ -86,8 +91,9 @@ public class RoomService {
         .or(() -> roundService.getCurrentRound(
             savedRoom.getId(), savedRoom.getCurrentRoundNumber()))
         .orElse(null);
+    var displayNamePerPlayer = getDisplayNamePerPlayer(savedRoom);
 
-    return domainMapper.toRoom(savedRoom, currentRound);
+    return domainMapper.toRoom(savedRoom, currentRound, displayNamePerPlayer);
   }
 
   private RoomEntity findRoom(String roomId) {
@@ -117,5 +123,10 @@ public class RoomService {
 
   private void publishRoomEvent(String roomId, RoomEvent roomEvent) {
     eventPublisher.publishEvent(new RoomEventToPublish(roomId, roomEvent));
+  }
+
+  private Map<String, String> getDisplayNamePerPlayer(RoomEntity room) {
+    var playerIds = room.getPlayerIds();
+    return userService.getDisplayNamePerPlayer(playerIds);
   }
 }

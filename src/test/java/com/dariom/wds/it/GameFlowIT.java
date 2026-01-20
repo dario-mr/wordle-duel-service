@@ -1,5 +1,6 @@
 package com.dariom.wds.it;
 
+import static com.dariom.wds.domain.Role.USER;
 import static org.hamcrest.Matchers.anEmptyMap;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.emptyOrNullString;
@@ -18,6 +19,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.dariom.wds.persistence.entity.AppUserEntity;
 import com.dariom.wds.persistence.entity.RoleEntity;
+import com.dariom.wds.persistence.repository.jpa.AppUserJpaRepository;
+import com.dariom.wds.persistence.repository.jpa.RoleJpaRepository;
 import com.dariom.wds.service.auth.JwtService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Resource;
@@ -42,17 +45,23 @@ class GameFlowIT {
 
   @Resource
   private MockMvc mockMvc;
-
   @Resource
   private ObjectMapper objectMapper;
-
   @Resource
   private JwtService jwtService;
+  @Resource
+  private AppUserJpaRepository appUserJpaRepository;
+  @Resource
+  private RoleJpaRepository roleJpaRepository;
 
   @Test
   void roundFinishesWhenBothPlayersDone() throws Exception {
-    var player1Bearer = bearer(UUID.fromString(PLAYER_1_ID), "player1@example.com");
-    var player2Bearer = bearer(UUID.fromString(PLAYER_2_ID), "player2@example.com");
+    // create users in DB
+    var user1 = createUser(PLAYER_1_ID, "player1@example.com", "John Smith");
+    var user2 = createUser(PLAYER_2_ID, "player2@example.com", "Bart Simpson");
+
+    var player1Bearer = bearer(user1.getId(), user1.getEmail(), user1.getFullName());
+    var player2Bearer = bearer(user2.getId(), user2.getEmail(), user2.getFullName());
 
     // player1 creates the room
     var roomId = createRoom(player1Bearer, PLAYER_1_ID);
@@ -189,6 +198,8 @@ class GameFlowIT {
         jsonPath(path(root, ".players[*].id"), contains(PLAYER_1_ID, PLAYER_2_ID)),
         jsonPath(path(root, ".players[0].score")).value(0),
         jsonPath(path(root, ".players[1].score")).value(0),
+        jsonPath(path(root, ".players[0].displayName")).value("John"),
+        jsonPath(path(root, ".players[1].displayName")).value("Bart"),
         jsonPath(path(root, ".currentRound.roundNumber")).value(roundNumber),
         jsonPath(path(root, ".currentRound.maxAttempts")).value(MAX_ATTEMPTS),
         jsonPath(path(root, ".currentRound.roundStatus")).value(roundStatus),
@@ -252,8 +263,19 @@ class GameFlowIT {
     return root + suffix;
   }
 
-  private String bearer(UUID userId, String email) {
-    var user = new AppUserEntity(userId, email, "google-sub", "Test User");
+  private AppUserEntity createUser(String userId, String email, String fullName) {
+    var roleName = USER.getName();
+    var role = roleJpaRepository.findById(roleName)
+        .orElseGet(() -> roleJpaRepository.save(new RoleEntity(roleName)));
+
+    var user = new AppUserEntity(UUID.fromString(userId), email, "google-sub-" + userId, fullName);
+    user.addRole(role);
+
+    return appUserJpaRepository.save(user);
+  }
+
+  private String bearer(UUID userId, String email, String fullName) {
+    var user = new AppUserEntity(userId, email, "google-sub", fullName);
     user.addRole(new RoleEntity("USER"));
 
     return "Bearer " + jwtService.createAccessToken(user).token();

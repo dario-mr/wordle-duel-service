@@ -25,12 +25,13 @@ import org.springframework.stereotype.Component;
 @Component
 public class DomainMapper {
 
-  public Room toRoom(RoomEntity room, Round currentRound) {
+  public Room toRoom(RoomEntity room, Round currentRound,
+      Map<String, String> displayNamePerPlayer) {
     return new Room(
         room.getId(),
         room.getLanguage(),
         room.getStatus(),
-        toPlayers(room.getRoomPlayers()),
+        toPlayers(room.getRoomPlayers(), displayNamePerPlayer),
         currentRound
     );
   }
@@ -59,14 +60,19 @@ public class DomainMapper {
     );
   }
 
-  private List<Player> toPlayers(Set<RoomPlayerEntity> roomPlayers) {
+  private List<Player> toPlayers(Set<RoomPlayerEntity> roomPlayers,
+      Map<String, String> displayNamePerPlayer) {
     if (roomPlayers == null) {
       return emptyList();
     }
 
     return roomPlayers.stream()
         .sorted(comparing(RoomPlayerEntity::getPlayerId))
-        .map(p -> new Player(p.getPlayerId(), p.getScore()))
+        .map(p -> new Player(
+            p.getPlayerId(),
+            p.getScore(),
+            displayNamePerPlayer == null ? null : displayNamePerPlayer.get(p.getPlayerId())
+        ))
         .toList();
   }
 

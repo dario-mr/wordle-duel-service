@@ -12,6 +12,7 @@ import static com.dariom.wds.domain.RoundStatus.PLAYING;
 import static com.dariom.wds.websocket.model.EventType.PLAYER_STATUS_UPDATED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
@@ -31,11 +32,13 @@ import com.dariom.wds.persistence.repository.jpa.RoundJpaRepository;
 import com.dariom.wds.service.DomainMapper;
 import com.dariom.wds.service.NoOpTransactionManager;
 import com.dariom.wds.service.room.RoomLockManager;
+import com.dariom.wds.service.user.UserService;
 import com.dariom.wds.websocket.model.PlayerStatusUpdatedPayload;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -62,6 +65,8 @@ class RoundServiceTest {
   private GuessSubmissionService guessSubmissionService;
   @Mock
   private ApplicationEventPublisher eventPublisher;
+  @Mock
+  private UserService userService;
 
   private final RoomLockManager roomLockManager = new RoomLockManager();
   private final PlatformTransactionManager transactionManager = new NoOpTransactionManager();
@@ -79,7 +84,8 @@ class RoundServiceTest {
         domainMapper,
         roundLifecycleService,
         guessSubmissionService,
-        eventPublisher
+        eventPublisher,
+        userService
     );
   }
 
@@ -118,42 +124,49 @@ class RoundServiceTest {
   void handleGuess_validInput_returnsMappedRoomAndPersistsRoom() {
     // Arrange
     var roomEntity = inProgressRoom(ROOM_ID, PLAYER_1, PLAYER_2);
-
     var roundEntity = round(1, PLAYING);
+    var displayNamePerPlayer = Map.of(PLAYER_1, "John", PLAYER_2, "Mark");
 
-    when(roomJpaRepository.findWithPlayersAndScoresById(anyString())).thenReturn(
-        Optional.of(roomEntity));
+    when(roomJpaRepository.findWithPlayersAndScoresById(anyString()))
+        .thenReturn(Optional.of(roomEntity));
+    when(roomJpaRepository.save(any())).thenReturn(roomEntity);
     when(roundLifecycleService.ensureActiveRound(roomEntity)).thenReturn(roundEntity);
     when(guessSubmissionService.applyGuess(ROOM_ID, PLAYER_1, "pizza", roomEntity, roundEntity))
         .thenReturn(Optional.empty());
     when(roundLifecycleService.isRoundFinished(roomEntity, roundEntity)).thenReturn(false);
+    when(userService.getDisplayNamePerPlayer(any())).thenReturn(displayNamePerPlayer);
 
     // Act
     var result = service.handleGuess(ROOM_ID, PLAYER_1, "pizza");
 
     // Assert
     var expectedRound = domainMapper.toRound(roundEntity);
-    var expectedRoom = domainMapper.toRoom(roomEntity, expectedRound);
+    var expectedRoom = domainMapper.toRoom(roomEntity, expectedRound, displayNamePerPlayer);
     assertThat(result).isEqualTo(expectedRoom);
+    assertThat(result.players().get(0).displayName()).isEqualTo("John");
+    assertThat(result.players().get(1).displayName()).isEqualTo("Mark");
 
     verify(guessSubmissionService).applyGuess(ROOM_ID, PLAYER_1, "pizza", roomEntity, roundEntity);
     verify(roomJpaRepository).findWithPlayersAndScoresById(ROOM_ID);
     verify(roomJpaRepository).save(roomEntity);
+    verify(userService).getDisplayNamePerPlayer(Set.of(PLAYER_1, PLAYER_2));
   }
 
   @Test
   void handleGuess_playerStatusUpdatedButRoundNotFinished_publishesPlayerStatusUpdated() {
     // Arrange
     var roomEntity = inProgressRoom(ROOM_ID, PLAYER_1, PLAYER_2);
-
     var roundEntity = round(1, PLAYING);
+    var displayNamePerPlayer = Map.of(PLAYER_1, "John", PLAYER_2, "Mark");
 
-    when(roomJpaRepository.findWithPlayersAndScoresById(anyString())).thenReturn(
-        Optional.of(roomEntity));
+    when(roomJpaRepository.save(any())).thenReturn(roomEntity);
+    when(roomJpaRepository.findWithPlayersAndScoresById(anyString())).
+        thenReturn(Optional.of(roomEntity));
     when(roundLifecycleService.ensureActiveRound(roomEntity)).thenReturn(roundEntity);
     when(guessSubmissionService.applyGuess(ROOM_ID, PLAYER_1, "pizza", roomEntity, roundEntity))
         .thenReturn(Optional.of(WON));
     when(roundLifecycleService.isRoundFinished(roomEntity, roundEntity)).thenReturn(false);
+    when(userService.getDisplayNamePerPlayer(any())).thenReturn(displayNamePerPlayer);
 
     // Act
     service.handleGuess(ROOM_ID, PLAYER_1, "pizza");
@@ -162,17 +175,18 @@ class RoundServiceTest {
     verify(eventPublisher).publishEvent(new RoomEventToPublish(ROOM_ID,
         new RoomEvent(PLAYER_STATUS_UPDATED, new PlayerStatusUpdatedPayload(WON))));
     verify(roundLifecycleService, never()).finishRound(roundEntity, roomEntity);
+    verify(userService).getDisplayNamePerPlayer(Set.of(PLAYER_1, PLAYER_2));
   }
 
   @Test
   void handleGuess_roundBecomesFinished_callsFinishRoundAndSuppressesStatusEvent() {
     // Arrange
     var roomEntity = inProgressRoom(ROOM_ID, PLAYER_1, PLAYER_2);
-
     var roundEntity = round(1, PLAYING);
 
-    when(roomJpaRepository.findWithPlayersAndScoresById(anyString())).thenReturn(
-        Optional.of(roomEntity));
+    when(roomJpaRepository.save(any())).thenReturn(roomEntity);
+    when(roomJpaRepository.findWithPlayersAndScoresById(anyString()))
+        .thenReturn(Optional.of(roomEntity));
     when(roundLifecycleService.ensureActiveRound(roomEntity)).thenReturn(roundEntity);
     when(guessSubmissionService.applyGuess(ROOM_ID, PLAYER_1, "pizza", roomEntity, roundEntity))
         .thenReturn(Optional.of(LOST));
@@ -255,11 +269,14 @@ class RoundServiceTest {
         PLAYER_1, WON,
         PLAYER_2, LOST
     ));
+    var displayNamePerPlayer = Map.of(PLAYER_1, "John", PLAYER_2, "Mark");
 
+    when(roomJpaRepository.save(any())).thenReturn(roomEntity);
     when(roomJpaRepository.findWithPlayersAndScoresById(anyString())).thenReturn(
         Optional.of(roomEntity));
     when(roundJpaRepository.findWithDetailsByRoomIdAndRoundNumber(ROOM_ID, 1)).thenReturn(
         Optional.of(roundEntity));
+    when(userService.getDisplayNamePerPlayer(any())).thenReturn(displayNamePerPlayer);
 
     // Act
     var result = service.handleReady(ROOM_ID, PLAYER_1, 1);
@@ -276,6 +293,7 @@ class RoundServiceTest {
     verifyNoMoreInteractions(eventPublisher);
     verify(roundLifecycleService, never()).startNewRoundEntity(roomEntity);
     verify(roomJpaRepository).save(roomEntity);
+    verify(userService).getDisplayNamePerPlayer(Set.of(PLAYER_1, PLAYER_2));
   }
 
   @Test
@@ -286,17 +304,19 @@ class RoundServiceTest {
         PLAYER_1, LOST,
         PLAYER_2, READY
     ));
-
     var newRoundEntity = round(2, PLAYING, Map.of(
         PLAYER_1, RoundPlayerStatus.PLAYING,
         PLAYER_2, RoundPlayerStatus.PLAYING
     ));
+    var displayNamePerPlayer = Map.of(PLAYER_1, "John", PLAYER_2, "Mark");
 
+    when(roomJpaRepository.save(any())).thenReturn(roomEntity);
     when(roomJpaRepository.findWithPlayersAndScoresById(anyString())).thenReturn(
         Optional.of(roomEntity));
     when(roundJpaRepository.findWithDetailsByRoomIdAndRoundNumber(ROOM_ID, 1)).thenReturn(
         Optional.of(roundEntity));
     when(roundLifecycleService.startNewRoundEntity(roomEntity)).thenReturn(newRoundEntity);
+    when(userService.getDisplayNamePerPlayer(any())).thenReturn(displayNamePerPlayer);
 
     // Act
     var result = service.handleReady(ROOM_ID, PLAYER_1, 1);
@@ -311,6 +331,7 @@ class RoundServiceTest {
     verify(roundLifecycleService).startNewRoundEntity(roomEntity);
     verify(roomJpaRepository).save(roomEntity);
     verifyNoInteractions(eventPublisher);
+    verify(userService).getDisplayNamePerPlayer(Set.of(PLAYER_1, PLAYER_2));
   }
 
   private static RoomEntity room(String roomId) {

@@ -33,7 +33,7 @@ class RefreshTokenCookieServiceTest {
   @BeforeEach
   void setUp() {
     var securityProperties = new SecurityProperties(
-        "",
+        "", null, null,
         new JwtProperties("issuer", 900, "secret"),
         new RefreshProperties(7, "wd_refresh", "Lax", "/", false)
     );

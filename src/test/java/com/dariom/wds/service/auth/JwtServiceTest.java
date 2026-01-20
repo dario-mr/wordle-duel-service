@@ -1,7 +1,6 @@
 package com.dariom.wds.service.auth;
 
 import static com.dariom.wds.config.security.SecurityProperties.JwtProperties;
-import static com.dariom.wds.config.security.SecurityProperties.RefreshProperties;
 import static java.time.ZoneOffset.UTC;
 import static java.util.Map.of;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -41,9 +40,9 @@ class JwtServiceTest {
   @BeforeEach
   void setUp() {
     var securityProperties = new SecurityProperties(
-        "",
+        "", null, null,
         new JwtProperties("test-issuer", 900, "test-secret"),
-        new RefreshProperties(180, "wd_refresh", "Lax", "/", false)
+        null
     );
 
     jwtService = new JwtService(securityProperties, jwtEncoder, clock);
