@@ -18,9 +18,11 @@ import com.dariom.wds.persistence.repository.jpa.RoomJpaRepository;
 import com.dariom.wds.persistence.repository.jpa.RoundJpaRepository;
 import com.dariom.wds.service.DomainMapper;
 import com.dariom.wds.service.room.RoomLockManager;
+import com.dariom.wds.service.user.UserService;
 import com.dariom.wds.websocket.model.PlayerStatusUpdatedPayload;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
+import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
@@ -41,6 +43,7 @@ public class RoundService {
   private final RoundLifecycleService roundLifecycleService;
   private final GuessSubmissionService guessSubmissionService;
   private final ApplicationEventPublisher eventPublisher;
+  private final UserService userService;
 
   @Transactional(readOnly = true)
   public Optional<Round> getCurrentRound(String roomId, Integer currentRoundNumber) {
@@ -93,8 +96,10 @@ public class RoundService {
       statusUpdate.ifPresent(status -> publishPlayerStatusUpdated(roomId, status));
     }
 
-    roomJpaRepository.save(roomEntity);
-    return domainMapper.toRoom(roomEntity, domainMapper.toRound(roundEntity));
+    var saved = roomJpaRepository.save(roomEntity);
+    var displayNamePerPlayer = getDisplayNamePerPlayer(saved);
+
+    return domainMapper.toRoom(roomEntity, domainMapper.toRound(roundEntity), displayNamePerPlayer);
   }
 
   private Room handleReadyInTransaction(String roomId, String playerId, Integer roundNumber) {
@@ -131,8 +136,11 @@ public class RoundService {
       publishPlayerStatusUpdated(roomId, READY);
     }
 
-    roomJpaRepository.save(roomEntity);
-    return domainMapper.toRoom(roomEntity, domainMapper.toRound(currentRoundEntity));
+    var saved = roomJpaRepository.save(roomEntity);
+    var displayNamePerPlayer = getDisplayNamePerPlayer(saved);
+
+    return domainMapper.toRoom(roomEntity, domainMapper.toRound(currentRoundEntity),
+        displayNamePerPlayer);
   }
 
   private RoomEntity findRoom(String roomId) {
@@ -143,5 +151,10 @@ public class RoundService {
   private void publishPlayerStatusUpdated(String roomId, RoundPlayerStatus playerStatus) {
     eventPublisher.publishEvent(new RoomEventToPublish(roomId,
         new RoomEvent(PLAYER_STATUS_UPDATED, new PlayerStatusUpdatedPayload(playerStatus))));
+  }
+
+  private Map<String, String> getDisplayNamePerPlayer(RoomEntity room) {
+    var playerIds = room.getPlayerIds();
+    return userService.getDisplayNamePerPlayer(playerIds);
   }
 }

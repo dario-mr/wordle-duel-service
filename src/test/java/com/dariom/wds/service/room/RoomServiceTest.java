@@ -12,16 +12,19 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import com.dariom.wds.domain.Player;
 import com.dariom.wds.domain.Round;
+import com.dariom.wds.exception.RoomFullException;
 import com.dariom.wds.exception.RoomNotFoundException;
 import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.repository.jpa.RoomJpaRepository;
 import com.dariom.wds.service.DomainMapper;
 import com.dariom.wds.service.NoOpTransactionManager;
 import com.dariom.wds.service.round.RoundService;
+import com.dariom.wds.service.user.UserService;
 import com.dariom.wds.websocket.model.PlayerJoinedPayload;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
@@ -49,6 +52,8 @@ class RoomServiceTest {
   private RoundService roundService;
   @Mock
   private ApplicationEventPublisher eventPublisher;
+  @Mock
+  private UserService userService;
 
   private RoomService roomService;
 
@@ -60,7 +65,8 @@ class RoomServiceTest {
         transactionManager,
         roundService,
         domainMapper,
-        eventPublisher
+        eventPublisher,
+        userService
     );
   }
 
@@ -125,6 +131,28 @@ class RoomServiceTest {
 
     verify(roomJpaRepository).findWithPlayersAndScoresById("room-1");
     verify(roomJpaRepository, never()).save(any(RoomEntity.class));
+    verifyNoInteractions(roundService, eventPublisher);
+  }
+
+  @Test
+  void joinRoom_roomFull_throwsRoomFullException() {
+    // Arrange
+    var room = waitingRoom("room-1", "p1");
+    room.addPlayer("p2");
+    room.setPlayerScore("p2", 0);
+
+    when(roomJpaRepository.findWithPlayersAndScoresById(anyString())).thenReturn(Optional.of(room));
+
+    // Act
+    var thrown = catchThrowable(() -> roomService.joinRoom("room-1", "p3"));
+
+    // Assert
+    assertThat(thrown)
+        .isInstanceOf(RoomFullException.class)
+        .hasMessageContaining("room-1");
+
+    verify(roomJpaRepository).findWithPlayersAndScoresById("room-1");
+    verifyNoMoreInteractions(roomJpaRepository);
     verifyNoInteractions(roundService, eventPublisher);
   }
 

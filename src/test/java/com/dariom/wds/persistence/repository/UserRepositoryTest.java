@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
@@ -178,5 +179,48 @@ class UserRepositoryTest {
         .hasMessage("Unknown user: missing@test.com");
 
     verify(appUserJpaRepository).findByEmail("missing@test.com");
+  }
+
+  @Test
+  void findById_userExists_returnsUser() {
+    // Arrange
+    var id = UUID.randomUUID();
+    var existingUser = new AppUserEntity(id, "email", "google-sub", "Full Name");
+    when(appUserJpaRepository.findById(any(UUID.class))).thenReturn(Optional.of(existingUser));
+
+    // Act
+    var user = userRepository.findById(id.toString());
+
+    // Assert
+    assertThat(user).isPresent();
+    assertThat(user.get()).isEqualTo(existingUser);
+    verify(appUserJpaRepository).findById(id);
+  }
+
+  @Test
+  void findById_userDoesNotExist_returnsEmpty() {
+    // Arrange
+    var id = UUID.randomUUID();
+    when(appUserJpaRepository.findById(any(UUID.class))).thenReturn(Optional.empty());
+
+    // Act
+    var user = userRepository.findById(id.toString());
+
+    // Assert
+    assertThat(user).isEmpty();
+    verify(appUserJpaRepository).findById(id);
+  }
+
+  @Test
+  void findById_invalidUuid_returnsEmpty() {
+    // Arrange
+    var invalidId = "not-a-uuid";
+
+    // Act
+    var user = userRepository.findById(invalidId);
+
+    // Assert
+    assertThat(user).isEmpty();
+    verifyNoInteractions(appUserJpaRepository);
   }
 }

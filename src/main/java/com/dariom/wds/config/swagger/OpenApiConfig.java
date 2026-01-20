@@ -1,4 +1,4 @@
-package com.dariom.wds.config;
+package com.dariom.wds.config.swagger;
 
 import static io.swagger.v3.oas.annotations.enums.SecuritySchemeType.HTTP;
 

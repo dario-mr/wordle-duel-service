@@ -76,7 +76,7 @@ class RoomAccessValidatorTest {
         "room-1",
         IT,
         status,
-        Arrays.stream(playerIds).map(pid -> new Player(pid, 0)).toList(),
+        Arrays.stream(playerIds).map(pid -> new Player(pid, 0, "John" + pid)).toList(),
         null
     );
   }

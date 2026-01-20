@@ -71,7 +71,8 @@ cookie) and short-lived access tokens (Bearer JWT).
 3. Back in Swagger UI, call `POST /auth/refresh` to get an `accessToken`.
 4. Click Swagger's "Authorize" button and paste the token as a `Bearer` token.
 
-(Non-browser clients must send `X-XSRF-TOKEN` with the value from the `XSRF-TOKEN` cookie)
+(Non-browser clients must send `X-WD-XSRF-TOKEN` header with the value from the `WD-XSRF-TOKEN`
+cookie)
 
 ## API
 

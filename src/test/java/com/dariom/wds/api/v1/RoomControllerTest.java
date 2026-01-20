@@ -23,13 +23,13 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
-import org.springframework.security.oauth2.jwt.Jwt;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
@@ -108,7 +108,8 @@ class RoomControllerTest {
     when(roundService.handleGuess(anyString(), anyString(), anyString())).thenReturn(domainRoom);
 
     // Act
-    var response = roomController.submitGuess("room-1", new SubmitGuessRequest("pizza"), jwtWithUid("user-1"));
+    var response = roomController.submitGuess("room-1", new SubmitGuessRequest("pizza"),
+        jwtWithUid("user-1"));
 
     // Assert
     assertThat(response.getStatusCode().value()).isEqualTo(200);
@@ -153,7 +154,7 @@ class RoomControllerTest {
         "room-1",
         IT,
         roomStatus,
-        List.of(new Player("p1", 0)),
+        List.of(new Player("p1", 0, "John")),
         null
     );
   }

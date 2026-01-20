@@ -22,6 +22,13 @@ app:
       - "http://allowed-origin.test"
   security:
     whitelist-ant-patterns: /actuator/**,/oauth2/**,/login/**,/public/**,/h2-console/**,/swagger-ui/**,/v3/api-docs/**,/ws,/ws/**
+    csrf:
+      cookie-name: WD-XSRF-TOKEN
+      header-name: X-WD-XSRF-TOKEN
+    matcher:
+      api: /api/**
+      admin: /admin/**
+      auth: /auth/**
     jwt:
       issuer: wordle-duel-service-test
       ttl-seconds: 900

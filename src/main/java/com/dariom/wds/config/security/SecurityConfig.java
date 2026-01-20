@@ -49,8 +49,8 @@ import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
  *   <li>Handles OAuth2 login endpoints and auth endpoints ({@code POST /auth/refresh}, {@code POST /auth/logout}),
  *       plus other explicit allowlisted endpoints (e.g. health, Swagger, H2 console depending on configuration).</li>
  *   <li>State is allowed only when required for the OAuth2 login flow ({@code SessionCreationPolicy.IF_REQUIRED}).</li>
- *   <li>CSRF is enabled using a cookie-based token repository (SPA-friendly): the browser stores {@code XSRF-TOKEN}
- *       and clients must send it back as {@code X-XSRF-TOKEN} for state-changing requests.</li>
+ *   <li>CSRF is enabled using a cookie-based token repository: the browser stores a CSRF cookie and clients must
+ *       send it back as a header for state-changing requests (names are configured via {@code app.security.csrf.*}).</li>
  * </ul>
  *
  * <p>The split keeps the API strictly stateless (Bearer JWT) while still supporting browser-based OAuth2 login and
@@ -61,13 +61,6 @@ import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 @RequiredArgsConstructor
 public class SecurityConfig {
 
-  private static final String API_MATCHER = "/api/**";
-  private static final String ADMIN_MATCHER = "/admin/**";
-  private static final String AUTH_MATCHER = "/auth/**";
-
-  private static final String CSRF_COOKIE_NAME = "WD-XSRF-TOKEN";
-  private static final String CSRF_HEADER_NAME = "X-WD-XSRF-TOKEN";
-
   private final SecurityProperties securityProperties;
 
   @Bean
@@ -76,13 +69,17 @@ public class SecurityConfig {
       HttpSecurity http,
       JwtAuthenticationConverter jwtAuthenticationConverter
   ) throws Exception {
+    var matcher = requireMatcherProperties();
+    var apiMatcher = matcher.api();
+    var adminMatcher = matcher.admin();
+
     http
-        .securityMatcher(API_MATCHER, ADMIN_MATCHER)
+        .securityMatcher(apiMatcher, adminMatcher)
         .csrf(AbstractHttpConfigurer::disable)
         .sessionManagement(sm -> sm.sessionCreationPolicy(STATELESS))
         .authorizeHttpRequests(auth -> auth
-            .requestMatchers(ADMIN_MATCHER).hasRole(ADMIN.getName())
-            .requestMatchers(API_MATCHER).authenticated()
+            .requestMatchers(adminMatcher).hasRole(ADMIN.getName())
+            .requestMatchers(apiMatcher).authenticated()
             .anyRequest().denyAll()
         )
         .exceptionHandling(ex -> ex
@@ -104,6 +101,8 @@ public class SecurityConfig {
       AuthenticationSuccessHandler oauth2SuccessHandler,
       OAuthUserService oAuthUserService
   ) throws Exception {
+    var matcher = requireMatcherProperties();
+
     http
         .csrf(csrf -> csrf
             .csrfTokenRepository(csrfTokenRepository)
@@ -113,7 +112,7 @@ public class SecurityConfig {
         .sessionManagement(sm -> sm.sessionCreationPolicy(IF_REQUIRED))
         .authorizeHttpRequests(auth -> auth
             .requestMatchers(securityProperties.whitelistPatternsArray()).permitAll()
-            .requestMatchers(AUTH_MATCHER).permitAll()
+            .requestMatchers(matcher.auth()).permitAll()
             .anyRequest().denyAll()
         )
         .oauth2Login(oauth -> oauth
@@ -133,10 +132,13 @@ public class SecurityConfig {
 
   @Bean
   CookieCsrfTokenRepository csrfTokenRepository() {
+    var csrfProperties = requireCsrfProperties();
+
     var repository = withHttpOnlyFalse();
-    repository.setCookieName(CSRF_COOKIE_NAME);
-    repository.setHeaderName(CSRF_HEADER_NAME);
+    repository.setCookieName(csrfProperties.cookieName());
+    repository.setHeaderName(csrfProperties.headerName());
     repository.setCookiePath("/");
+
     return repository;
   }
 
@@ -168,6 +170,24 @@ public class SecurityConfig {
         return oAuthUserService.createOrUpdatePrincipal(oidcUser);
       }
     };
+  }
+
+  private SecurityProperties.CsrfProperties requireCsrfProperties() {
+    var csrf = securityProperties.csrf();
+    if (csrf == null) {
+      throw new IllegalStateException("Missing required property: app.security.csrf");
+    }
+
+    return csrf;
+  }
+
+  private SecurityProperties.MatcherProperties requireMatcherProperties() {
+    var matcher = securityProperties.matcher();
+    if (matcher == null) {
+      throw new IllegalStateException("Missing required property: app.security.matcher");
+    }
+
+    return matcher;
   }
 
 }

@@ -18,7 +18,7 @@ class RoomValidatorTest {
   @Test
   void validateRoom_roomClosed_throwsRoomClosedException() {
     // Arrange
-    var room = new Room("room-1", IT, CLOSED, List.of(new Player("p1", 0)), null);
+    var room = new Room("room-1", IT, CLOSED, List.of(player("p1")), null);
 
     // Act
     var thrown = catchThrowable(() -> RoomValidator.validateRoom("p2", room, 2));
@@ -36,7 +36,7 @@ class RoomValidatorTest {
         "room-1",
         IT,
         WAITING_FOR_PLAYERS,
-        List.of(new Player("p1", 0), new Player("p2", 0)),
+        List.of(player("p1"), player("p2")),
         null
     );
 
@@ -56,11 +56,15 @@ class RoomValidatorTest {
         "room-1",
         IT,
         WAITING_FOR_PLAYERS,
-        List.of(new Player("p1", 0), new Player("p2", 0)),
+        List.of(player("p1"), player("p2")),
         null
     );
 
     // Act
     RoomValidator.validateRoom("p2", room, 2);
+  }
+
+  private Player player(String playerId) {
+    return new Player(playerId, 0, "John");
   }
 }
