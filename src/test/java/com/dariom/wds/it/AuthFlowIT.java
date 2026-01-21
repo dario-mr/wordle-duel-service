@@ -210,7 +210,7 @@ class AuthFlowIT {
     var role = roleJpaRepository.findById(roleName)
         .orElseGet(() -> roleJpaRepository.save(new RoleEntity(roleName)));
     var googleSub = "google-sub-" + UUID.randomUUID();
-    var user = new AppUserEntity(UUID.randomUUID(), email, googleSub, "User Test");
+    var user = new AppUserEntity(UUID.randomUUID(), email, googleSub, "User Test", "pictureUrl");
     user.addRole(role);
 
     return appUserJpaRepository.save(user);

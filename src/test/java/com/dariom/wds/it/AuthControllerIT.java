@@ -158,7 +158,8 @@ class AuthControllerIT {
     var role = roleJpaRepository.findById(roleName)
         .orElseGet(() -> roleJpaRepository.save(new RoleEntity(roleName)));
 
-    var user = new AppUserEntity(UUID.randomUUID(), email, "google-sub-1", "User Test");
+    var user = new AppUserEntity(UUID.randomUUID(), email, "google-sub-1", "User Test",
+        "pictureUrl");
     user.addRole(role);
 
     return appUserJpaRepository.save(user);

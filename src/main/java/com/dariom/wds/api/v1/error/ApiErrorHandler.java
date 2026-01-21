@@ -10,6 +10,7 @@ import static com.dariom.wds.api.common.ErrorCode.ROOM_CLOSED;
 import static com.dariom.wds.api.common.ErrorCode.ROOM_FULL;
 import static com.dariom.wds.api.common.ErrorCode.ROOM_NOT_FOUND;
 import static com.dariom.wds.api.common.ErrorCode.ROOM_NOT_READY;
+import static com.dariom.wds.api.common.ErrorCode.USER_NOT_FOUND;
 import static org.apache.commons.lang3.StringUtils.defaultIfBlank;
 import static org.springframework.http.HttpStatus.BAD_REQUEST;
 import static org.springframework.http.HttpStatus.CONFLICT;
@@ -26,6 +27,7 @@ import com.dariom.wds.exception.RoomFullException;
 import com.dariom.wds.exception.RoomNotFoundException;
 import com.dariom.wds.exception.RoomNotReadyException;
 import com.dariom.wds.exception.RoundException;
+import com.dariom.wds.exception.UserNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.annotation.Order;
@@ -37,7 +39,14 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @Slf4j
 @Order(1)
 @RestControllerAdvice
-public class RoomErrorHandler {
+public class ApiErrorHandler {
+
+  @ExceptionHandler(UserNotFoundException.class)
+  public ResponseEntity<ErrorResponse> handleUserNotFound(UserNotFoundException ex) {
+    log.warn(ex.getMessage());
+    return ResponseEntity.status(NOT_FOUND)
+        .body(new ErrorResponse(USER_NOT_FOUND, ex.getMessage()));
+  }
 
   @ExceptionHandler(RoomNotFoundException.class)
   public ResponseEntity<ErrorResponse> handleRoomNotFound(RoomNotFoundException ex) {

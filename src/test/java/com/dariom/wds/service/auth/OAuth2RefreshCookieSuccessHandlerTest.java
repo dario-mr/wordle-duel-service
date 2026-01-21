@@ -48,7 +48,8 @@ class OAuth2RefreshCookieSuccessHandlerTest {
   void onAuthenticationSuccess_validAuthentication_setsCookieAndDelegates() throws Exception {
     // Arrange
     var email = "user@test.com";
-    var user = new AppUserEntity(UUID.randomUUID(), email, "google-sub-1", "User Test");
+    var user = new AppUserEntity(UUID.randomUUID(), email, "google-sub-1", "User Test",
+        "pictureUrl");
     var refreshToken = "raw-refresh-token";
 
     when(authentication.getName()).thenReturn(email);

@@ -1,6 +1,5 @@
 package com.dariom.wds.service.auth;
 
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.springframework.security.oauth2.jose.jws.MacAlgorithm.HS256;
 import static org.springframework.security.oauth2.jwt.JwtEncoderParameters.from;
 
@@ -41,12 +40,6 @@ public class JwtService {
         .subject(user.getEmail())
         .claim("uid", user.getId().toString())
         .claim("roles", roles);
-
-    var fullName = user.getFullName();
-    if (isNotBlank(fullName)) {
-      claimsBuilder.claim("name", fullName);
-    }
-
     var claims = claimsBuilder.build();
 
     var header = JwsHeader.with(HS256).build();

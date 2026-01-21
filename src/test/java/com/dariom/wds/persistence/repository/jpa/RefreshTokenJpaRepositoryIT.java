@@ -28,7 +28,7 @@ class RefreshTokenJpaRepositoryIT {
     var userId = UUID.randomUUID();
     var role = roleRepository.save(new RoleEntity("USER"));
 
-    var user = new AppUserEntity(userId, "user@test.com", "google-sub-1", "User Test");
+    var user = userEntity(userId);
     user.addRole(role);
     userRepository.save(user);
 
@@ -56,7 +56,7 @@ class RefreshTokenJpaRepositoryIT {
   void deleteExpired_deletesOnlyExpiredTokens() {
     // Arrange
     var userId = UUID.randomUUID();
-    var user = new AppUserEntity(userId, "user@test.com", "google-sub-1", "User Test");
+    var user = userEntity(userId);
     userRepository.save(user);
 
     var now = Instant.now();
@@ -85,5 +85,9 @@ class RefreshTokenJpaRepositoryIT {
     assertThat(deleted).isEqualTo(1);
     assertThat(repository.findByTokenHash(expiredTokenHash)).isEmpty();
     assertThat(repository.findByTokenHash(validTokenHash)).isPresent();
+  }
+
+  private static AppUserEntity userEntity(UUID userId) {
+    return new AppUserEntity(userId, "user@test.com", "google-sub-1", "User Test", "pictureUrl");
   }
 }

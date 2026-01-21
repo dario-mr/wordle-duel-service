@@ -1,5 +1,7 @@
 package com.dariom.wds.service.auth;
 
+import static com.dariom.wds.config.CacheConfig.DISPLAY_NAME_CACHE;
+import static com.dariom.wds.config.CacheConfig.USER_PROFILE_CACHE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -21,6 +23,8 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.oauth2.core.oidc.OidcIdToken;
 import org.springframework.security.oauth2.core.oidc.OidcUserInfo;
@@ -35,6 +39,15 @@ class OAuthUserServiceTest {
   @Mock
   private UserRepository userRepository;
 
+  @Mock
+  private CacheManager cacheManager;
+
+  @Mock
+  private Cache userProfileCache;
+
+  @Mock
+  private Cache displayNameCache;
+
   @InjectMocks
   private OAuthUserService oAuthUserService;
 
@@ -44,14 +57,19 @@ class OAuthUserServiceTest {
     var email = "user@test.com";
     var sub = "google-sub-1";
     var fullName = "User Test";
+    var pictureUrl = "picture.com/user.png";
 
-    var oidcUser = oidcUser(email, sub, fullName, "email");
+    var oidcUser = oidcUser(email, sub, fullName, "email", pictureUrl);
 
-    var user = new AppUserEntity(UUID.randomUUID(), email, sub, fullName);
+    var user = new AppUserEntity(UUID.randomUUID(), email, sub, fullName, pictureUrl);
     user.addRole(new RoleEntity("USER"));
     user.addRole(new RoleEntity("ADMIN"));
 
-    when(userRepository.findOrCreate(anyString(), anyString(), anyString())).thenReturn(user);
+    when(userRepository.findOrCreate(anyString(), anyString(), anyString(), anyString()))
+        .thenReturn(user);
+
+    when(cacheManager.getCache(USER_PROFILE_CACHE)).thenReturn(userProfileCache);
+    when(cacheManager.getCache(DISPLAY_NAME_CACHE)).thenReturn(displayNameCache);
 
     // Act
     var principal = oAuthUserService.createOrUpdatePrincipal(oidcUser);
@@ -62,14 +80,21 @@ class OAuthUserServiceTest {
         .extracting(GrantedAuthority::getAuthority)
         .containsExactlyInAnyOrder("ROLE_ADMIN", "ROLE_USER");
 
-    verify(userRepository).findOrCreate(sub, email, fullName);
+    verify(userRepository).findOrCreate(sub, email, fullName, pictureUrl);
+
+    var appUserId = user.getId().toString();
+    verify(cacheManager).getCache(USER_PROFILE_CACHE);
+    verify(cacheManager).getCache(DISPLAY_NAME_CACHE);
+    verify(userProfileCache).evict(appUserId);
+    verify(displayNameCache).evict(appUserId);
+
     verifyNoMoreInteractions(userRepository);
   }
 
   @Test
   void createOrUpdatePrincipal_missingEmail_throws() {
     // Arrange
-    var oidcUser = oidcUser(null, "google-sub-1", "User Test", "sub");
+    var oidcUser = oidcUser(null, "google-sub-1", "User Test", "sub", "pictureUrl");
 
     // Act
     var thrown = catchThrowable(() -> oAuthUserService.createOrUpdatePrincipal(oidcUser));
@@ -79,13 +104,13 @@ class OAuthUserServiceTest {
         .isInstanceOf(IllegalStateException.class)
         .hasMessage("Google user missing required claims (email/sub)");
 
-    verifyNoInteractions(userRepository);
+    verifyNoInteractions(userRepository, cacheManager, userProfileCache, displayNameCache);
   }
 
   @Test
   void createOrUpdatePrincipal_missingSub_throws() {
     // Arrange
-    var oidcUser = oidcUser("user@test.com", null, "User Test", "email");
+    var oidcUser = oidcUser("user@test.com", null, "User Test", "email", "pictureUrl");
 
     // Act
     var thrown = catchThrowable(() -> oAuthUserService.createOrUpdatePrincipal(oidcUser));
@@ -95,11 +120,11 @@ class OAuthUserServiceTest {
         .isInstanceOf(IllegalStateException.class)
         .hasMessage("Google user missing required claims (email/sub)");
 
-    verifyNoInteractions(userRepository);
+    verifyNoInteractions(userRepository, cacheManager, userProfileCache, displayNameCache);
   }
 
   private DefaultOidcUser oidcUser(
-      String email, String sub, String fullName, String nameAttributeKey
+      String email, String sub, String fullName, String nameAttributeKey, String pictureUrl
   ) {
     var idTokenClaims = new HashMap<String, Object>();
     if (sub != null) {
@@ -111,6 +136,9 @@ class OAuthUserServiceTest {
     if (fullName != null) {
       idTokenClaims.put("name", fullName);
     }
+    if (fullName != null) {
+      idTokenClaims.put("picture", pictureUrl);
+    }
 
     var userInfoClaims = new HashMap<String, Object>();
     if (email != null) {
@@ -119,6 +147,8 @@ class OAuthUserServiceTest {
       userInfoClaims.put("sub", sub);
     } else if (fullName != null) {
       userInfoClaims.put("name", fullName);
+    } else if (pictureUrl != null) {
+      userInfoClaims.put("picture", pictureUrl);
     } else {
       userInfoClaims.put("name", "User Test");
     }

@@ -9,3 +9,5 @@ databaseChangeLog:
       file: db/changelog/changes/004-round-status.yaml
   - include:
       file: db/changelog/changes/005-oauth.yaml
+  - include:
+      file: db/changelog/changes/006-user-picture.yaml

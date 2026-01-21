@@ -34,6 +34,9 @@ public class AppUserEntity {
   @Column(name = "full_name", length = 128)
   private String fullName;
 
+  @Column(name = "picture_url", length = 512)
+  private String pictureUrl;
+
   @ManyToMany(fetch = EAGER)
   @JoinTable(
       name = "app_user_role",
@@ -45,11 +48,13 @@ public class AppUserEntity {
   protected AppUserEntity() {
   }
 
-  public AppUserEntity(UUID id, String email, String googleSub, String fullName) {
+  public AppUserEntity(UUID id, String email, String googleSub, String fullName,
+      String pictureUrl) {
     this.id = id;
     this.email = email;
     this.googleSub = googleSub;
     this.fullName = fullName;
+    this.pictureUrl = pictureUrl;
   }
 
   public void addRole(RoleEntity role) {

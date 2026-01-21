@@ -9,6 +9,7 @@ import com.dariom.wds.persistence.repository.jpa.AppUserJpaRepository;
 import com.dariom.wds.persistence.repository.jpa.RoleJpaRepository;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,34 +24,22 @@ public class UserRepository {
   private final RoleJpaRepository roleJpaRepository;
 
   @Transactional
-  public AppUserEntity findOrCreate(String googleSub, String email, String fullName) {
-    var optExistingBySub = appUserJpaRepository.findByGoogleSub(googleSub);
-    if (optExistingBySub.isPresent()) {
-      var existingBySub = optExistingBySub.get();
-      if (isNotBlank(fullName)) {
-        existingBySub.setFullName(fullName);
-      }
+  public AppUserEntity findOrCreate(String googleSub, String email, String fullName,
+      String pictureUrl) {
+    var user = appUserJpaRepository.findByGoogleSub(googleSub)
+        .or(() -> appUserJpaRepository.findByEmail(email)
+            .map(userEntity -> {
+              userEntity.setGoogleSub(googleSub);
+              return userEntity;
+            }))
+        .orElseGet(
+            () -> new AppUserEntity(UUID.randomUUID(), email, googleSub, fullName, pictureUrl));
 
-      ensureRole(existingBySub, USER);
-      return appUserJpaRepository.save(existingBySub);
-    }
+    applyIfNotBlank(fullName, user::setFullName);
+    applyIfNotBlank(pictureUrl, user::setPictureUrl);
+    ensureRole(user, USER);
 
-    // If user exists by email, link googleSub
-    var optExistingByEmail = appUserJpaRepository.findByEmail(email);
-    if (optExistingByEmail.isPresent()) {
-      var existingByEmail = optExistingByEmail.get();
-      existingByEmail.setGoogleSub(googleSub);
-      if (isNotBlank(fullName)) {
-        existingByEmail.setFullName(fullName);
-      }
-
-      ensureRole(existingByEmail, USER);
-      return appUserJpaRepository.save(existingByEmail);
-    }
-
-    var created = new AppUserEntity(UUID.randomUUID(), email, googleSub, fullName);
-    ensureRole(created, USER);
-    return appUserJpaRepository.save(created);
+    return appUserJpaRepository.save(user);
   }
 
   @Transactional(readOnly = true)
@@ -73,5 +62,11 @@ public class UserRepository {
     var roleEntity = roleJpaRepository.findById(role.getName())
         .orElseThrow(() -> new IllegalStateException("RoleEntity not found: " + role.getName()));
     user.addRole(roleEntity);
+  }
+
+  private static void applyIfNotBlank(String value, Consumer<String> setter) {
+    if (isNotBlank(value)) {
+      setter.accept(value);
+    }
   }
 }

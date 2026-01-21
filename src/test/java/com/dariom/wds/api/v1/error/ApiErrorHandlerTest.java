@@ -15,9 +15,9 @@ import org.springframework.validation.BeanPropertyBindingResult;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 
-class RoomErrorHandlerTest {
+class ApiErrorHandlerTest {
 
-  private final RoomErrorHandler handler = new RoomErrorHandler();
+  private final ApiErrorHandler handler = new ApiErrorHandler();
 
   @Test
   void handleArgumentNotValid_fieldIsLanguage_returnsInvalidLanguage() throws Exception {
@@ -75,7 +75,7 @@ class RoomErrorHandlerTest {
   }
 
   private MethodParameter dummyParameter() throws NoSuchMethodException {
-    Method method = RoomErrorHandlerTest.class.getDeclaredMethod("dummy", CreateRoomRequest.class);
+    Method method = ApiErrorHandlerTest.class.getDeclaredMethod("dummy", CreateRoomRequest.class);
     return new MethodParameter(method, 0);
   }
 

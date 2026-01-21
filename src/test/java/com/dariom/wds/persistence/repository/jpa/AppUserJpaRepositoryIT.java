@@ -22,7 +22,7 @@ class AppUserJpaRepositoryIT {
     // Arrange
     var userId = UUID.randomUUID();
     var role = roleRepository.save(new RoleEntity("USER"));
-    var user = new AppUserEntity(userId, "user@test.com", "google-sub-1", "User Test");
+    var user = userEntity(userId);
     user.addRole(role);
 
     repository.save(user);
@@ -54,7 +54,7 @@ class AppUserJpaRepositoryIT {
     // Arrange
     var userId = UUID.randomUUID();
     var role = roleRepository.save(new RoleEntity("USER"));
-    var user = new AppUserEntity(userId, "user@test.com", "google-sub-1", "User Test");
+    var user = userEntity(userId);
     user.addRole(role);
 
     repository.save(user);
@@ -79,5 +79,9 @@ class AppUserJpaRepositoryIT {
 
     // Assert
     assertThat(found).isEmpty();
+  }
+
+  private static AppUserEntity userEntity(UUID userId) {
+    return new AppUserEntity(userId, "user@test.com", "google-sub-1", "User Test", "pictureUrl");
   }
 }

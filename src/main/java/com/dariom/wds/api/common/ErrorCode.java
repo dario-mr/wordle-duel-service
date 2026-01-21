@@ -1,6 +1,7 @@
 package com.dariom.wds.api.common;
 
 public enum ErrorCode {
+  USER_NOT_FOUND,
   ROOM_NOT_FOUND,
   ROOM_FULL,
   PLAYER_NOT_IN_ROOM,

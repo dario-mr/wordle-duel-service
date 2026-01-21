@@ -81,7 +81,8 @@ class TraceIdIT {
   }
 
   private String bearer() {
-    var user = new AppUserEntity(UUID.randomUUID(), "test@example.com", "google-sub", "Test User");
+    var user = new AppUserEntity(UUID.randomUUID(), "test@example.com", "google-sub", "Test User",
+        "pictureUrl");
     user.addRole(new RoleEntity("USER"));
 
     return "Bearer " + jwtService.createAccessToken(user).token();

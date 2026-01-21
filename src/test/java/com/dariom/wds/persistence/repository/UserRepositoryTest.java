@@ -40,8 +40,9 @@ class UserRepositoryTest {
     var googleSub = "google-sub-1";
     var email = "user@test.com";
     var fullName = "New User";
+    var pictureUrl = "picture.com/user.png";
 
-    var existing = new AppUserEntity(UUID.randomUUID(), email, googleSub, "Old Name");
+    var existing = new AppUserEntity(UUID.randomUUID(), email, googleSub, "Old Name", pictureUrl);
     var roleEntity = new RoleEntity(USER.getName());
 
     when(appUserJpaRepository.findByGoogleSub(anyString())).thenReturn(Optional.of(existing));
@@ -50,11 +51,12 @@ class UserRepositoryTest {
         .thenAnswer(invocation -> invocation.getArgument(0));
 
     // Act
-    var result = userRepository.findOrCreate(googleSub, email, fullName);
+    var result = userRepository.findOrCreate(googleSub, email, fullName, pictureUrl);
 
     // Assert
     assertThat(result).isSameAs(existing);
     assertThat(result.getFullName()).isEqualTo(fullName);
+    assertThat(result.getPictureUrl()).isEqualTo(pictureUrl);
     assertThat(result.getRoles())
         .extracting(RoleEntity::getName)
         .containsExactlyInAnyOrder(USER.getName());
@@ -71,8 +73,9 @@ class UserRepositoryTest {
     var googleSub = "google-sub-1";
     var email = "user@test.com";
     var fullName = "New User";
+    var pictureUrl = "picture.com/user.png";
 
-    var existing = new AppUserEntity(UUID.randomUUID(), email, "google-sub-old", "Old Name");
+    var existing = new AppUserEntity(UUID.randomUUID(), email, "google-sub-old", "Old Name", "");
     var roleEntity = new RoleEntity(USER.getName());
 
     when(appUserJpaRepository.findByGoogleSub(anyString())).thenReturn(Optional.empty());
@@ -82,12 +85,13 @@ class UserRepositoryTest {
         invocation -> invocation.getArgument(0));
 
     // Act
-    var result = userRepository.findOrCreate(googleSub, email, fullName);
+    var result = userRepository.findOrCreate(googleSub, email, fullName, pictureUrl);
 
     // Assert
     assertThat(result).isSameAs(existing);
     assertThat(result.getGoogleSub()).isEqualTo(googleSub);
     assertThat(result.getFullName()).isEqualTo(fullName);
+    assertThat(result.getPictureUrl()).isEqualTo(pictureUrl);
     assertThat(result.getRoles())
         .extracting(RoleEntity::getName)
         .containsExactlyInAnyOrder(USER.getName());
@@ -105,6 +109,7 @@ class UserRepositoryTest {
     var googleSub = "google-sub-1";
     var email = "user@test.com";
     var fullName = "New User";
+    var pictureUrl = "picture.com/user.png";
 
     var roleEntity = new RoleEntity(USER.getName());
 
@@ -115,7 +120,7 @@ class UserRepositoryTest {
         .thenAnswer(invocation -> invocation.getArgument(0));
 
     // Act
-    var result = userRepository.findOrCreate(googleSub, email, fullName);
+    var result = userRepository.findOrCreate(googleSub, email, fullName, pictureUrl);
 
     // Assert
     assertThat(result.getId()).isNotNull();
@@ -136,6 +141,7 @@ class UserRepositoryTest {
     assertThat(userCaptor.getValue().getEmail()).isEqualTo(email);
     assertThat(userCaptor.getValue().getGoogleSub()).isEqualTo(googleSub);
     assertThat(userCaptor.getValue().getFullName()).isEqualTo(fullName);
+    assertThat(userCaptor.getValue().getPictureUrl()).isEqualTo(pictureUrl);
 
     verifyNoMoreInteractions(appUserJpaRepository, roleJpaRepository);
   }
@@ -146,13 +152,15 @@ class UserRepositoryTest {
     var googleSub = "google-sub-1";
     var email = "user@test.com";
     var fullName = "New User";
+    var pictureUrl = "picture.com/user.png";
 
     when(appUserJpaRepository.findByGoogleSub(anyString())).thenReturn(Optional.empty());
     when(appUserJpaRepository.findByEmail(anyString())).thenReturn(Optional.empty());
     when(roleJpaRepository.findById(anyString())).thenReturn(Optional.empty());
 
     // Act
-    var thrown = catchThrowable(() -> userRepository.findOrCreate(googleSub, email, fullName));
+    var thrown = catchThrowable(
+        () -> userRepository.findOrCreate(googleSub, email, fullName, pictureUrl));
 
     // Assert
     assertThat(thrown)
@@ -185,7 +193,7 @@ class UserRepositoryTest {
   void findById_userExists_returnsUser() {
     // Arrange
     var id = UUID.randomUUID();
-    var existingUser = new AppUserEntity(id, "email", "google-sub", "Full Name");
+    var existingUser = new AppUserEntity(id, "email", "google-sub", "Full Name", "pictureUrl");
     when(appUserJpaRepository.findById(any(UUID.class))).thenReturn(Optional.of(existingUser));
 
     // Act

@@ -268,14 +268,15 @@ class GameFlowIT {
     var role = roleJpaRepository.findById(roleName)
         .orElseGet(() -> roleJpaRepository.save(new RoleEntity(roleName)));
 
-    var user = new AppUserEntity(UUID.fromString(userId), email, "google-sub-" + userId, fullName);
+    var user = new AppUserEntity(UUID.fromString(userId), email, "google-sub-" + userId, fullName,
+        "pictureUrl");
     user.addRole(role);
 
     return appUserJpaRepository.save(user);
   }
 
   private String bearer(UUID userId, String email, String fullName) {
-    var user = new AppUserEntity(userId, email, "google-sub", fullName);
+    var user = new AppUserEntity(userId, email, "google-sub", fullName, "pictureUrl");
     user.addRole(new RoleEntity("USER"));
 
     return "Bearer " + jwtService.createAccessToken(user).token();

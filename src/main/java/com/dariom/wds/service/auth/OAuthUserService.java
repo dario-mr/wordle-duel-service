@@ -1,9 +1,13 @@
 package com.dariom.wds.service.auth;
 
+import static com.dariom.wds.config.CacheConfig.DISPLAY_NAME_CACHE;
+import static com.dariom.wds.config.CacheConfig.USER_PROFILE_CACHE;
 import static java.util.stream.Collectors.toSet;
 
 import com.dariom.wds.persistence.repository.UserRepository;
+import java.util.Optional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.CacheManager;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
@@ -54,22 +58,35 @@ import org.springframework.stereotype.Service;
 public class OAuthUserService {
 
   private final UserRepository userRepository;
+  private final CacheManager cacheManager;
 
   public OidcUser createOrUpdatePrincipal(OidcUser oidcUser) {
     String email = oidcUser.getAttribute("email");
     var sub = oidcUser.getSubject();
     var fullName = oidcUser.getFullName();
+    var pictureUrl = oidcUser.getPicture();
 
     if (email == null || sub == null) {
       throw new IllegalStateException("Google user missing required claims (email/sub)");
     }
 
-    var user = userRepository.findOrCreate(sub, email, fullName);
+    var user = userRepository.findOrCreate(sub, email, fullName, pictureUrl);
+    evictUserCaches(user.getId().toString());
 
     var authorities = user.getRoles().stream()
         .map(r -> new SimpleGrantedAuthority("ROLE_" + r.getName()))
         .collect(toSet());
 
     return new DefaultOidcUser(authorities, oidcUser.getIdToken(), oidcUser.getUserInfo(), "email");
+  }
+
+  private void evictUserCaches(String appUserId) {
+    evictCache(USER_PROFILE_CACHE, appUserId);
+    evictCache(DISPLAY_NAME_CACHE, appUserId);
+  }
+
+  private void evictCache(String cacheName, String key) {
+    Optional.ofNullable(cacheManager.getCache(cacheName))
+        .ifPresent(cache -> cache.evict(key));
   }
 }

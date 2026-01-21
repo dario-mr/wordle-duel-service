@@ -1,0 +1,12 @@
+databaseChangeLog:
+  - changeSet:
+      id: 011-add-picture-url
+      author: dariom
+      changes:
+        - addColumn:
+            schemaName: wordle
+            tableName: app_user
+            columns:
+              - column:
+                  name: picture_url
+                  type: varchar(512)

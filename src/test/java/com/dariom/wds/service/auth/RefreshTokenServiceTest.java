@@ -66,7 +66,7 @@ class RefreshTokenServiceTest {
   @Test
   void createRefreshToken_validUser_savesHashedTokenAndReturnsRawToken() {
     // Arrange
-    var user = new AppUserEntity(UUID.randomUUID(), "user@test.com", "google-sub-1", "User Test");
+    var user = userEntity();
     var rawToken = "raw-token";
     var tokenHash = "hash";
 
@@ -100,7 +100,7 @@ class RefreshTokenServiceTest {
   @Test
   void refresh_validToken_deletesOldCreatesNewAndReturnsResult() {
     // Arrange
-    var user = new AppUserEntity(UUID.randomUUID(), "user@test.com", "google-sub-1", "User Test");
+    var user = userEntity();
     var inputRawToken = "old-raw";
     var existingHash = "old-hash";
     var newRawToken = "new-raw";
@@ -150,7 +150,7 @@ class RefreshTokenServiceTest {
   @Test
   void refresh_expiredToken_deletesAndThrows() {
     // Arrange
-    var user = new AppUserEntity(UUID.randomUUID(), "user@test.com", "google-sub-1", "User Test");
+    var user = userEntity();
     var inputRawToken = "old-raw";
     var existingHash = "old-hash";
 
@@ -206,7 +206,7 @@ class RefreshTokenServiceTest {
     var tokenHash = "hash";
     var existing = new RefreshTokenEntity(
         UUID.randomUUID(),
-        new AppUserEntity(UUID.randomUUID(), "user@test.com", "google-sub-1", "User Test"),
+        userEntity(),
         tokenHash,
         NOW.minusSeconds(60),
         NOW.plusSeconds(60)
@@ -243,5 +243,10 @@ class RefreshTokenServiceTest {
     verify(refreshTokenRepository).findByTokenHash(tokenHash);
     verifyNoMoreInteractions(refreshTokenGenerator, tokenHashing, refreshTokenRepository,
         jwtService);
+  }
+
+  private static AppUserEntity userEntity() {
+    return new AppUserEntity(UUID.randomUUID(), "user@test.com", "google-sub-1", "User Test",
+        "pictureUrl");
   }
 }

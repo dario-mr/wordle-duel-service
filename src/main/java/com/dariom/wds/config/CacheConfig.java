@@ -17,11 +17,15 @@ public class CacheConfig {
   public static final String ALLOWED_GUESSES_CACHE = "allowedGuesses";
   public static final String ANSWER_WORDS_CACHE = "answerWords";
   public static final String DISPLAY_NAME_CACHE = "userDisplayName";
+  public static final String USER_PROFILE_CACHE = "userProfile";
 
   private static final Duration DICTIONARY_CACHE_TTL = Duration.ofDays(1);
 
   private static final Duration DISPLAY_NAME_TTL = Duration.ofDays(1);
   private static final long DISPLAY_NAME_MAX_SIZE = 50_000;
+
+  private static final Duration USER_PROFILE_TTL = Duration.ofDays(1);
+  private static final long USER_PROFILE_MAX_SIZE = 50_000;
 
   @Bean
   public CacheManager cacheManager() {
@@ -36,10 +40,16 @@ public class CacheConfig {
         .maximumSize(DISPLAY_NAME_MAX_SIZE)
         .recordStats();
 
+    var userProfileBuilder = Caffeine.newBuilder()
+        .expireAfterWrite(USER_PROFILE_TTL)
+        .maximumSize(USER_PROFILE_MAX_SIZE)
+        .recordStats();
+
     manager.setCaches(List.of(
         new CaffeineCache(ALLOWED_GUESSES_CACHE, dictionaryBuilder.build()),
         new CaffeineCache(ANSWER_WORDS_CACHE, dictionaryBuilder.build()),
-        new CaffeineCache(DISPLAY_NAME_CACHE, displayNameBuilder.build())
+        new CaffeineCache(DISPLAY_NAME_CACHE, displayNameBuilder.build()),
+        new CaffeineCache(USER_PROFILE_CACHE, userProfileBuilder.build())
     ));
 
     return manager;
