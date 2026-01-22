@@ -1,6 +1,7 @@
 package com.dariom.wds.api.common;
 
 public enum ErrorCode {
+  ROOM_ACCESS_DENIED,
   USER_NOT_FOUND,
   ROOM_NOT_FOUND,
   ROOM_FULL,

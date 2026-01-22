@@ -5,13 +5,10 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.dariom.wds.persistence.entity.AppUserEntity;
-import com.dariom.wds.persistence.entity.RoleEntity;
 import com.dariom.wds.service.auth.JwtService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -38,7 +35,7 @@ class RoomValidationIT {
     var createReq = new HashMap<String, Object>();
 
     mockMvc.perform(post(BASE_URL)
-            .header("Authorization", bearer())
+            .header("Authorization", TestUtil.bearer(jwtService))
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(createReq)))
         .andExpect(status().isBadRequest())
@@ -51,7 +48,7 @@ class RoomValidationIT {
     var createReq = Map.of("language", "XX");
 
     mockMvc.perform(post(BASE_URL)
-            .header("Authorization", bearer())
+            .header("Authorization", TestUtil.bearer(jwtService))
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(createReq)))
         .andExpect(status().isBadRequest())
@@ -64,7 +61,7 @@ class RoomValidationIT {
     var createReq = Map.of("word", "   ");
 
     mockMvc.perform(post(BASE_URL + "/{roomId}/guess", 1)
-            .header("Authorization", bearer())
+            .header("Authorization", TestUtil.bearer(jwtService))
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(createReq)))
         .andExpect(status().isBadRequest())
@@ -77,7 +74,7 @@ class RoomValidationIT {
     var createReq = Map.of();
 
     mockMvc.perform(post(BASE_URL + "/{roomId}/ready", 1)
-            .header("Authorization", bearer())
+            .header("Authorization", TestUtil.bearer(jwtService))
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(createReq)))
         .andExpect(status().isBadRequest())
@@ -90,7 +87,7 @@ class RoomValidationIT {
     var createReq = Map.of("roundNumber", "0");
 
     mockMvc.perform(post(BASE_URL + "/{roomId}/ready", 1)
-            .header("Authorization", bearer())
+            .header("Authorization", TestUtil.bearer(jwtService))
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(createReq)))
         .andExpect(status().isBadRequest())
@@ -98,11 +95,4 @@ class RoomValidationIT {
         .andExpect(jsonPath("$.message").value("roundNumber must be greater than 1"));
   }
 
-  private String bearer() {
-    var user = new AppUserEntity(UUID.randomUUID(), "test@example.com", "google-sub", "Test User",
-        "pictureUrl");
-    user.addRole(new RoleEntity("USER"));
-
-    return "Bearer " + jwtService.createAccessToken(user).token();
-  }
 }

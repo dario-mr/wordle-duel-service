@@ -83,6 +83,7 @@ public class RoomController {
   @Operation(summary = "Get room", description = "Returns the current state of a room.")
   @ApiResponses({
       @ApiResponse(responseCode = "200", description = "Room returned", content = @Content(schema = @Schema(implementation = RoomDto.class))),
+      @ApiResponse(responseCode = "403", description = "Player cannot inspect room", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
       @ApiResponse(responseCode = "404", description = "Room not found", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
   @GetMapping("/{roomId}")
@@ -91,9 +92,8 @@ public class RoomController {
       @AuthenticationPrincipal Jwt jwt
   ) {
     var appUserId = jwt.getClaimAsString("uid");
-    // TODO block inspecting room from a 3rd player who is not in it?
     log.info("Get room <{}>", roomId);
-    var room = roomService.getRoom(roomId);
+    var room = roomService.getRoom(roomId, appUserId);
     return ResponseEntity.ok(roomMapper.toDto(room, appUserId));
   }
 

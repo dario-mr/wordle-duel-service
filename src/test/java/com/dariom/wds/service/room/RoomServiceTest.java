@@ -17,6 +17,7 @@ import static org.mockito.Mockito.when;
 
 import com.dariom.wds.domain.Player;
 import com.dariom.wds.domain.Round;
+import com.dariom.wds.exception.RoomAccessDeniedException;
 import com.dariom.wds.exception.RoomFullException;
 import com.dariom.wds.exception.RoomNotFoundException;
 import com.dariom.wds.persistence.entity.RoomEntity;
@@ -105,7 +106,7 @@ class RoomServiceTest {
     when(roomJpaRepository.findWithPlayersAndScoresById(anyString())).thenReturn(Optional.empty());
 
     // Act
-    var thrown = catchThrowable(() -> roomService.getRoom("room-1"));
+    var thrown = catchThrowable(() -> roomService.getRoom("room-1", "player-1"));
 
     // Assert
     assertThat(thrown)
@@ -215,7 +216,7 @@ class RoomServiceTest {
     when(roundService.getCurrentRound(anyString(), any())).thenReturn(Optional.empty());
 
     // Act
-    var room = roomService.getRoom("room-1");
+    var room = roomService.getRoom("room-1", "player-1");
 
     // Assert
     assertThat(room.status()).isEqualTo(WAITING_FOR_PLAYERS);
@@ -243,13 +244,75 @@ class RoomServiceTest {
         .thenReturn(Optional.of(currentRound));
 
     // Act
-    var room = roomService.getRoom("room-1");
+    var room = roomService.getRoom("room-1", "player-1");
 
     // Assert
     assertThat(room.status()).isEqualTo(IN_PROGRESS);
     assertThat(room.currentRound()).isEqualTo(currentRound);
 
     verify(roundService).getCurrentRound("room-1", 1);
+  }
+
+  @Test
+  void getRoom_roomNotFull_allowsNonMemberInspection() {
+    // Arrange
+    var entity = waitingRoom("room-1", "p1");
+
+    when(roomJpaRepository.findWithPlayersAndScoresById(anyString()))
+        .thenReturn(Optional.of(entity));
+    when(roundService.getCurrentRound(anyString(), any())).thenReturn(Optional.empty());
+
+    // Act
+    var room = roomService.getRoom("room-1", "p2");
+
+    // Assert
+    assertThat(room.id()).isEqualTo("room-1");
+    assertThat(room.players()).extracting(Player::id).containsExactly("p1");
+
+    verify(roundService).getCurrentRound("room-1", null);
+  }
+
+  @Test
+  void getRoom_roomFullAndRequestingPlayerNotInRoom_throwsRoomAccessDeniedException() {
+    // Arrange
+    var entity = waitingRoom("room-1", "p1");
+    entity.addPlayer("p2");
+    entity.setPlayerScore("p2", 0);
+
+    when(roomJpaRepository.findWithPlayersAndScoresById(anyString()))
+        .thenReturn(Optional.of(entity));
+
+    // Act
+    var thrown = catchThrowable(() -> roomService.getRoom("room-1", "p3"));
+
+    // Assert
+    assertThat(thrown)
+        .isInstanceOf(RoomAccessDeniedException.class)
+        .hasMessage("Player <p3> cannot inspect room <room-1>");
+    
+    verify(roomJpaRepository).findWithPlayersAndScoresById("room-1");
+    verifyNoInteractions(roundService, userService, eventPublisher);
+  }
+
+  @Test
+  void getRoom_roomFullAndRequestingPlayerInRoom_returnsRoom() {
+    // Arrange
+    var entity = waitingRoom("room-1", "p1");
+    entity.addPlayer("p2");
+    entity.setPlayerScore("p2", 0);
+
+    when(roomJpaRepository.findWithPlayersAndScoresById(anyString()))
+        .thenReturn(Optional.of(entity));
+    when(roundService.getCurrentRound(anyString(), any())).thenReturn(Optional.empty());
+
+    // Act
+    var room = roomService.getRoom("room-1", "p1");
+
+    // Assert
+    assertThat(room.id()).isEqualTo("room-1");
+    assertThat(room.players()).extracting(Player::id).containsExactly("p1", "p2");
+
+    verify(roundService).getCurrentRound("room-1", null);
   }
 
   private static RoomEntity waitingRoom(String roomId, String playerId) {

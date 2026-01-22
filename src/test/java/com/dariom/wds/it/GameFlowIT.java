@@ -1,6 +1,5 @@
 package com.dariom.wds.it;
 
-import static com.dariom.wds.domain.Role.USER;
 import static org.hamcrest.Matchers.anEmptyMap;
 import static org.hamcrest.Matchers.contains;
 import static org.hamcrest.Matchers.emptyOrNullString;
@@ -10,22 +9,16 @@ import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.oneOf;
-import static org.springframework.http.MediaType.APPLICATION_JSON;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.dariom.wds.persistence.entity.AppUserEntity;
-import com.dariom.wds.persistence.entity.RoleEntity;
 import com.dariom.wds.persistence.repository.jpa.AppUserJpaRepository;
 import com.dariom.wds.persistence.repository.jpa.RoleJpaRepository;
 import com.dariom.wds.service.auth.JwtService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Resource;
 import java.util.Map;
-import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -36,7 +29,6 @@ import org.springframework.test.web.servlet.ResultActions;
 @AutoConfigureMockMvc
 class GameFlowIT {
 
-  private static final String BASE_URL = "/api/v1/rooms";
   private static final String LANGUAGE = "IT";
   private static final String PLAYER_1_ID = "11111111-1111-1111-1111-111111111111";
   private static final String PLAYER_2_ID = "22222222-2222-2222-2222-222222222222";
@@ -56,30 +48,34 @@ class GameFlowIT {
 
   @Test
   void roundFinishesWhenBothPlayersDone() throws Exception {
-    // create users in DB
-    var user1 = createUser(PLAYER_1_ID, "player1@example.com", "John Smith");
-    var user2 = createUser(PLAYER_2_ID, "player2@example.com", "Bart Simpson");
+    var testUtil = new TestUtil(mockMvc, objectMapper, jwtService, appUserJpaRepository,
+        roleJpaRepository);
 
-    var player1Bearer = bearer(user1.getId(), user1.getEmail(), user1.getFullName());
-    var player2Bearer = bearer(user2.getId(), user2.getEmail(), user2.getFullName());
+    // create users in DB
+    var user1 = testUtil.createUser(PLAYER_1_ID, "player1@example.com", "John Smith");
+    var user2 = testUtil.createUser(PLAYER_2_ID, "player2@example.com", "Bart Simpson");
+
+    var player1Bearer = testUtil.bearer(user1);
+    var player2Bearer = testUtil.bearer(user2);
 
     // player1 creates the room
-    var roomId = createRoom(player1Bearer, PLAYER_1_ID);
+    var roomId = createRoom(testUtil, player1Bearer, PLAYER_1_ID);
 
     // player2 joins the room
-    var joinRoomRes = joinRoom(roomId, player2Bearer).andExpect(status().isOk());
+    var joinRoomRes = testUtil.joinRoom(roomId, player2Bearer).andExpect(status().isOk());
     expectRoomInProgress(joinRoomRes, "$", roomId, 1, "PLAYING", "PLAYING", "PLAYING");
     joinRoomRes.andExpect(jsonPath("$.currentRound.solution").doesNotExist());
     joinRoomRes.andExpect(jsonPath("$.currentRound.guessesByPlayerId").value(anEmptyMap()));
 
     // ready not allowed while round is still playing
-    ready(roomId, player1Bearer, 1)
+    testUtil.ready(roomId, player1Bearer, 1)
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.code").value("ROUND_NOT_ENDED"))
         .andExpect(jsonPath("$.message", not(emptyOrNullString())));
 
     // player1 submits guess
-    var player1GuessRes = submitGuess(roomId, player1Bearer, WORD).andExpect(status().isOk());
+    var player1GuessRes = testUtil.submitGuess(roomId, player1Bearer, WORD)
+        .andExpect(status().isOk());
     expectRoomInProgress(player1GuessRes, "$.room", roomId, 1, "PLAYING", "LOST", "PLAYING");
     player1GuessRes.andExpect(
         jsonPath("$.room.currentRound.solution").value(not(emptyOrNullString())));
@@ -89,12 +85,14 @@ class GameFlowIT {
     expectNoGuesses(player1GuessRes, "$.room", PLAYER_2_ID);
 
     // player2 still can't see solution
-    var roomForP2AfterP1GuessRes = getRoom(roomId, player2Bearer).andExpect(status().isOk());
+    var roomForP2AfterP1GuessRes = testUtil.getRoom(roomId, player2Bearer)
+        .andExpect(status().isOk());
     expectRoomInProgress(roomForP2AfterP1GuessRes, "$", roomId, 1, "PLAYING", "LOST", "PLAYING");
     roomForP2AfterP1GuessRes.andExpect(jsonPath("$.currentRound.solution").doesNotExist());
 
     // player2 submits guess
-    var player2GuessRes = submitGuess(roomId, player2Bearer, WORD).andExpect(status().isOk());
+    var player2GuessRes = testUtil.submitGuess(roomId, player2Bearer, WORD)
+        .andExpect(status().isOk());
     expectRoomInProgress(player2GuessRes, "$.room", roomId, 1, "ENDED", "LOST", "LOST");
     player2GuessRes.andExpect(
         jsonPath("$.room.currentRound.solution").value(not(emptyOrNullString())));
@@ -104,7 +102,7 @@ class GameFlowIT {
     expectSingleGuess(player2GuessRes, "$.room", PLAYER_2_ID, WORD, 1);
 
     // round is finished (both players lost)
-    var roomRes = getRoom(roomId, player1Bearer).andExpect(status().isOk());
+    var roomRes = testUtil.getRoom(roomId, player1Bearer).andExpect(status().isOk());
     expectRoomInProgress(roomRes, "$", roomId, 1, "ENDED", "LOST", "LOST");
     roomRes.andExpect(jsonPath("$.currentRound.solution").value(not(emptyOrNullString())));
     roomRes.andExpect(jsonPath("$.currentRound.solution").value(hasLength(WORD.length())));
@@ -112,44 +110,46 @@ class GameFlowIT {
     expectGuessWordOnly(roomRes, "$", PLAYER_2_ID, WORD);
 
     // submitting another guess is illegal once round is finished
-    submitGuess(roomId, player1Bearer, WORD)
+    testUtil.submitGuess(roomId, player1Bearer, WORD)
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.code").value("ROUND_FINISHED"))
         .andExpect(jsonPath("$.message", not(emptyOrNullString())));
 
     // room still has the same finished round
-    var roomAfterIllegalGuessRes = getRoom(roomId, player1Bearer).andExpect(status().isOk());
+    var roomAfterIllegalGuessRes = testUtil.getRoom(roomId, player1Bearer)
+        .andExpect(status().isOk());
     expectRoomInProgress(roomAfterIllegalGuessRes, "$", roomId, 1, "ENDED", "LOST", "LOST");
     roomAfterIllegalGuessRes.andExpect(
         jsonPath("$.currentRound.solution").value(not(emptyOrNullString())));
 
     // player1 ready (idempotent)
-    var readyP1Res = ready(roomId, player1Bearer, 1).andExpect(status().isOk());
+    var readyP1Res = testUtil.ready(roomId, player1Bearer, 1).andExpect(status().isOk());
     expectRoomInProgress(readyP1Res, "$", roomId, 1, "ENDED", "READY", "LOST");
     readyP1Res.andExpect(jsonPath("$.currentRound.solution").value(not(emptyOrNullString())));
 
-    ready(roomId, player1Bearer, 1)
+    testUtil.ready(roomId, player1Bearer, 1)
         .andExpect(status().isOk())
         .andExpect(jsonPath(
             path("$", ".currentRound.statusByPlayerId['" + PLAYER_1_ID + "']")).value("READY"));
 
     // wrong round number rejected
-    ready(roomId, player2Bearer, 2)
+    testUtil.ready(roomId, player2Bearer, 2)
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.code").value("ROUND_NOT_CURRENT"))
         .andExpect(jsonPath("$.message", not(emptyOrNullString())));
 
     // player2 ready triggers next round start
-    var readyP2Res = ready(roomId, player2Bearer, 1).andExpect(status().isOk());
+    var readyP2Res = testUtil.ready(roomId, player2Bearer, 1).andExpect(status().isOk());
     expectRoomInProgress(readyP2Res, "$", roomId, 2, "PLAYING", "PLAYING", "PLAYING");
     readyP2Res.andExpect(jsonPath("$.currentRound.solution").doesNotExist());
     readyP2Res.andExpect(jsonPath("$.currentRound.guessesByPlayerId").value(anEmptyMap()));
   }
 
-  private String createRoom(String bearer, String expectedPlayerId) throws Exception {
+  private String createRoom(TestUtil support, String bearer, String expectedPlayerId)
+      throws Exception {
     var createReq = Map.of("language", LANGUAGE);
 
-    var createRes = postJson(bearer, BASE_URL, createReq)
+    var createRes = support.createRoom(bearer, createReq)
         .andExpect(status().isCreated())
         .andExpect(header().exists("Location"))
         .andExpect(jsonPath("$.id", not(emptyOrNullString())))
@@ -163,32 +163,6 @@ class GameFlowIT {
 
     var createdJson = createRes.getResponse().getContentAsString();
     return objectMapper.readTree(createdJson).get("id").asText();
-  }
-
-  private ResultActions joinRoom(String roomId, String bearer) throws Exception {
-    return postJson(bearer, BASE_URL + "/{roomId}/join", Map.of(), roomId);
-  }
-
-  private ResultActions submitGuess(String roomId, String bearer, String word) throws Exception {
-    return postJson(bearer, BASE_URL + "/{roomId}/guess", Map.of("word", word), roomId);
-  }
-
-  private ResultActions ready(String roomId, String bearer, int roundNumber) throws Exception {
-    return postJson(bearer, BASE_URL + "/{roomId}/ready", Map.of("roundNumber", roundNumber),
-        roomId);
-  }
-
-  private ResultActions getRoom(String roomId, String bearer) throws Exception {
-    return mockMvc.perform(get(BASE_URL + "/{roomId}", roomId)
-        .header("Authorization", bearer));
-  }
-
-  private ResultActions postJson(String bearer, String urlTemplate, Object body, Object... uriVars)
-      throws Exception {
-    return mockMvc.perform(post(urlTemplate, uriVars)
-        .header("Authorization", bearer)
-        .contentType(APPLICATION_JSON)
-        .content(objectMapper.writeValueAsString(body)));
   }
 
   private void expectRoomInProgress(
@@ -271,22 +245,4 @@ class GameFlowIT {
     return root + suffix;
   }
 
-  private AppUserEntity createUser(String userId, String email, String fullName) {
-    var roleName = USER.getName();
-    var role = roleJpaRepository.findById(roleName)
-        .orElseGet(() -> roleJpaRepository.save(new RoleEntity(roleName)));
-
-    var user = new AppUserEntity(UUID.fromString(userId), email, "google-sub-" + userId, fullName,
-        "pictureUrl");
-    user.addRole(role);
-
-    return appUserJpaRepository.save(user);
-  }
-
-  private String bearer(UUID userId, String email, String fullName) {
-    var user = new AppUserEntity(userId, email, "google-sub", fullName, "pictureUrl");
-    user.addRole(new RoleEntity("USER"));
-
-    return "Bearer " + jwtService.createAccessToken(user).token();
-  }
 }

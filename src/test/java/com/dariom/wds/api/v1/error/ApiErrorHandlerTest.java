@@ -3,9 +3,11 @@ package com.dariom.wds.api.v1.error;
 import static com.dariom.wds.api.common.ErrorCode.GENERIC_BAD_REQUEST;
 import static com.dariom.wds.api.common.ErrorCode.INVALID_LANGUAGE;
 import static com.dariom.wds.api.common.ErrorCode.INVALID_ROUND_NUMBER;
+import static com.dariom.wds.api.common.ErrorCode.ROOM_ACCESS_DENIED;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.dariom.wds.api.v1.dto.CreateRoomRequest;
+import com.dariom.wds.exception.RoomAccessDeniedException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.lang.reflect.Method;
 import org.junit.jupiter.api.Test;
@@ -18,6 +20,21 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 class ApiErrorHandlerTest {
 
   private final ApiErrorHandler handler = new ApiErrorHandler();
+
+  @Test
+  void handleRoomAccessDenied_returnsForbiddenAndErrorCode() {
+    // Arrange
+    var ex = new RoomAccessDeniedException("room-1", "p3");
+
+    // Act
+    var response = handler.handleRoomAccessDenied(ex);
+
+    // Assert
+    assertThat(response.getStatusCode().value()).isEqualTo(403);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().code()).isEqualTo(ROOM_ACCESS_DENIED);
+    assertThat(response.getBody().message()).isEqualTo("Player <p3> cannot inspect room <room-1>");
+  }
 
   @Test
   void handleArgumentNotValid_fieldIsLanguage_returnsInvalidLanguage() throws Exception {

@@ -8,6 +8,7 @@ import static com.dariom.wds.websocket.model.EventType.ROOM_CREATED;
 import com.dariom.wds.domain.Language;
 import com.dariom.wds.domain.Room;
 import com.dariom.wds.domain.Round;
+import com.dariom.wds.exception.RoomAccessDeniedException;
 import com.dariom.wds.exception.RoomNotFoundException;
 import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.repository.jpa.RoomJpaRepository;
@@ -72,8 +73,10 @@ public class RoomService {
   }
 
   @Transactional(readOnly = true)
-  public Room getRoom(String roomId) {
+  public Room getRoom(String roomId, String requestingPlayerId) {
     var room = findRoom(roomId);
+    ensurePlayerCanInspectRoom(room, requestingPlayerId);
+
     var currentRound = roundService.getCurrentRound(room.getId(), room.getCurrentRoundNumber())
         .orElse(null);
     var displayNamePerPlayer = getDisplayNamePerPlayer(room);
@@ -128,5 +131,17 @@ public class RoomService {
   private Map<String, String> getDisplayNamePerPlayer(RoomEntity room) {
     var playerIds = room.getPlayerIds();
     return userService.getDisplayNamePerPlayer(playerIds);
+  }
+
+  private void ensurePlayerCanInspectRoom(RoomEntity room, String requestingPlayerId) {
+    if (room.getRoomPlayers().size() < MAX_PLAYERS) {
+      return;
+    }
+
+    var isPlayerInRoom = room.getRoomPlayers().stream()
+        .anyMatch(player -> player.getPlayerId().equals(requestingPlayerId));
+    if (!isPlayerInRoom) {
+      throw new RoomAccessDeniedException(room.getId(), requestingPlayerId);
+    }
   }
 }

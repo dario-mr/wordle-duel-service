@@ -6,6 +6,7 @@ import static com.dariom.wds.api.common.ErrorCode.INVALID_LANGUAGE;
 import static com.dariom.wds.api.common.ErrorCode.INVALID_ROUND_NUMBER;
 import static com.dariom.wds.api.common.ErrorCode.INVALID_WORD;
 import static com.dariom.wds.api.common.ErrorCode.PLAYER_NOT_IN_ROOM;
+import static com.dariom.wds.api.common.ErrorCode.ROOM_ACCESS_DENIED;
 import static com.dariom.wds.api.common.ErrorCode.ROOM_CLOSED;
 import static com.dariom.wds.api.common.ErrorCode.ROOM_FULL;
 import static com.dariom.wds.api.common.ErrorCode.ROOM_NOT_FOUND;
@@ -22,6 +23,7 @@ import com.dariom.wds.api.common.ErrorResponse;
 import com.dariom.wds.exception.DictionaryEmptyException;
 import com.dariom.wds.exception.InvalidGuessException;
 import com.dariom.wds.exception.PlayerNotInRoomException;
+import com.dariom.wds.exception.RoomAccessDeniedException;
 import com.dariom.wds.exception.RoomClosedException;
 import com.dariom.wds.exception.RoomFullException;
 import com.dariom.wds.exception.RoomNotFoundException;
@@ -40,6 +42,13 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @Order(1)
 @RestControllerAdvice
 public class ApiErrorHandler {
+
+  @ExceptionHandler(RoomAccessDeniedException.class)
+  public ResponseEntity<ErrorResponse> handleRoomAccessDenied(RoomAccessDeniedException ex) {
+    log.warn(ex.getMessage());
+    return ResponseEntity.status(FORBIDDEN)
+        .body(new ErrorResponse(ROOM_ACCESS_DENIED, ex.getMessage()));
+  }
 
   @ExceptionHandler(UserNotFoundException.class)
   public ResponseEntity<ErrorResponse> handleUserNotFound(UserNotFoundException ex) {
