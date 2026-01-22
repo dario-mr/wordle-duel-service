@@ -10,6 +10,7 @@ import static org.assertj.core.api.Assertions.tuple;
 
 import com.dariom.wds.domain.Guess;
 import com.dariom.wds.domain.Player;
+import com.dariom.wds.domain.RoundStatus;
 import com.dariom.wds.persistence.entity.GuessEntity;
 import com.dariom.wds.persistence.entity.LetterResultEmbeddable;
 import com.dariom.wds.persistence.entity.RoomEntity;
@@ -111,6 +112,23 @@ class DomainMapperTest {
     assertThat(round.guessesByPlayerId().get("p1").getFirst().letters())
         .extracting(lr -> "%s:%s".formatted(lr.letter(), lr.status()))
         .containsExactly("P:ABSENT");
+  }
+
+  @Test
+  void toRound_roundNotEnded_stillIncludesTargetWord() {
+    // Arrange
+    var roundEntity = new RoundEntity();
+    roundEntity.setRoundNumber(1);
+    roundEntity.setMaxAttempts(6);
+    roundEntity.setPlayerStatus("p1", PLAYING);
+    roundEntity.setRoundStatus(RoundStatus.PLAYING);
+    roundEntity.setTargetWord("PIZZA");
+
+    // Act
+    var round = mapper.toRound(roundEntity);
+
+    // Assert
+    assertThat(round.solution()).isEqualTo("PIZZA");
   }
 
   private static GuessEntity guess(

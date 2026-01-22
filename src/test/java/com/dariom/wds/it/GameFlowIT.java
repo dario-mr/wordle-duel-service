@@ -81,9 +81,17 @@ class GameFlowIT {
     // player1 submits guess
     var player1GuessRes = submitGuess(roomId, player1Bearer, WORD).andExpect(status().isOk());
     expectRoomInProgress(player1GuessRes, "$.room", roomId, 1, "PLAYING", "LOST", "PLAYING");
-    player1GuessRes.andExpect(jsonPath("$.room.currentRound.solution").doesNotExist());
+    player1GuessRes.andExpect(
+        jsonPath("$.room.currentRound.solution").value(not(emptyOrNullString())));
+    player1GuessRes.andExpect(
+        jsonPath("$.room.currentRound.solution").value(hasLength(WORD.length())));
     expectSingleGuess(player1GuessRes, "$.room", PLAYER_1_ID, WORD, 1);
     expectNoGuesses(player1GuessRes, "$.room", PLAYER_2_ID);
+
+    // player2 still can't see solution
+    var roomForP2AfterP1GuessRes = getRoom(roomId, player2Bearer).andExpect(status().isOk());
+    expectRoomInProgress(roomForP2AfterP1GuessRes, "$", roomId, 1, "PLAYING", "LOST", "PLAYING");
+    roomForP2AfterP1GuessRes.andExpect(jsonPath("$.currentRound.solution").doesNotExist());
 
     // player2 submits guess
     var player2GuessRes = submitGuess(roomId, player2Bearer, WORD).andExpect(status().isOk());

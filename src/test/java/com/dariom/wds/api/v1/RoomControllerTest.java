@@ -65,7 +65,7 @@ class RoomControllerTest {
     RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(request));
 
     var domainRoom = room(WAITING_FOR_PLAYERS);
-    var expectedDto = roomMapper.toDto(domainRoom);
+    var expectedDto = roomMapper.toDto(domainRoom, "user-1");
 
     when(roomService.createRoom(any(Language.class), anyString())).thenReturn(domainRoom);
 
@@ -85,7 +85,7 @@ class RoomControllerTest {
   void joinRoom_validRequest_returnsOk() {
     // Arrange
     var domainRoom = room(WAITING_FOR_PLAYERS);
-    var expectedDto = roomMapper.toDto(domainRoom);
+    var expectedDto = roomMapper.toDto(domainRoom, "user-2");
 
     when(roomService.joinRoom(anyString(), anyString())).thenReturn(domainRoom);
 
@@ -103,7 +103,7 @@ class RoomControllerTest {
   void submitGuess_validRequest_returnsOkWithGuessResponse() {
     // Arrange
     var domainRoom = room(IN_PROGRESS);
-    var expectedDto = roomMapper.toDto(domainRoom);
+    var expectedDto = roomMapper.toDto(domainRoom, "user-1");
 
     when(roundService.handleGuess(anyString(), anyString(), anyString())).thenReturn(domainRoom);
 
@@ -123,7 +123,7 @@ class RoomControllerTest {
   void ready_validRequest_returnsOk() {
     // Arrange
     var domainRoom = room(IN_PROGRESS);
-    var expectedDto = roomMapper.toDto(domainRoom);
+    var expectedDto = roomMapper.toDto(domainRoom, "user-1");
 
     when(roundService.handleReady(anyString(), anyString(), any(Integer.class))).thenReturn(
         domainRoom);

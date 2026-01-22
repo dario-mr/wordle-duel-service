@@ -1,5 +1,7 @@
 package com.dariom.wds.api.v1.mapper;
 
+import static com.dariom.wds.domain.RoundPlayerStatus.LOST;
+import static com.dariom.wds.domain.RoundStatus.ENDED;
 import static java.util.Collections.emptyList;
 import static java.util.Comparator.comparingInt;
 import static java.util.stream.Collectors.toMap;
@@ -20,13 +22,13 @@ import org.springframework.stereotype.Component;
 @Component
 public class RoomMapper {
 
-  public RoomDto toDto(Room room) {
+  public RoomDto toDto(Room room, String requestingPlayerId) {
     return new RoomDto(
         room.id(),
         room.language(),
         room.status(),
         toPlayerDto(room.players()),
-        toRoundDto(room.currentRound())
+        toRoundDto(room.currentRound(), requestingPlayerId)
     );
   }
 
@@ -40,7 +42,7 @@ public class RoomMapper {
         .toList();
   }
 
-  private RoundDto toRoundDto(Round round) {
+  private RoundDto toRoundDto(Round round, String requestingPlayerId) {
     if (round == null) {
       return null;
     }
@@ -54,6 +56,9 @@ public class RoomMapper {
                 .toList()
         ));
 
+    var solution = shouldRevealSolution(round, requestingPlayerId)
+        ? round.solution() : null;
+
     return new RoundDto(
         round.roundNumber(),
         round.maxAttempts(),
@@ -61,7 +66,7 @@ public class RoomMapper {
         round.statusByPlayerId().entrySet().stream()
             .collect(toMap(Map.Entry::getKey, e -> e.getValue().name())),
         round.roundStatus(),
-        round.solution()
+        solution
     );
   }
 
@@ -75,6 +80,18 @@ public class RoomMapper {
         letters,
         guess.attemptNumber()
     );
+  }
+
+  private static boolean shouldRevealSolution(Round round, String requestingPlayerId) {
+    if (round.roundStatus() == ENDED) {
+      return true;
+    }
+
+    if (requestingPlayerId == null) {
+      return false;
+    }
+
+    return round.statusByPlayerId().get(requestingPlayerId) == LOST;
   }
 
 }

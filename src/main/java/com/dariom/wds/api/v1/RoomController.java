@@ -57,7 +57,7 @@ public class RoomController {
     log.info("Create room {} by user <{}>", request, appUserId);
     var language = Language.valueOf(request.language().trim().toUpperCase());
     var room = roomService.createRoom(language, appUserId);
-    var roomDto = roomMapper.toDto(room);
+    var roomDto = roomMapper.toDto(room, appUserId);
     var roomUri = getRoomUri(roomDto.id());
 
     return ResponseEntity.created(roomUri).body(roomDto);
@@ -77,7 +77,7 @@ public class RoomController {
     var appUserId = jwt.getClaimAsString("uid");
     log.info("Join room <{}> by user <{}>", roomId, appUserId);
     var room = roomService.joinRoom(roomId, appUserId);
-    return ResponseEntity.ok(roomMapper.toDto(room));
+    return ResponseEntity.ok(roomMapper.toDto(room, appUserId));
   }
 
   @Operation(summary = "Get room", description = "Returns the current state of a room.")
@@ -87,12 +87,14 @@ public class RoomController {
   })
   @GetMapping("/{roomId}")
   public ResponseEntity<RoomDto> getRoom(
-      @Parameter(description = "Room identifier", required = true) @PathVariable String roomId
+      @Parameter(description = "Room identifier", required = true) @PathVariable String roomId,
+      @AuthenticationPrincipal Jwt jwt
   ) {
+    var appUserId = jwt.getClaimAsString("uid");
     // TODO block inspecting room from a 3rd player who is not in it?
     log.info("Get room <{}>", roomId);
     var room = roomService.getRoom(roomId);
-    return ResponseEntity.ok(roomMapper.toDto(room));
+    return ResponseEntity.ok(roomMapper.toDto(room, appUserId));
   }
 
   @Operation(summary = "Submit guess", description = "Submits a guess for a player in a room and returns the updated room state.")
@@ -110,7 +112,7 @@ public class RoomController {
     var appUserId = jwt.getClaimAsString("uid");
     log.info("Submit guess in room <{}> by user <{}>: {}", roomId, appUserId, request);
     var room = roundService.handleGuess(roomId, appUserId, request.word());
-    var response = new GuessResponse(roomMapper.toDto(room));
+    var response = new GuessResponse(roomMapper.toDto(room, appUserId));
     return ResponseEntity.ok(response);
   }
 
@@ -130,7 +132,7 @@ public class RoomController {
     var appUserId = jwt.getClaimAsString("uid");
     log.info("Player ready in room <{}> by user <{}>: {}", roomId, appUserId, request);
     var room = roundService.handleReady(roomId, appUserId, request.roundNumber());
-    return ResponseEntity.ok(roomMapper.toDto(room));
+    return ResponseEntity.ok(roomMapper.toDto(room, appUserId));
   }
 
   private static URI getRoomUri(String roomId) {

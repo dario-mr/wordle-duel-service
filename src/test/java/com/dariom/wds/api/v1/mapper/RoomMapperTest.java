@@ -39,7 +39,7 @@ class RoomMapperTest {
     var room = new Room("room-1", IT, IN_PROGRESS, List.of(new Player("p1", 0, "John")), round);
 
     // Act
-    var dto = mapper.toDto(room);
+    var dto = mapper.toDto(room, "p1");
 
     // Assert
     assertThat(dto.currentRound()).isNotNull();
@@ -50,5 +50,62 @@ class RoomMapperTest {
     assertThat(dto.players())
         .extracting(PlayerDto::id, PlayerDto::score, PlayerDto::displayName)
         .containsExactly(tuple("p1", 0, "John"));
+  }
+
+  @Test
+  void toDto_roundPlayingAndRequesterNotLost_hidesSolution() {
+    // Arrange
+    var round = new Round(1, 6,
+        Map.of("p1", List.of()),
+        Map.of("p1", RoundPlayerStatus.PLAYING),
+        RoundStatus.PLAYING,
+        "PIZZA"
+    );
+
+    var room = new Room("room-1", IT, IN_PROGRESS, List.of(new Player("p1", 0, "John")), round);
+
+    // Act
+    var dto = mapper.toDto(room, "p1");
+
+    // Assert
+    assertThat(dto.currentRound().solution()).isNull();
+  }
+
+  @Test
+  void toDto_roundPlayingAndRequesterLost_revealsSolution() {
+    // Arrange
+    var round = new Round(1, 6,
+        Map.of("p1", List.of()),
+        Map.of("p1", RoundPlayerStatus.LOST),
+        RoundStatus.PLAYING,
+        "PIZZA"
+    );
+
+    var room = new Room("room-1", IT, IN_PROGRESS, List.of(new Player("p1", 0, "John")), round);
+
+    // Act
+    var dto = mapper.toDto(room, "p1");
+
+    // Assert
+    assertThat(dto.currentRound().solution()).isEqualTo("PIZZA");
+  }
+
+  @Test
+  void toDto_roundEnded_revealsSolutionToAnyRequester() {
+    // Arrange
+    var round = new Round(1, 6,
+        Map.of("p1", List.of()),
+        Map.of("p1", RoundPlayerStatus.WON),
+        RoundStatus.ENDED,
+        "PIZZA"
+    );
+
+    var room = new Room("room-1", IT, IN_PROGRESS, List.of(new Player("p1", 0, "John")), round);
+
+    // Act
+    var dto = mapper.toDto(room, "someone-else");
+
+    // Assert
+    assertThat(dto.currentRound().solution()).isEqualTo("PIZZA");
   }
 }
