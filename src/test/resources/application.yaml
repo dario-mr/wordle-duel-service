@@ -39,3 +39,7 @@ app:
       cookie-samesite: Lax
       cookie-path: /
       cookie-secure: false
+
+room:
+  cleanup:
+    cron: "-"

@@ -16,3 +16,7 @@ app:
     allowed-origins:
       - "http://localhost:${server.port}"
       - "http://localhost:3001"
+
+room:
+  cleanup:
+    cron: "-"

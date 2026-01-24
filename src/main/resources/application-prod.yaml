@@ -10,3 +10,7 @@ app:
   websocket:
     allowed-origins:
       - "https://dariolab.com"
+
+room:
+  cleanup:
+    cron: "0 0 4 * * *"

@@ -56,3 +56,8 @@ app:
 
 springdoc:
   swagger-ui.csrf.enabled: true
+
+room:
+  cleanup:
+    cron: "-"
+    retention-days: 60

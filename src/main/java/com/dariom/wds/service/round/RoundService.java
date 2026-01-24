@@ -22,6 +22,8 @@ import com.dariom.wds.service.user.UserService;
 import com.dariom.wds.websocket.model.PlayerStatusUpdatedPayload;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -44,6 +46,7 @@ public class RoundService {
   private final GuessSubmissionService guessSubmissionService;
   private final ApplicationEventPublisher eventPublisher;
   private final UserService userService;
+  private final Clock clock;
 
   @Transactional(readOnly = true)
   public Optional<Round> getCurrentRound(String roomId, Integer currentRoundNumber) {
@@ -96,6 +99,7 @@ public class RoundService {
       statusUpdate.ifPresent(status -> publishPlayerStatusUpdated(roomId, status));
     }
 
+    roomEntity.setLastUpdatedAt(Instant.now(clock));
     var saved = roomJpaRepository.save(roomEntity);
     var displayNamePerPlayer = getDisplayNamePerPlayer(saved);
 
@@ -136,6 +140,7 @@ public class RoundService {
       publishPlayerStatusUpdated(roomId, READY);
     }
 
+    roomEntity.setLastUpdatedAt(Instant.now(clock));
     var saved = roomJpaRepository.save(roomEntity);
     var displayNamePerPlayer = getDisplayNamePerPlayer(saved);
 

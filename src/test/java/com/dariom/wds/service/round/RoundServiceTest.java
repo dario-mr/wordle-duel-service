@@ -36,6 +36,9 @@ import com.dariom.wds.service.user.UserService;
 import com.dariom.wds.websocket.model.PlayerStatusUpdatedPayload;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -71,6 +74,7 @@ class RoundServiceTest {
   private final RoomLockManager roomLockManager = new RoomLockManager();
   private final PlatformTransactionManager transactionManager = new NoOpTransactionManager();
   private final DomainMapper domainMapper = new DomainMapper();
+  private final Clock clock = Clock.fixed(Instant.parse("2025-01-01T12:00:00Z"), ZoneOffset.UTC);
 
   private RoundService service;
 
@@ -85,7 +89,8 @@ class RoundServiceTest {
         roundLifecycleService,
         guessSubmissionService,
         eventPublisher,
-        userService
+        userService,
+        clock
     );
   }
 
@@ -124,6 +129,9 @@ class RoundServiceTest {
   void handleGuess_validInput_returnsMappedRoomAndPersistsRoom() {
     // Arrange
     var roomEntity = inProgressRoom(ROOM_ID, PLAYER_1, PLAYER_2);
+    var initialLastUpdatedAt = Instant.parse("2000-01-01T00:00:00Z");
+    roomEntity.setLastUpdatedAt(initialLastUpdatedAt);
+
     var roundEntity = round(1, PLAYING);
     var displayNamePerPlayer = Map.of(PLAYER_1, "John", PLAYER_2, "Mark");
 
@@ -145,6 +153,7 @@ class RoundServiceTest {
     assertThat(result).isEqualTo(expectedRoom);
     assertThat(result.players().get(0).displayName()).isEqualTo("John");
     assertThat(result.players().get(1).displayName()).isEqualTo("Mark");
+    assertThat(roomEntity.getLastUpdatedAt()).isAfter(initialLastUpdatedAt);
 
     verify(guessSubmissionService).applyGuess(ROOM_ID, PLAYER_1, "pizza", roomEntity, roundEntity);
     verify(roomJpaRepository).findWithPlayersAndScoresById(ROOM_ID);
@@ -265,6 +274,9 @@ class RoundServiceTest {
   void handleReady_notAllPlayersReady_setsReadyAndDoesNotStartNewRound() {
     // Arrange
     var roomEntity = inProgressRoom(ROOM_ID, 1, PLAYER_1, PLAYER_2);
+    var initialLastUpdatedAt = Instant.parse("2000-01-01T00:00:00Z");
+    roomEntity.setLastUpdatedAt(initialLastUpdatedAt);
+
     var roundEntity = round(1, ENDED, Map.of(
         PLAYER_1, WON,
         PLAYER_2, LOST
@@ -287,6 +299,7 @@ class RoundServiceTest {
     assertThat(currentRound.roundStatus()).isEqualTo(ENDED);
     assertThat(currentRound.statusByPlayerId().get(PLAYER_1)).isEqualTo(READY);
     assertThat(currentRound.statusByPlayerId().get(PLAYER_2)).isEqualTo(LOST);
+    assertThat(roomEntity.getLastUpdatedAt()).isAfter(initialLastUpdatedAt);
 
     verify(eventPublisher).publishEvent(new RoomEventToPublish(ROOM_ID,
         new RoomEvent(PLAYER_STATUS_UPDATED, new PlayerStatusUpdatedPayload(READY))));

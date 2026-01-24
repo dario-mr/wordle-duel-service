@@ -5,6 +5,8 @@ import static com.dariom.wds.domain.RoomStatus.WAITING_FOR_PLAYERS;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.dariom.wds.persistence.entity.RoomEntity;
+import jakarta.persistence.EntityManager;
+import java.time.Instant;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -13,6 +15,9 @@ class RoomJpaRepositoryIT {
 
   @Autowired
   private RoomJpaRepository repository;
+
+  @Autowired
+  private EntityManager entityManager;
 
   @Test
   void findWithPlayersAndScoresById_roomWithPlayersAndScores_returnsLoadedElementCollections() {
@@ -39,5 +44,49 @@ class RoomJpaRepositoryIT {
     var scores = found.getScoresByPlayerId();
     assertThat(scores).containsEntry("p1", 0).containsEntry("p2", 1);
     assertThat(scores).hasSize(2);
+  }
+
+  @Test
+  void deleteByLastUpdatedAtBefore_oldRoomExists_deletesOnlyOldRooms() {
+    // Arrange
+    var oldRoom = new RoomEntity();
+    oldRoom.setId("room-old");
+    oldRoom.setLanguage(IT);
+    oldRoom.setStatus(WAITING_FOR_PLAYERS);
+
+    var newRoom = new RoomEntity();
+    newRoom.setId("room-new");
+    newRoom.setLanguage(IT);
+    newRoom.setStatus(WAITING_FOR_PLAYERS);
+
+    repository.save(oldRoom);
+    repository.save(newRoom);
+    entityManager.flush();
+
+    var oldTs = Instant.parse("2020-01-01T00:00:00Z");
+    var newTs = Instant.parse("2025-01-01T00:00:00Z");
+
+    entityManager.createNativeQuery("update rooms set last_updated_at = :ts where id = :id")
+        .setParameter("ts", oldTs)
+        .setParameter("id", "room-old")
+        .executeUpdate();
+
+    entityManager.createNativeQuery("update rooms set last_updated_at = :ts where id = :id")
+        .setParameter("ts", newTs)
+        .setParameter("id", "room-new")
+        .executeUpdate();
+
+    entityManager.flush();
+    entityManager.clear();
+
+    var cutoff = Instant.parse("2024-01-01T00:00:00Z");
+
+    // Act
+    var deleted = repository.deleteByLastUpdatedAtBefore(cutoff);
+
+    // Assert
+    assertThat(deleted).isEqualTo(1);
+    assertThat(repository.findById("room-old")).isEmpty();
+    assertThat(repository.findById("room-new")).isPresent();
   }
 }

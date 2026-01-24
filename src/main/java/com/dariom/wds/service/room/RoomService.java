@@ -18,6 +18,7 @@ import com.dariom.wds.service.user.UserService;
 import com.dariom.wds.websocket.model.PlayerJoinedPayload;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -81,6 +82,11 @@ public class RoomService {
         .orElse(null);
     var displayNamePerPlayer = getDisplayNamePerPlayer(room);
     return domainMapper.toRoom(room, currentRound, displayNamePerPlayer);
+  }
+
+  @Transactional
+  public long deleteRoom(Instant cutoff) {
+    return roomJpaRepository.deleteByLastUpdatedAtBefore(cutoff);
   }
 
   private Room joinRoomInTransaction(String roomId, String joiningPlayerId) {

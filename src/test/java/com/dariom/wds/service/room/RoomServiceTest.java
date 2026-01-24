@@ -29,6 +29,7 @@ import com.dariom.wds.service.user.UserService;
 import com.dariom.wds.websocket.model.PlayerJoinedPayload;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
+import java.time.Instant;
 import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
@@ -313,6 +314,20 @@ class RoomServiceTest {
     assertThat(room.players()).extracting(Player::id).containsExactly("p1", "p2");
 
     verify(roundService).getCurrentRound("room-1", null);
+  }
+
+  @Test
+  void deleteRoom_cutoffProvided_deletesOldRooms() {
+    // Arrange
+    var cutoff = Instant.parse("2025-01-01T12:00:00Z");
+    when(roomJpaRepository.deleteByLastUpdatedAtBefore(cutoff)).thenReturn(3L);
+
+    // Act
+    var deleted = roomService.deleteRoom(cutoff);
+
+    // Assert
+    assertThat(deleted).isEqualTo(3L);
+    verify(roomJpaRepository).deleteByLastUpdatedAtBefore(cutoff);
   }
 
   private static RoomEntity waitingRoom(String roomId, String playerId) {
