@@ -68,4 +68,9 @@ public class RefreshTokenService {
     refreshTokenRepository.findByTokenHash(hashedToken)
         .ifPresent(refreshTokenRepository::delete);
   }
+
+  @Transactional
+  public int deleteExpiredTokens(Instant now) {
+    return refreshTokenRepository.deleteExpired(now);
+  }
 }

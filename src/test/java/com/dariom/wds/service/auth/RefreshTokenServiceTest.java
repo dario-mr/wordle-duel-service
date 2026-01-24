@@ -245,6 +245,21 @@ class RefreshTokenServiceTest {
         jwtService);
   }
 
+  @Test
+  void deleteExpiredTokens_nowProvided_deletesExpiredTokens() {
+    // Arrange
+    when(refreshTokenRepository.deleteExpired(NOW)).thenReturn(2);
+
+    // Act
+    var deleted = service.deleteExpiredTokens(NOW);
+
+    // Assert
+    assertThat(deleted).isEqualTo(2);
+    verify(refreshTokenRepository).deleteExpired(NOW);
+    verifyNoMoreInteractions(refreshTokenGenerator, tokenHashing, refreshTokenRepository,
+        jwtService);
+  }
+
   private static AppUserEntity userEntity() {
     return new AppUserEntity(UUID.randomUUID(), "user@test.com", "google-sub-1", "User Test",
         "pictureUrl");

@@ -22,21 +22,21 @@ class RoomCleanupJobTest {
   private RoomService roomService;
 
   @Test
-  void cleanupOldRooms_validConfig_deletesRoomsOlderThanRetentionDays() {
+  void cleanupInactiveRooms_validConfig_deletesRoomsOlderThanRetentionDays() {
     // Arrange
     var now = Instant.parse("2025-01-10T00:00:00Z");
-    var properties = new RoomCleanupProperties("-", 60);
+    var properties = new RoomCleanupProperties(60);
     var clock = Clock.fixed(now, ZoneOffset.UTC);
     var job = new RoomCleanupJob(properties, roomService, clock);
 
-    when(roomService.deleteRoom(any())).thenReturn(2L);
+    when(roomService.deleteInactiveRooms(any())).thenReturn(2L);
 
     // Act
-    job.cleanupOldRooms();
+    job.cleanupInactiveRooms();
 
     // Assert
     var expectedCutoff = now.minus(60, DAYS);
-    verify(roomService).deleteRoom(expectedCutoff);
+    verify(roomService).deleteInactiveRooms(expectedCutoff);
   }
 }
 

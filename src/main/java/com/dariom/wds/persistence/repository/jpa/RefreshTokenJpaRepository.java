@@ -17,6 +17,7 @@ public interface RefreshTokenJpaRepository extends JpaRepository<RefreshTokenEnt
   @Lock(PESSIMISTIC_WRITE)
   Optional<RefreshTokenEntity> findByTokenHash(String tokenHash);
 
+  // TODO index candidate, monitor performance
   @Modifying(clearAutomatically = true, flushAutomatically = true)
   @Query("delete from RefreshTokenEntity rt where rt.expiresAt < :now")
   int deleteExpired(@Param("now") Instant now);

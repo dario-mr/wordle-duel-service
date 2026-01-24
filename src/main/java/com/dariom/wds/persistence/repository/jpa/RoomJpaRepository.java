@@ -5,6 +5,9 @@ import java.time.Instant;
 import java.util.Optional;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 public interface RoomJpaRepository extends JpaRepository<RoomEntity, String> {
 
@@ -12,6 +15,9 @@ public interface RoomJpaRepository extends JpaRepository<RoomEntity, String> {
   @EntityGraph(attributePaths = {"roomPlayers"})
   Optional<RoomEntity> findWithPlayersAndScoresById(String id);
 
-  long deleteByLastUpdatedAtBefore(Instant cutoff);
+  // TODO index candidate, monitor performance
+  @Modifying(flushAutomatically = true, clearAutomatically = true)
+  @Query("delete from RoomEntity r where r.lastUpdatedAt < :cutoff")
+  long deleteInactive(@Param("cutoff") Instant cutoff);
 
 }

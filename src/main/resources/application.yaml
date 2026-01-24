@@ -61,3 +61,7 @@ room:
   cleanup:
     cron: "-"
     retention-days: 60
+
+refresh-token:
+  cleanup:
+    cron: "-"

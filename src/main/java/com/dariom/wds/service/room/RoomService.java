@@ -85,8 +85,8 @@ public class RoomService {
   }
 
   @Transactional
-  public long deleteRoom(Instant cutoff) {
-    return roomJpaRepository.deleteByLastUpdatedAtBefore(cutoff);
+  public long deleteInactiveRooms(Instant cutoff) {
+    return roomJpaRepository.deleteInactive(cutoff);
   }
 
   private Room joinRoomInTransaction(String roomId, String joiningPlayerId) {

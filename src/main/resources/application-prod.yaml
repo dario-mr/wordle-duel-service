@@ -14,3 +14,7 @@ app:
 room:
   cleanup:
     cron: "0 0 4 * * *"
+
+refresh-token:
+  cleanup:
+    cron: "0 0 4 * * *"

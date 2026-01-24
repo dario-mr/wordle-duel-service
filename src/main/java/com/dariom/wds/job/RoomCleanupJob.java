@@ -21,11 +21,11 @@ class RoomCleanupJob {
   private final Clock clock;
 
   @Scheduled(cron = "${room.cleanup.cron}")
-  void cleanupOldRooms() {
+  void cleanupInactiveRooms() {
     var cutoff = Instant.now(clock)
         .minus(properties.retentionDays(), DAYS);
 
-    var deletedRooms = roomService.deleteRoom(cutoff);
+    var deletedRooms = roomService.deleteInactiveRooms(cutoff);
     log.info("Deleted {} rooms older than {} (cutoff={})", deletedRooms,
         properties.retentionDays(), cutoff);
   }

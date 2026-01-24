@@ -290,7 +290,7 @@ class RoomServiceTest {
     assertThat(thrown)
         .isInstanceOf(RoomAccessDeniedException.class)
         .hasMessage("Player <p3> cannot inspect room <room-1>");
-    
+
     verify(roomJpaRepository).findWithPlayersAndScoresById("room-1");
     verifyNoInteractions(roundService, userService, eventPublisher);
   }
@@ -317,17 +317,17 @@ class RoomServiceTest {
   }
 
   @Test
-  void deleteRoom_cutoffProvided_deletesOldRooms() {
+  void deleteInactiveRooms_cutoffProvided_deletesOldRooms() {
     // Arrange
     var cutoff = Instant.parse("2025-01-01T12:00:00Z");
-    when(roomJpaRepository.deleteByLastUpdatedAtBefore(cutoff)).thenReturn(3L);
+    when(roomJpaRepository.deleteInactive(cutoff)).thenReturn(3L);
 
     // Act
-    var deleted = roomService.deleteRoom(cutoff);
+    var deleted = roomService.deleteInactiveRooms(cutoff);
 
     // Assert
     assertThat(deleted).isEqualTo(3L);
-    verify(roomJpaRepository).deleteByLastUpdatedAtBefore(cutoff);
+    verify(roomJpaRepository).deleteInactive(cutoff);
   }
 
   private static RoomEntity waitingRoom(String roomId, String playerId) {

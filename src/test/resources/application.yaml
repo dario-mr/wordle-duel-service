@@ -43,3 +43,7 @@ app:
 room:
   cleanup:
     cron: "-"
+
+refresh-token:
+  cleanup:
+    cron: "-"
