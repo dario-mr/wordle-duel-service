@@ -10,12 +10,14 @@ import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import com.dariom.wds.domain.Player;
+import com.dariom.wds.domain.Room;
 import com.dariom.wds.domain.Round;
 import com.dariom.wds.exception.RoomAccessDeniedException;
 import com.dariom.wds.exception.RoomFullException;
@@ -30,8 +32,10 @@ import com.dariom.wds.websocket.model.PlayerJoinedPayload;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -104,7 +108,7 @@ class RoomServiceTest {
   @Test
   void getRoom_roomNotFound_throwsRoomNotFoundException() {
     // Arrange
-    when(roomJpaRepository.findWithPlayersAndScoresById(anyString())).thenReturn(Optional.empty());
+    when(roomJpaRepository.findWithPlayersById(anyString())).thenReturn(Optional.empty());
 
     // Act
     var thrown = catchThrowable(() -> roomService.getRoom("room-1", "player-1"));
@@ -114,14 +118,14 @@ class RoomServiceTest {
         .isInstanceOf(RoomNotFoundException.class)
         .hasMessageContaining("room-1");
 
-    verify(roomJpaRepository).findWithPlayersAndScoresById("room-1");
+    verify(roomJpaRepository).findWithPlayersById("room-1");
     verifyNoInteractions(roundService, eventPublisher);
   }
 
   @Test
   void joinRoom_roomNotFound_throwsRoomNotFoundException() {
     // Arrange
-    when(roomJpaRepository.findWithPlayersAndScoresById(anyString())).thenReturn(Optional.empty());
+    when(roomJpaRepository.findWithPlayersById(anyString())).thenReturn(Optional.empty());
 
     // Act
     var thrown = catchThrowable(() -> roomService.joinRoom("room-1", "p2"));
@@ -131,7 +135,7 @@ class RoomServiceTest {
         .isInstanceOf(RoomNotFoundException.class)
         .hasMessageContaining("room-1");
 
-    verify(roomJpaRepository).findWithPlayersAndScoresById("room-1");
+    verify(roomJpaRepository).findWithPlayersById("room-1");
     verify(roomJpaRepository, never()).save(any(RoomEntity.class));
     verifyNoInteractions(roundService, eventPublisher);
   }
@@ -143,7 +147,7 @@ class RoomServiceTest {
     room.addPlayer("p2");
     room.setPlayerScore("p2", 0);
 
-    when(roomJpaRepository.findWithPlayersAndScoresById(anyString())).thenReturn(Optional.of(room));
+    when(roomJpaRepository.findWithPlayersById(anyString())).thenReturn(Optional.of(room));
 
     // Act
     var thrown = catchThrowable(() -> roomService.joinRoom("room-1", "p3"));
@@ -153,7 +157,7 @@ class RoomServiceTest {
         .isInstanceOf(RoomFullException.class)
         .hasMessageContaining("room-1");
 
-    verify(roomJpaRepository).findWithPlayersAndScoresById("room-1");
+    verify(roomJpaRepository).findWithPlayersById("room-1");
     verifyNoMoreInteractions(roomJpaRepository);
     verifyNoInteractions(roundService, eventPublisher);
   }
@@ -163,7 +167,7 @@ class RoomServiceTest {
     // Arrange
     var entity = waitingRoom("room-1", "p1");
 
-    when(roomJpaRepository.findWithPlayersAndScoresById(anyString())).thenReturn(
+    when(roomJpaRepository.findWithPlayersById(anyString())).thenReturn(
         Optional.of(entity));
     when(roomJpaRepository.save(any(RoomEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -192,7 +196,7 @@ class RoomServiceTest {
     var entity = waitingRoom("room-1", "p1");
     entity.setPlayerScore("p1", 5);
 
-    when(roomJpaRepository.findWithPlayersAndScoresById(anyString())).thenReturn(
+    when(roomJpaRepository.findWithPlayersById(anyString())).thenReturn(
         Optional.of(entity));
     when(roomJpaRepository.save(any(RoomEntity.class))).thenAnswer(inv -> inv.getArgument(0));
     when(roundService.getCurrentRound(anyString(), any())).thenReturn(Optional.empty());
@@ -212,7 +216,7 @@ class RoomServiceTest {
     // Arrange
     var entity = waitingRoom("room-1", "p1");
 
-    when(roomJpaRepository.findWithPlayersAndScoresById(anyString())).thenReturn(
+    when(roomJpaRepository.findWithPlayersById(anyString())).thenReturn(
         Optional.of(entity));
     when(roundService.getCurrentRound(anyString(), any())).thenReturn(Optional.empty());
 
@@ -239,7 +243,7 @@ class RoomServiceTest {
 
     var currentRound = new Round(1, 6, Map.of(), Map.of(), PLAYING, null);
 
-    when(roomJpaRepository.findWithPlayersAndScoresById(anyString()))
+    when(roomJpaRepository.findWithPlayersById(anyString()))
         .thenReturn(Optional.of(entity));
     when(roundService.getCurrentRound(anyString(), any()))
         .thenReturn(Optional.of(currentRound));
@@ -259,7 +263,7 @@ class RoomServiceTest {
     // Arrange
     var entity = waitingRoom("room-1", "p1");
 
-    when(roomJpaRepository.findWithPlayersAndScoresById(anyString()))
+    when(roomJpaRepository.findWithPlayersById(anyString()))
         .thenReturn(Optional.of(entity));
     when(roundService.getCurrentRound(anyString(), any())).thenReturn(Optional.empty());
 
@@ -280,7 +284,7 @@ class RoomServiceTest {
     entity.addPlayer("p2");
     entity.setPlayerScore("p2", 0);
 
-    when(roomJpaRepository.findWithPlayersAndScoresById(anyString()))
+    when(roomJpaRepository.findWithPlayersById(anyString()))
         .thenReturn(Optional.of(entity));
 
     // Act
@@ -291,7 +295,7 @@ class RoomServiceTest {
         .isInstanceOf(RoomAccessDeniedException.class)
         .hasMessage("Player <p3> cannot inspect room <room-1>");
 
-    verify(roomJpaRepository).findWithPlayersAndScoresById("room-1");
+    verify(roomJpaRepository).findWithPlayersById("room-1");
     verifyNoInteractions(roundService, userService, eventPublisher);
   }
 
@@ -302,7 +306,7 @@ class RoomServiceTest {
     entity.addPlayer("p2");
     entity.setPlayerScore("p2", 0);
 
-    when(roomJpaRepository.findWithPlayersAndScoresById(anyString()))
+    when(roomJpaRepository.findWithPlayersById(anyString()))
         .thenReturn(Optional.of(entity));
     when(roundService.getCurrentRound(anyString(), any())).thenReturn(Optional.empty());
 
@@ -314,6 +318,40 @@ class RoomServiceTest {
     assertThat(room.players()).extracting(Player::id).containsExactly("p1", "p2");
 
     verify(roundService).getCurrentRound("room-1", null);
+  }
+
+  @Test
+  void listRoomsForPlayer_roomsExist_returnsRoomsWithCurrentRoundsWhenPresent() {
+    // Arrange
+    var waitingRoom = waitingRoom("room-1", "p1");
+
+    var inProgressRoom = waitingRoom("room-2", "p1");
+    inProgressRoom.setStatus(IN_PROGRESS);
+    inProgressRoom.setCurrentRoundNumber(1);
+
+    var currentRound = new Round(1, 6, Map.of(), Map.of(), PLAYING, null);
+
+    when(roomJpaRepository.findWithPlayersByPlayerId("p1"))
+        .thenReturn(List.of(waitingRoom, inProgressRoom));
+    when(roundService.getCurrentRoundsByRoomIds(List.of("room-1", "room-2")))
+        .thenReturn(Map.of("room-2", currentRound));
+    when(userService.getDisplayNamePerPlayer(any())).thenReturn(Map.of());
+
+    // Act
+    var rooms = roomService.listRoomsForPlayer("p1");
+
+    // Assert
+    assertThat(rooms).hasSize(2);
+    assertThat(rooms)
+        .extracting(Room::id)
+        .containsExactly("room-1", "room-2");
+    assertThat(rooms.get(0).currentRound()).isNull();
+    assertThat(rooms.get(1).currentRound()).isEqualTo(currentRound);
+
+    verify(roomJpaRepository).findWithPlayersByPlayerId("p1");
+    verify(roundService).getCurrentRoundsByRoomIds(List.of("room-1", "room-2"));
+    verify(userService, times(2)).getDisplayNamePerPlayer(Set.of("p1"));
+    verifyNoMoreInteractions(roomJpaRepository, roundService, userService);
   }
 
   @Test

@@ -39,6 +39,7 @@ import com.dariom.wds.websocket.model.RoomEventToPublish;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -106,11 +107,47 @@ class RoundServiceTest {
   }
 
   @Test
+  void getCurrentRoundsByRoomIds_roomIdsEmpty_returnsEmptyAndDoesNotQuery() {
+    // Act
+    var result = service.getCurrentRoundsByRoomIds(List.of());
+
+    // Assert
+    assertThat(result).isEmpty();
+    verifyNoInteractions(roundJpaRepository);
+  }
+
+  @Test
+  void getCurrentRoundsByRoomIds_roomsHaveCurrentRounds_returnsMapByRoomId() {
+    // Arrange
+    var room1 = inProgressRoom("room-1", 1, PLAYER_1, PLAYER_2);
+    var room2 = inProgressRoom("room-2", 2, PLAYER_1, PLAYER_2);
+
+    var round1 = round(1, PLAYING);
+    round1.setRoom(room1);
+
+    var round2 = round(2, ENDED);
+    round2.setRoom(room2);
+
+    when(roundJpaRepository.findCurrentRoundsWithDetailsByRoomIds(List.of("room-1", "room-2")))
+        .thenReturn(List.of(round1, round2));
+
+    // Act
+    var result = service.getCurrentRoundsByRoomIds(List.of("room-1", "room-2"));
+
+    // Assert
+    assertThat(result).hasSize(2);
+    assertThat(result.get("room-1")).isEqualTo(domainMapper.toRound(round1));
+    assertThat(result.get("room-2")).isEqualTo(domainMapper.toRound(round2));
+
+    verify(roundJpaRepository).findCurrentRoundsWithDetailsByRoomIds(List.of("room-1", "room-2"));
+  }
+
+  @Test
   void startNewRound_roomExists_returnsMappedRoundAndSavesRoom() {
     // Arrange
     var roomEntity = room(ROOM_ID);
 
-    when(roomJpaRepository.findWithPlayersAndScoresById(anyString())).thenReturn(
+    when(roomJpaRepository.findWithPlayersById(anyString())).thenReturn(
         Optional.of(roomEntity));
 
     var roundEntity = round(1, PLAYING);
@@ -121,7 +158,7 @@ class RoundServiceTest {
 
     // Assert
     assertThat(result).isEqualTo(domainMapper.toRound(roundEntity));
-    verify(roomJpaRepository).findWithPlayersAndScoresById(ROOM_ID);
+    verify(roomJpaRepository).findWithPlayersById(ROOM_ID);
     verify(roomJpaRepository).save(roomEntity);
   }
 
@@ -135,7 +172,7 @@ class RoundServiceTest {
     var roundEntity = round(1, PLAYING);
     var displayNamePerPlayer = Map.of(PLAYER_1, "John", PLAYER_2, "Mark");
 
-    when(roomJpaRepository.findWithPlayersAndScoresById(anyString()))
+    when(roomJpaRepository.findWithPlayersById(anyString()))
         .thenReturn(Optional.of(roomEntity));
     when(roomJpaRepository.save(any())).thenReturn(roomEntity);
     when(roundLifecycleService.ensureActiveRound(roomEntity)).thenReturn(roundEntity);
@@ -156,7 +193,7 @@ class RoundServiceTest {
     assertThat(roomEntity.getLastUpdatedAt()).isAfter(initialLastUpdatedAt);
 
     verify(guessSubmissionService).applyGuess(ROOM_ID, PLAYER_1, "pizza", roomEntity, roundEntity);
-    verify(roomJpaRepository).findWithPlayersAndScoresById(ROOM_ID);
+    verify(roomJpaRepository).findWithPlayersById(ROOM_ID);
     verify(roomJpaRepository).save(roomEntity);
     verify(userService).getDisplayNamePerPlayer(Set.of(PLAYER_1, PLAYER_2));
   }
@@ -169,7 +206,7 @@ class RoundServiceTest {
     var displayNamePerPlayer = Map.of(PLAYER_1, "John", PLAYER_2, "Mark");
 
     when(roomJpaRepository.save(any())).thenReturn(roomEntity);
-    when(roomJpaRepository.findWithPlayersAndScoresById(anyString())).
+    when(roomJpaRepository.findWithPlayersById(anyString())).
         thenReturn(Optional.of(roomEntity));
     when(roundLifecycleService.ensureActiveRound(roomEntity)).thenReturn(roundEntity);
     when(guessSubmissionService.applyGuess(ROOM_ID, PLAYER_1, "pizza", roomEntity, roundEntity))
@@ -194,7 +231,7 @@ class RoundServiceTest {
     var roundEntity = round(1, PLAYING);
 
     when(roomJpaRepository.save(any())).thenReturn(roomEntity);
-    when(roomJpaRepository.findWithPlayersAndScoresById(anyString()))
+    when(roomJpaRepository.findWithPlayersById(anyString()))
         .thenReturn(Optional.of(roomEntity));
     when(roundLifecycleService.ensureActiveRound(roomEntity)).thenReturn(roundEntity);
     when(guessSubmissionService.applyGuess(ROOM_ID, PLAYER_1, "pizza", roomEntity, roundEntity))
@@ -214,7 +251,7 @@ class RoundServiceTest {
     // Arrange
     var roomEntity = inProgressRoom(ROOM_ID, 1, PLAYER_1);
 
-    when(roomJpaRepository.findWithPlayersAndScoresById(anyString()))
+    when(roomJpaRepository.findWithPlayersById(anyString()))
         .thenReturn(Optional.of(roomEntity));
 
     // Act / Assert
@@ -222,7 +259,7 @@ class RoundServiceTest {
         .isInstanceOf(PlayerNotInRoomException.class)
         .hasMessage("Player <p2> is not in room <room-1>");
 
-    verify(roomJpaRepository).findWithPlayersAndScoresById(ROOM_ID);
+    verify(roomJpaRepository).findWithPlayersById(ROOM_ID);
     verifyNoMoreInteractions(roomJpaRepository);
     verifyNoInteractions(roundJpaRepository);
     verifyNoInteractions(eventPublisher);
@@ -233,7 +270,7 @@ class RoundServiceTest {
     // Arrange
     var roomEntity = inProgressRoom(ROOM_ID, 2, PLAYER_1, PLAYER_2);
 
-    when(roomJpaRepository.findWithPlayersAndScoresById(anyString()))
+    when(roomJpaRepository.findWithPlayersById(anyString()))
         .thenReturn(Optional.of(roomEntity));
 
     // Act / Assert
@@ -242,7 +279,7 @@ class RoundServiceTest {
         .hasMessage("Round <1> is not the current round")
         .satisfies(ex -> assertThat(((RoundException) ex).getCode()).isEqualTo(ROUND_NOT_CURRENT));
 
-    verify(roomJpaRepository).findWithPlayersAndScoresById(ROOM_ID);
+    verify(roomJpaRepository).findWithPlayersById(ROOM_ID);
     verify(roundJpaRepository, never()).findWithDetailsByRoomIdAndRoundNumber(
         anyString(), anyInt());
     verify(roomJpaRepository, never()).save(roomEntity);
@@ -255,7 +292,7 @@ class RoundServiceTest {
     var roomEntity = inProgressRoom(ROOM_ID, 1, PLAYER_1, PLAYER_2);
     var roundEntity = round(1, PLAYING, Map.of(PLAYER_1, WON));
 
-    when(roomJpaRepository.findWithPlayersAndScoresById(anyString())).thenReturn(
+    when(roomJpaRepository.findWithPlayersById(anyString())).thenReturn(
         Optional.of(roomEntity));
     when(roundJpaRepository.findWithDetailsByRoomIdAndRoundNumber(ROOM_ID, 1)).thenReturn(
         Optional.of(roundEntity));
@@ -284,7 +321,7 @@ class RoundServiceTest {
     var displayNamePerPlayer = Map.of(PLAYER_1, "John", PLAYER_2, "Mark");
 
     when(roomJpaRepository.save(any())).thenReturn(roomEntity);
-    when(roomJpaRepository.findWithPlayersAndScoresById(anyString())).thenReturn(
+    when(roomJpaRepository.findWithPlayersById(anyString())).thenReturn(
         Optional.of(roomEntity));
     when(roundJpaRepository.findWithDetailsByRoomIdAndRoundNumber(ROOM_ID, 1)).thenReturn(
         Optional.of(roundEntity));
@@ -324,7 +361,7 @@ class RoundServiceTest {
     var displayNamePerPlayer = Map.of(PLAYER_1, "John", PLAYER_2, "Mark");
 
     when(roomJpaRepository.save(any())).thenReturn(roomEntity);
-    when(roomJpaRepository.findWithPlayersAndScoresById(anyString())).thenReturn(
+    when(roomJpaRepository.findWithPlayersById(anyString())).thenReturn(
         Optional.of(roomEntity));
     when(roundJpaRepository.findWithDetailsByRoomIdAndRoundNumber(ROOM_ID, 1)).thenReturn(
         Optional.of(roundEntity));

@@ -27,7 +27,7 @@ class RoomJpaRepositoryIT {
   private EntityManager entityManager;
 
   @Test
-  void findWithPlayersAndScoresById_roomWithPlayersAndScores_returnsLoadedElementCollections() {
+  void findWithPlayersById_roomWithPlayers_returnsLoadedElementCollections() {
     // Arrange
     var room = new RoomEntity();
     room.setId("room-1");
@@ -43,7 +43,7 @@ class RoomJpaRepositoryIT {
     repository.save(room);
 
     // Act
-    var found = repository.findWithPlayersAndScoresById("room-1").orElseThrow();
+    var found = repository.findWithPlayersById("room-1").orElseThrow();
 
     // Assert
     assertThat(found.getSortedPlayerIds()).containsExactly("p1", "p2");
@@ -51,6 +51,51 @@ class RoomJpaRepositoryIT {
     var scores = found.getScoresByPlayerId();
     assertThat(scores).containsEntry("p1", 0).containsEntry("p2", 1);
     assertThat(scores).hasSize(2);
+  }
+
+  @Test
+  void findWithPlayersByPlayerId_playerInMultipleRooms_returnsRoomsOrderedByLastUpdatedAtDesc() {
+    // Arrange
+    var room1 = new RoomEntity();
+    room1.setId("room-old");
+    room1.setLanguage(IT);
+    room1.setStatus(WAITING_FOR_PLAYERS);
+    room1.addPlayer("p1");
+    room1.addPlayer("p2");
+    room1.setPlayerScore("p1", 0);
+    room1.setPlayerScore("p2", 1);
+
+    var room2 = new RoomEntity();
+    room2.setId("room-new");
+    room2.setLanguage(IT);
+    room2.setStatus(WAITING_FOR_PLAYERS);
+    room2.addPlayer("p1");
+    room2.setPlayerScore("p1", 5);
+
+    var roomOther = new RoomEntity();
+    roomOther.setId("room-other");
+    roomOther.setLanguage(IT);
+    roomOther.setStatus(WAITING_FOR_PLAYERS);
+    roomOther.addPlayer("p2");
+    roomOther.setPlayerScore("p2", 0);
+
+    repository.save(room1);
+    repository.save(room2);
+    repository.save(roomOther);
+
+    // Act
+    var found = repository.findWithPlayersByPlayerId("p1");
+
+    // Assert
+    assertThat(found)
+        .extracting(RoomEntity::getId)
+        .containsExactly("room-new", "room-old");
+
+    assertThat(found.get(0).getSortedPlayerIds()).containsExactly("p1");
+    assertThat(found.get(0).getScoresByPlayerId()).containsEntry("p1", 5);
+
+    assertThat(found.get(1).getSortedPlayerIds()).containsExactly("p1", "p2");
+    assertThat(found.get(1).getScoresByPlayerId()).containsEntry("p1", 0).containsEntry("p2", 1);
   }
 
   @Test

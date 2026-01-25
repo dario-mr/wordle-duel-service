@@ -19,6 +19,7 @@ import com.dariom.wds.websocket.model.PlayerJoinedPayload;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -84,6 +85,21 @@ public class RoomService {
     return domainMapper.toRoom(room, currentRound, displayNamePerPlayer);
   }
 
+  @Transactional(readOnly = true)
+  public List<Room> listRoomsForPlayer(String playerId) {
+    var rooms = roomJpaRepository.findWithPlayersByPlayerId(playerId);
+    var roomIds = rooms.stream().map(RoomEntity::getId).toList();
+    var currentRoundPerRoomId = roundService.getCurrentRoundsByRoomIds(roomIds);
+
+    return rooms.stream()
+        .map(room -> {
+          var currentRound = currentRoundPerRoomId.get(room.getId());
+          var displayNamePerPlayer = getDisplayNamePerPlayer(room);
+          return domainMapper.toRoom(room, currentRound, displayNamePerPlayer);
+        })
+        .toList();
+  }
+
   @Transactional
   public long deleteInactiveRooms(Instant cutoff) {
     return roomJpaRepository.deleteInactive(cutoff);
@@ -106,7 +122,7 @@ public class RoomService {
   }
 
   private RoomEntity findRoom(String roomId) {
-    return roomJpaRepository.findWithPlayersAndScoresById(roomId)
+    return roomJpaRepository.findWithPlayersById(roomId)
         .orElseThrow(() -> new RoomNotFoundException(roomId));
   }
 

@@ -26,7 +26,7 @@ class RoomCleanupJob {
         .minus(properties.retentionDays(), DAYS);
 
     var deletedRooms = roomService.deleteInactiveRooms(cutoff);
-    log.info("Deleted {} rooms older than {} (cutoff={})", deletedRooms,
-        properties.retentionDays(), cutoff);
+    log.info("Deleted {} rooms older than {} days (cutoff={})",
+        deletedRooms, properties.retentionDays(), cutoff);
   }
 }

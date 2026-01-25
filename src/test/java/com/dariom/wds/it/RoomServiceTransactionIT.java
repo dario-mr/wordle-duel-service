@@ -56,7 +56,7 @@ class RoomServiceTransactionIT {
         .hasMessage("boom");
 
     // Assert
-    var reloadedRoom = roomJpaRepository.findWithPlayersAndScoresById(ROOM_ID)
+    var reloadedRoom = roomJpaRepository.findWithPlayersById(ROOM_ID)
         .orElseThrow();
 
     assertThat(reloadedRoom.getStatus()).isEqualTo(WAITING_FOR_PLAYERS);

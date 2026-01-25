@@ -24,6 +24,8 @@ import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
@@ -56,6 +58,21 @@ public class RoundService {
 
     return roundJpaRepository.findWithDetailsByRoomIdAndRoundNumber(roomId, currentRoundNumber)
         .map(domainMapper::toRound);
+  }
+
+  @Transactional(readOnly = true)
+  public Map<String, Round> getCurrentRoundsByRoomIds(List<String> roomIds) {
+    if (roomIds.isEmpty()) {
+      return Map.of();
+    }
+
+    var roundPerRoomId = new HashMap<String, Round>();
+    var currentRounds = roundJpaRepository.findCurrentRoundsWithDetailsByRoomIds(roomIds);
+    for (var roundEntity : currentRounds) {
+      roundPerRoomId.put(roundEntity.getRoom().getId(), domainMapper.toRound(roundEntity));
+    }
+
+    return roundPerRoomId;
   }
 
   @Transactional
@@ -149,7 +166,7 @@ public class RoundService {
   }
 
   private RoomEntity findRoom(String roomId) {
-    return roomJpaRepository.findWithPlayersAndScoresById(roomId)
+    return roomJpaRepository.findWithPlayersById(roomId)
         .orElseThrow(() -> new RoomNotFoundException(roomId));
   }
 

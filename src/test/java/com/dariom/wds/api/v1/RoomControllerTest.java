@@ -100,6 +100,24 @@ class RoomControllerTest {
   }
 
   @Test
+  void listRooms_validRequest_returnsOkWithRooms() {
+    // Arrange
+    var domainRooms = List.of(room(WAITING_FOR_PLAYERS), room(IN_PROGRESS));
+    var expectedDtos = domainRooms.stream().map(r -> roomMapper.toDto(r, "user-1")).toList();
+
+    when(roomService.listRoomsForPlayer(anyString())).thenReturn(domainRooms);
+
+    // Act
+    var response = roomController.listRooms(jwtWithUid("user-1"));
+
+    // Assert
+    assertThat(response.getStatusCode().value()).isEqualTo(200);
+    assertThat(response.getBody()).isEqualTo(expectedDtos);
+
+    verify(roomService).listRoomsForPlayer("user-1");
+  }
+
+  @Test
   void submitGuess_validRequest_returnsOkWithGuessResponse() {
     // Arrange
     var domainRoom = room(IN_PROGRESS);

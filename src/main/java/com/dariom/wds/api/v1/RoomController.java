@@ -12,6 +12,7 @@ import com.dariom.wds.service.room.RoomService;
 import com.dariom.wds.service.round.RoundService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
@@ -19,6 +20,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.net.URI;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -78,6 +80,20 @@ public class RoomController {
     log.info("Join room <{}> by user <{}>", roomId, appUserId);
     var room = roomService.joinRoom(roomId, appUserId);
     return ResponseEntity.ok(roomMapper.toDto(room, appUserId));
+  }
+
+  @Operation(summary = "List rooms", description = "Returns all rooms where the authenticated user is a player.")
+  @ApiResponses({
+      @ApiResponse(responseCode = "200", description = "Rooms returned", content = @Content(array = @ArraySchema(schema = @Schema(implementation = RoomDto.class))))
+  })
+  @GetMapping
+  public ResponseEntity<List<RoomDto>> listRooms(@AuthenticationPrincipal Jwt jwt) {
+    var appUserId = jwt.getClaimAsString("uid");
+    log.info("List rooms for user <{}>", appUserId);
+
+    var rooms = roomService.listRoomsForPlayer(appUserId);
+    var roomDtos = rooms.stream().map(r -> roomMapper.toDto(r, appUserId)).toList();
+    return ResponseEntity.ok(roomDtos);
   }
 
   @Operation(summary = "Get room", description = "Returns the current state of a room.")
