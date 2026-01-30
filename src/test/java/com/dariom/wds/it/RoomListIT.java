@@ -7,9 +7,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.dariom.wds.persistence.repository.jpa.AppUserJpaRepository;
-import com.dariom.wds.persistence.repository.jpa.RoleJpaRepository;
-import com.dariom.wds.service.auth.JwtService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Resource;
 import java.util.Map;
@@ -36,20 +33,11 @@ class RoomListIT {
   private ObjectMapper objectMapper;
 
   @Resource
-  private JwtService jwtService;
-
-  @Resource
-  private AppUserJpaRepository appUserJpaRepository;
-
-  @Resource
-  private RoleJpaRepository roleJpaRepository;
+  private TestUtil testUtil;
 
   @Test
   void listRooms_returnsOnlyRoomsWherePlayerIsMember() throws Exception {
     // Arrange
-    var testUtil = new TestUtil(mockMvc, objectMapper, jwtService, appUserJpaRepository,
-        roleJpaRepository);
-
     var user1 = testUtil.createUser(PLAYER_1_ID, "player1@example.com", "John Smith");
     var user2 = testUtil.createUser(PLAYER_2_ID, "player2@example.com", "Bart Simpson");
     var user3 = testUtil.createUser(PLAYER_3_ID, "player3@example.com", "Lisa Simpson");
@@ -61,15 +49,15 @@ class RoomListIT {
     var createReq = Map.of("language", LANGUAGE);
 
     // user1 creates a room
-    var roomCreatedByP1 = createRoom(testUtil, player1Bearer, createReq);
+    var roomCreatedByP1 = createRoom(player1Bearer, createReq);
     sleep(1);
 
     // user2 creates a room, user1 joins it
-    var roomCreatedByP2 = createRoom(testUtil, player2Bearer, createReq);
+    var roomCreatedByP2 = createRoom(player2Bearer, createReq);
     testUtil.joinRoom(roomCreatedByP2, player1Bearer).andExpect(status().isOk());
 
     // user3 creates a room (should not be visible to user1)
-    createRoom(testUtil, player3Bearer, createReq);
+    createRoom(player3Bearer, createReq);
 
     // Act / Assert
     mockMvc.perform(get("/api/v1/rooms")
@@ -79,7 +67,7 @@ class RoomListIT {
         .andExpect(jsonPath("$[*].id", contains(roomCreatedByP2, roomCreatedByP1)));
   }
 
-  private String createRoom(TestUtil testUtil, String bearer, Map<String, String> createReq)
+  private String createRoom(String bearer, Map<String, String> createReq)
       throws Exception {
     var createRes = testUtil.createRoom(bearer, createReq)
         .andExpect(status().isCreated())

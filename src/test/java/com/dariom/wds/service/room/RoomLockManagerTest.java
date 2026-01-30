@@ -42,8 +42,6 @@ class RoomLockManagerTest {
               } finally {
                 inCriticalSection.decrementAndGet();
               }
-
-              return null;
             });
           } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -69,12 +67,25 @@ class RoomLockManagerTest {
     // Act
     for (int i = 0; i < iterations; i++) {
       var roomId = "room-" + i;
-      roomLockManager.withRoomLock(roomId, () -> null);
+      roomLockManager.withRoomLock(roomId, () -> {
+      });
     }
 
     // Assert
     assertThat(roomLockManager.registeredLockCount())
         .withFailMessage("Expected lock registry to be empty after use")
         .isZero();
+  }
+
+  @Test
+  void withRoomLockRunnable_validRunnable_executesRunnable() {
+    // Arrange
+    var calls = new AtomicInteger(0);
+
+    // Act
+    roomLockManager.withRoomLock("room-1", calls::incrementAndGet);
+
+    // Assert
+    assertThat(calls.get()).isEqualTo(1);
   }
 }

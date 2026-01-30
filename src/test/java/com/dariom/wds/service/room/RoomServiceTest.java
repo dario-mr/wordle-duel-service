@@ -368,6 +368,36 @@ class RoomServiceTest {
     verify(roomJpaRepository).deleteInactive(cutoff);
   }
 
+  @Test
+  void deleteRoomById_roomExists_deletesRoom() {
+    // Arrange
+    var room = waitingRoom("room-1", "p1");
+    when(roomJpaRepository.findById("room-1")).thenReturn(Optional.of(room));
+
+    // Act
+    roomService.deleteRoomById("room-1");
+
+    // Assert
+    verify(roomJpaRepository).findById("room-1");
+    verify(roomJpaRepository).delete(room);
+  }
+
+  @Test
+  void deleteRoomById_roomMissing_throwsRoomNotFoundException() {
+    // Arrange
+    when(roomJpaRepository.findById(anyString())).thenReturn(Optional.empty());
+
+    // Act
+    var thrown = catchThrowable(() -> roomService.deleteRoomById("room-1"));
+
+    // Assert
+    assertThat(thrown)
+        .isInstanceOf(RoomNotFoundException.class)
+        .hasMessage("Room <room-1> not found");
+    verify(roomJpaRepository).findById("room-1");
+    verify(roomJpaRepository, never()).delete(any());
+  }
+
   private static RoomEntity waitingRoom(String roomId, String playerId) {
     var room = new RoomEntity();
     room.setId(roomId);

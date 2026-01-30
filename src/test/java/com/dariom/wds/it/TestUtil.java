@@ -1,10 +1,12 @@
 package com.dariom.wds.it;
 
+import static com.dariom.wds.domain.Role.ADMIN;
 import static com.dariom.wds.domain.Role.USER;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 
+import com.dariom.wds.domain.Role;
 import com.dariom.wds.persistence.entity.AppUserEntity;
 import com.dariom.wds.persistence.entity.RoleEntity;
 import com.dariom.wds.persistence.repository.jpa.AppUserJpaRepository;
@@ -13,9 +15,15 @@ import com.dariom.wds.service.auth.JwtService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
 import java.util.UUID;
+import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.stereotype.Component;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
+@Lazy
+@Component
+@RequiredArgsConstructor
 class TestUtil {
 
   private static final String BASE_URL = "/api/v1/rooms";
@@ -26,24 +34,23 @@ class TestUtil {
   private final AppUserJpaRepository appUserJpaRepository;
   private final RoleJpaRepository roleJpaRepository;
 
-  TestUtil(MockMvc mockMvc, ObjectMapper objectMapper, JwtService jwtService,
-      AppUserJpaRepository appUserJpaRepository, RoleJpaRepository roleJpaRepository) {
-    this.mockMvc = mockMvc;
-    this.objectMapper = objectMapper;
-    this.jwtService = jwtService;
-    this.appUserJpaRepository = appUserJpaRepository;
-    this.roleJpaRepository = roleJpaRepository;
+  String userBearer() {
+    return bearer(USER);
   }
 
-  static String bearer(JwtService jwtService) {
-    var user = new AppUserEntity(UUID.randomUUID(), "test@example.com", "google-sub", "Test User",
-        "pictureUrl");
-    user.addRole(new RoleEntity("USER"));
-    return "Bearer " + jwtService.createAccessToken(user).token();
+  String adminBearer() {
+    return bearer(ADMIN);
+  }
+
+  String bearer(AppUserEntity user) {
+    var tokenUser = new AppUserEntity(
+        user.getId(), user.getEmail(), "google-sub", user.getFullName(), "pictureUrl");
+    tokenUser.addRole(new RoleEntity(USER.name()));
+    return "Bearer " + jwtService.createAccessToken(tokenUser).token();
   }
 
   AppUserEntity createUser(String userId, String email, String fullName) {
-    var roleName = USER.getName();
+    var roleName = USER.name();
     var role = roleJpaRepository.findById(roleName)
         .orElseGet(() -> roleJpaRepository.save(new RoleEntity(roleName)));
 
@@ -52,14 +59,6 @@ class TestUtil {
     user.addRole(role);
 
     return appUserJpaRepository.save(user);
-  }
-
-  String bearer(AppUserEntity user) {
-    var tokenUser = new AppUserEntity(user.getId(), user.getEmail(), "google-sub",
-        user.getFullName(),
-        "pictureUrl");
-    tokenUser.addRole(new RoleEntity("USER"));
-    return "Bearer " + jwtService.createAccessToken(tokenUser).token();
   }
 
   ResultActions createRoom(String bearer, Object body) throws Exception {
@@ -90,5 +89,13 @@ class TestUtil {
         .header("Authorization", bearer)
         .contentType(APPLICATION_JSON)
         .content(body instanceof String str ? str : objectMapper.writeValueAsString(body)));
+  }
+
+  private String bearer(Role role) {
+    var user = new AppUserEntity(
+        UUID.randomUUID(), "test@example.com", "google-sub", "Test User", "pictureUrl");
+    user.addRole(new RoleEntity(role.name()));
+
+    return "Bearer " + jwtService.createAccessToken(user).token();
   }
 }

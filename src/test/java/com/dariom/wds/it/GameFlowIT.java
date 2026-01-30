@@ -13,16 +13,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.dariom.wds.persistence.repository.jpa.AppUserJpaRepository;
-import com.dariom.wds.persistence.repository.jpa.RoleJpaRepository;
-import com.dariom.wds.service.auth.JwtService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Resource;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,21 +34,12 @@ class GameFlowIT {
   private static final int MAX_ATTEMPTS = 1;
 
   @Resource
-  private MockMvc mockMvc;
-  @Resource
   private ObjectMapper objectMapper;
   @Resource
-  private JwtService jwtService;
-  @Resource
-  private AppUserJpaRepository appUserJpaRepository;
-  @Resource
-  private RoleJpaRepository roleJpaRepository;
+  private TestUtil testUtil;
 
   @Test
   void roundFinishesWhenBothPlayersDone() throws Exception {
-    var testUtil = new TestUtil(mockMvc, objectMapper, jwtService, appUserJpaRepository,
-        roleJpaRepository);
-
     // create users in DB
     var user1 = testUtil.createUser(PLAYER_1_ID, "player1@example.com", "John Smith");
     var user2 = testUtil.createUser(PLAYER_2_ID, "player2@example.com", "Bart Simpson");
@@ -61,7 +48,7 @@ class GameFlowIT {
     var player2Bearer = testUtil.bearer(user2);
 
     // player1 creates the room
-    var roomId = createRoom(testUtil, player1Bearer, PLAYER_1_ID);
+    var roomId = createRoom(player1Bearer, PLAYER_1_ID);
 
     // player2 joins the room
     var joinRoomRes = testUtil.joinRoom(roomId, player2Bearer).andExpect(status().isOk());
@@ -147,11 +134,11 @@ class GameFlowIT {
     readyP2Res.andExpect(jsonPath("$.currentRound.guessesByPlayerId").value(anEmptyMap()));
   }
 
-  private String createRoom(TestUtil support, String bearer, String expectedPlayerId)
+  private String createRoom(String bearer, String expectedPlayerId)
       throws Exception {
     var createReq = Map.of("language", LANGUAGE);
 
-    var createRes = support.createRoom(bearer, createReq)
+    var createRes = testUtil.createRoom(bearer, createReq)
         .andExpect(status().isCreated())
         .andExpect(header().exists("Location"))
         .andExpect(jsonPath("$.id", not(emptyOrNullString())))

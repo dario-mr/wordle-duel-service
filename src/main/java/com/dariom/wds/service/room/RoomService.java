@@ -105,6 +105,15 @@ public class RoomService {
     return roomJpaRepository.deleteInactive(cutoff);
   }
 
+  @Transactional
+  public void deleteRoomById(String roomId) {
+    roomLockManager.withRoomLock(roomId, () -> {
+      var room = roomJpaRepository.findById(roomId)
+          .orElseThrow(() -> new RoomNotFoundException(roomId));
+      roomJpaRepository.delete(room);
+    });
+  }
+
   private Room joinRoomInTransaction(String roomId, String joiningPlayerId) {
     var room = findRoom(roomId);
     validateRoom(joiningPlayerId, domainMapper.toRoom(room, null, null), MAX_PLAYERS);

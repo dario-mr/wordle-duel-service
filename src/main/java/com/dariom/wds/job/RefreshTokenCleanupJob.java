@@ -20,6 +20,6 @@ class RefreshTokenCleanupJob {
   void cleanupExpiredTokens() {
     var now = Instant.now(clock);
     var deleted = refreshTokenService.deleteExpiredTokens(now);
-    log.info("Deleted {} expired refresh tokens (now={})", deleted, now);
+    log.info("Deleted {} expired refresh tokens", deleted);
   }
 }

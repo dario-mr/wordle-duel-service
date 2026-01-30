@@ -5,7 +5,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.dariom.wds.service.auth.JwtService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.HashMap;
 import java.util.Map;
@@ -30,14 +29,14 @@ class RoomValidationIT {
   private ObjectMapper objectMapper;
 
   @Autowired
-  private JwtService jwtService;
+  private TestUtil testUtil;
 
   @Test
   void createRoom_missingLanguage_badRequest() throws Exception {
     var createReq = new HashMap<String, Object>();
 
     mockMvc.perform(post(BASE_URL)
-            .header("Authorization", TestUtil.bearer(jwtService))
+            .header("Authorization", testUtil.userBearer())
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(createReq)))
         .andExpect(status().isBadRequest())
@@ -50,7 +49,7 @@ class RoomValidationIT {
     var createReq = Map.of("language", "XX");
 
     mockMvc.perform(post(BASE_URL)
-            .header("Authorization", TestUtil.bearer(jwtService))
+            .header("Authorization", testUtil.userBearer())
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(createReq)))
         .andExpect(status().isBadRequest())
@@ -63,7 +62,7 @@ class RoomValidationIT {
     var createReq = Map.of("word", "   ");
 
     mockMvc.perform(post(BASE_URL + "/{roomId}/guess", 1)
-            .header("Authorization", TestUtil.bearer(jwtService))
+            .header("Authorization", testUtil.userBearer())
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(createReq)))
         .andExpect(status().isBadRequest())
@@ -76,7 +75,7 @@ class RoomValidationIT {
     var createReq = Map.of();
 
     mockMvc.perform(post(BASE_URL + "/{roomId}/ready", 1)
-            .header("Authorization", TestUtil.bearer(jwtService))
+            .header("Authorization", testUtil.userBearer())
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(createReq)))
         .andExpect(status().isBadRequest())
@@ -89,7 +88,7 @@ class RoomValidationIT {
     var createReq = Map.of("roundNumber", "0");
 
     mockMvc.perform(post(BASE_URL + "/{roomId}/ready", 1)
-            .header("Authorization", TestUtil.bearer(jwtService))
+            .header("Authorization", testUtil.userBearer())
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(createReq)))
         .andExpect(status().isBadRequest())

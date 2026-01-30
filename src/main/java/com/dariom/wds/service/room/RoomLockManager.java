@@ -15,6 +15,13 @@ public class RoomLockManager {
 
   private final ConcurrentHashMap<String, RoomLockEntry> locksByRoomId = new ConcurrentHashMap<>();
 
+  public void withRoomLock(String roomId, Runnable runnable) {
+    withRoomLock(roomId, () -> {
+      runnable.run();
+      return true;
+    });
+  }
+
   public <T> T withRoomLock(String roomId, Supplier<T> supplier) {
     var entry = acquireEntry(roomId);
     entry.lock.lock();

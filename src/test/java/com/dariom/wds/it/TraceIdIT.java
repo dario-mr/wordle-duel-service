@@ -9,7 +9,6 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.dariom.wds.service.auth.JwtService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Resource;
 import java.util.Map;
@@ -33,7 +32,7 @@ class TraceIdIT {
   private ObjectMapper objectMapper;
 
   @Resource
-  private JwtService jwtService;
+  private TestUtil testUtil;
 
   @Test
   void requestWithoutTraceIdHeader_generatesTraceIdInResponseHeader() throws Exception {
@@ -42,7 +41,7 @@ class TraceIdIT {
 
     // Act / Assert
     mockMvc.perform(post(BASE_URL)
-            .header("Authorization", TestUtil.bearer(jwtService))
+            .header("Authorization", testUtil.userBearer())
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(requestBody)))
         .andExpect(status().isCreated())
@@ -58,7 +57,7 @@ class TraceIdIT {
     // Act / Assert
     mockMvc.perform(post(BASE_URL)
             .header(TRACE_ID_HEADER, traceId)
-            .header("Authorization", TestUtil.bearer(jwtService))
+            .header("Authorization", testUtil.userBearer())
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(requestBody)))
         .andExpect(status().isCreated())
@@ -72,7 +71,7 @@ class TraceIdIT {
 
     // Act / Assert
     mockMvc.perform(post(BASE_URL)
-            .header("Authorization", TestUtil.bearer(jwtService))
+            .header("Authorization", testUtil.userBearer())
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(requestBody)))
         .andExpect(status().isBadRequest())

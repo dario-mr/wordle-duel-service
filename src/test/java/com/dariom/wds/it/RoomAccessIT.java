@@ -6,16 +6,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.dariom.wds.persistence.repository.jpa.AppUserJpaRepository;
-import com.dariom.wds.persistence.repository.jpa.RoleJpaRepository;
-import com.dariom.wds.service.auth.JwtService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Resource;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
@@ -29,22 +25,13 @@ class RoomAccessIT {
   private static final String PLAYER_3_ID = "33333333-3333-3333-3333-333333333333";
 
   @Resource
-  private MockMvc mockMvc;
-  @Resource
   private ObjectMapper objectMapper;
   @Resource
-  private JwtService jwtService;
-  @Resource
-  private AppUserJpaRepository appUserJpaRepository;
-  @Resource
-  private RoleJpaRepository roleJpaRepository;
+  private TestUtil testUtil;
 
   @Test
   void getRoom_roomFullAndRequestingPlayerNotInRoom_returnsForbidden() throws Exception {
     // Arrange
-    var testUtil = new TestUtil(mockMvc, objectMapper, jwtService, appUserJpaRepository,
-        roleJpaRepository);
-
     var user1 = testUtil.createUser(PLAYER_1_ID, "player1@example.com", "John Smith");
     var user2 = testUtil.createUser(PLAYER_2_ID, "player2@example.com", "Bart Simpson");
     var user3 = testUtil.createUser(PLAYER_3_ID, "player3@example.com", "Lisa Simpson");
