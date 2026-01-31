@@ -21,6 +21,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import com.dariom.wds.config.lock.RoomLockProperties;
 import com.dariom.wds.domain.RoundPlayerStatus;
 import com.dariom.wds.domain.RoundStatus;
 import com.dariom.wds.exception.PlayerNotInRoomException;
@@ -37,6 +38,7 @@ import com.dariom.wds.websocket.model.PlayerStatusUpdatedPayload;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -49,6 +51,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.integration.support.locks.DefaultLockRegistry;
 import org.springframework.transaction.PlatformTransactionManager;
 
 @ExtendWith(MockitoExtension.class)
@@ -72,7 +75,9 @@ class RoundServiceTest {
   @Mock
   private UserService userService;
 
-  private final RoomLockManager roomLockManager = new RoomLockManager();
+  private final DefaultLockRegistry lockRegistry = new DefaultLockRegistry();
+  private final RoomLockManager roomLockManager = new RoomLockManager(lockRegistry,
+      new RoomLockProperties(true, Duration.ofSeconds(3), Duration.ofSeconds(60)));
   private final PlatformTransactionManager transactionManager = new NoOpTransactionManager();
   private final DomainMapper domainMapper = new DomainMapper();
   private final Clock clock = Clock.fixed(Instant.parse("2025-01-01T12:00:00Z"), ZoneOffset.UTC);

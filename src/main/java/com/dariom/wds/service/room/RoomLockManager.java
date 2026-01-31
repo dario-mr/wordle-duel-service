@@ -1,19 +1,27 @@
 package com.dariom.wds.service.room;
 
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.ReentrantLock;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+
+import com.dariom.wds.config.lock.RoomLockProperties;
+import com.dariom.wds.exception.RoomLockedException;
 import java.util.function.Supplier;
+import lombok.RequiredArgsConstructor;
+import org.springframework.integration.support.locks.LockRegistry;
 import org.springframework.stereotype.Component;
 
 /**
- * Provides per-room mutual exclusion by executing code under a lock scoped to a room id. Locks are
- * created on demand and released from the cache when no longer in use.
+ * Provides per-room mutual exclusion by executing code under a lock scoped to a room id.
+ *
+ * <p>The lock instance is obtained from a {@link LockRegistry} using a room-scoped key, then
+ * acquired with a configurable timeout. This class does not manage any lock caching/eviction; that
+ * behavior is delegated to the configured {@code LockRegistry} implementation.
  */
 @Component
+@RequiredArgsConstructor
 public class RoomLockManager {
 
-  private final ConcurrentHashMap<String, RoomLockEntry> locksByRoomId = new ConcurrentHashMap<>();
+  private final LockRegistry lockRegistry;
+  private final RoomLockProperties properties;
 
   public void withRoomLock(String roomId, Runnable runnable) {
     withRoomLock(roomId, () -> {
@@ -23,40 +31,23 @@ public class RoomLockManager {
   }
 
   public <T> T withRoomLock(String roomId, Supplier<T> supplier) {
-    var entry = acquireEntry(roomId);
-    entry.lock.lock();
+    var lock = lockRegistry.obtain("room:" + roomId);
+    var acquired = false;
+
     try {
-      return supplier.get();
-    } finally {
-      entry.lock.unlock();
-      releaseEntry(roomId, entry);
-    }
-  }
-
-  long registeredLockCount() {
-    return locksByRoomId.size();
-  }
-
-  private RoomLockEntry acquireEntry(String roomId) {
-    return locksByRoomId.compute(roomId, (ignored, existing) -> {
-      var entry = existing != null ? existing : new RoomLockEntry();
-      entry.users.incrementAndGet();
-      return entry;
-    });
-  }
-
-  private void releaseEntry(String roomId, RoomLockEntry entry) {
-    locksByRoomId.computeIfPresent(roomId, (ignored, existing) -> {
-      if (existing != entry) {
-        return existing;
+      acquired = lock.tryLock(properties.acquireTimeout().toMillis(), MILLISECONDS);
+      if (!acquired) {
+        throw new RoomLockedException(roomId);
       }
-      return entry.users.decrementAndGet() == 0 ? null : existing;
-    });
-  }
 
-  private static final class RoomLockEntry {
-
-    final ReentrantLock lock = new ReentrantLock();
-    final AtomicInteger users = new AtomicInteger();
+      return supplier.get();
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new RoomLockedException(roomId);
+    } finally {
+      if (acquired) {
+        lock.unlock();
+      }
+    }
   }
 }

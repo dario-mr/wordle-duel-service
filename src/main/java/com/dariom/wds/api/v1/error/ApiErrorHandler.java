@@ -7,6 +7,7 @@ import static com.dariom.wds.api.common.ErrorCode.INVALID_ROUND_NUMBER;
 import static com.dariom.wds.api.common.ErrorCode.INVALID_WORD;
 import static com.dariom.wds.api.common.ErrorCode.PLAYER_NOT_IN_ROOM;
 import static com.dariom.wds.api.common.ErrorCode.ROOM_ACCESS_DENIED;
+import static com.dariom.wds.api.common.ErrorCode.ROOM_BUSY;
 import static com.dariom.wds.api.common.ErrorCode.ROOM_CLOSED;
 import static com.dariom.wds.api.common.ErrorCode.ROOM_FULL;
 import static com.dariom.wds.api.common.ErrorCode.ROOM_NOT_FOUND;
@@ -26,6 +27,7 @@ import com.dariom.wds.exception.PlayerNotInRoomException;
 import com.dariom.wds.exception.RoomAccessDeniedException;
 import com.dariom.wds.exception.RoomClosedException;
 import com.dariom.wds.exception.RoomFullException;
+import com.dariom.wds.exception.RoomLockedException;
 import com.dariom.wds.exception.RoomNotFoundException;
 import com.dariom.wds.exception.RoomNotReadyException;
 import com.dariom.wds.exception.RoundException;
@@ -83,6 +85,13 @@ public class ApiErrorHandler {
     log.warn(ex.getMessage());
     return ResponseEntity.status(CONFLICT)
         .body(new ErrorResponse(ROOM_NOT_READY, ex.getMessage()));
+  }
+
+  @ExceptionHandler(RoomLockedException.class)
+  public ResponseEntity<ErrorResponse> handleRoomLocked(RoomLockedException ex) {
+    log.warn(ex.getMessage());
+    return ResponseEntity.status(CONFLICT)
+        .body(new ErrorResponse(ROOM_BUSY, ex.getMessage()));
   }
 
   @ExceptionHandler(PlayerNotInRoomException.class)

@@ -1,4 +1,4 @@
-package com.dariom.wds.config;
+package com.dariom.wds.config.lock;
 
 import net.javacrumbs.shedlock.core.LockProvider;
 import net.javacrumbs.shedlock.provider.redis.spring.RedisLockProvider;

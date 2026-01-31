@@ -16,6 +16,7 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
+import com.dariom.wds.config.lock.RoomLockProperties;
 import com.dariom.wds.domain.Player;
 import com.dariom.wds.domain.Room;
 import com.dariom.wds.domain.Round;
@@ -31,6 +32,7 @@ import com.dariom.wds.service.user.UserService;
 import com.dariom.wds.websocket.model.PlayerJoinedPayload;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -43,12 +45,15 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.integration.support.locks.DefaultLockRegistry;
 import org.springframework.transaction.PlatformTransactionManager;
 
 @ExtendWith(MockitoExtension.class)
 class RoomServiceTest {
 
-  private final RoomLockManager roomLockManager = new RoomLockManager();
+  private final DefaultLockRegistry lockRegistry = new DefaultLockRegistry();
+  private final RoomLockManager roomLockManager = new RoomLockManager(lockRegistry,
+      new RoomLockProperties(true, Duration.ofSeconds(3), Duration.ofSeconds(60)));
   private final PlatformTransactionManager transactionManager = new NoOpTransactionManager();
   private final DomainMapper domainMapper = new DomainMapper();
 

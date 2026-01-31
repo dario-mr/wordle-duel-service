@@ -1,16 +1,23 @@
 package com.dariom.wds.service.room;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowable;
 
+import com.dariom.wds.config.lock.RoomLockProperties;
+import com.dariom.wds.exception.RoomLockedException;
+import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
+import org.springframework.integration.support.locks.DefaultLockRegistry;
 
 class RoomLockManagerTest {
 
-  private final RoomLockManager roomLockManager = new RoomLockManager();
+  private final DefaultLockRegistry lockRegistry = new DefaultLockRegistry();
+  private final RoomLockManager roomLockManager = new RoomLockManager(lockRegistry,
+      new RoomLockProperties(true, Duration.ofSeconds(3), Duration.ofSeconds(60)));
 
   @Test
   void withRoomLock_sameRoomId_serializesAccess() throws Exception {
@@ -29,7 +36,7 @@ class RoomLockManagerTest {
       for (int i = 0; i < tasks; i++) {
         executor.submit(() -> {
           try {
-            assertThat(startLatch.await(5, TimeUnit.SECONDS)).isTrue();
+            assertThat(startLatch.await(5, SECONDS)).isTrue();
 
             roomLockManager.withRoomLock("room-1", () -> {
               var current = inCriticalSection.incrementAndGet();
@@ -52,29 +59,11 @@ class RoomLockManagerTest {
       }
 
       startLatch.countDown();
-      assertThat(doneLatch.await(10, TimeUnit.SECONDS)).isTrue();
+      assertThat(doneLatch.await(10, SECONDS)).isTrue();
     }
 
     // Assert
     assertThat(maxConcurrentInCriticalSection.get()).isEqualTo(1);
-  }
-
-  @Test
-  void withRoomLock_manyRoomIds_doesNotLeakLocks() {
-    // Arrange
-    var iterations = 2_000;
-
-    // Act
-    for (int i = 0; i < iterations; i++) {
-      var roomId = "room-" + i;
-      roomLockManager.withRoomLock(roomId, () -> {
-      });
-    }
-
-    // Assert
-    assertThat(roomLockManager.registeredLockCount())
-        .withFailMessage("Expected lock registry to be empty after use")
-        .isZero();
   }
 
   @Test
@@ -87,5 +76,44 @@ class RoomLockManagerTest {
 
     // Assert
     assertThat(calls.get()).isEqualTo(1);
+  }
+
+  @Test
+  void withRoomLock_lockedTimeout_throwsRoomLockedException() {
+    // Arrange
+    var fastFailRoomLockManager = new RoomLockManager(lockRegistry,
+        new RoomLockProperties(true, Duration.ofMillis(50), Duration.ofSeconds(60)));
+
+    var lock = lockRegistry.obtain("room:room-1");
+    var lockedLatch = new CountDownLatch(1);
+    var releaseLatch = new CountDownLatch(1);
+
+    try (var executor = Executors.newSingleThreadExecutor()) {
+      executor.submit(() -> {
+        lock.lock();
+        lockedLatch.countDown();
+        try {
+          assertThat(releaseLatch.await(5, SECONDS)).isTrue();
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+        } finally {
+          lock.unlock();
+        }
+      });
+
+      assertThat(lockedLatch.await(5, SECONDS)).isTrue();
+
+      // Act
+      var thrown = catchThrowable(
+          () -> fastFailRoomLockManager.withRoomLock("room-1", () -> true));
+
+      // Assert
+      assertThat(thrown).isInstanceOf(RoomLockedException.class);
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      throw new RuntimeException(e);
+    } finally {
+      releaseLatch.countDown();
+    }
   }
 }

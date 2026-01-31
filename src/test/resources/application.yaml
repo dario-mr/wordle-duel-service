@@ -47,6 +47,10 @@ app:
       cookie-secure: false
 
 room:
+  lock:
+    enabled: false
+    acquire-timeout: PT3S
+    expire: PT60S
   cleanup:
     cron: "-"
 
