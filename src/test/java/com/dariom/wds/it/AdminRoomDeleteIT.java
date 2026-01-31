@@ -33,7 +33,7 @@ class AdminRoomDeleteIT {
   private MockMvc mockMvc;
 
   @Resource
-  private TestUtil testUtil;
+  private IntegrationTestHelper itHelper;
 
   @Resource
   private RoomJpaRepository roomJpaRepository;
@@ -44,7 +44,7 @@ class AdminRoomDeleteIT {
   @Test
   void deleteRoomById_userRole_returnsForbidden() throws Exception {
     // Arrange
-    var userBearer = testUtil.userBearer();
+    var userBearer = itHelper.userBearer();
 
     // Act / Assert
     mockMvc.perform(delete("/admin/rooms/{roomId}", "room-1")
@@ -55,7 +55,7 @@ class AdminRoomDeleteIT {
   @Test
   void deleteRoomById_roomMissing_returnsNotFound() throws Exception {
     // Arrange
-    var adminBearer = testUtil.adminBearer();
+    var adminBearer = itHelper.adminBearer();
 
     // Act / Assert
     mockMvc.perform(delete("/admin/rooms/{roomId}", "missing-room")
@@ -66,7 +66,7 @@ class AdminRoomDeleteIT {
   @Test
   void deleteRoomById_adminRole_deletesRoomAndChildren() throws Exception {
     // Arrange
-    var adminBearer = testUtil.adminBearer();
+    var adminBearer = itHelper.adminBearer();
     var roomId = "room-cascade";
 
     var room = new RoomEntity();

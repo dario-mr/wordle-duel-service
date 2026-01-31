@@ -32,7 +32,7 @@ class TraceIdIT {
   private ObjectMapper objectMapper;
 
   @Resource
-  private TestUtil testUtil;
+  private IntegrationTestHelper itHelper;
 
   @Test
   void requestWithoutTraceIdHeader_generatesTraceIdInResponseHeader() throws Exception {
@@ -41,7 +41,7 @@ class TraceIdIT {
 
     // Act / Assert
     mockMvc.perform(post(BASE_URL)
-            .header("Authorization", testUtil.userBearer())
+            .header("Authorization", itHelper.userBearer())
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(requestBody)))
         .andExpect(status().isCreated())
@@ -57,7 +57,7 @@ class TraceIdIT {
     // Act / Assert
     mockMvc.perform(post(BASE_URL)
             .header(TRACE_ID_HEADER, traceId)
-            .header("Authorization", testUtil.userBearer())
+            .header("Authorization", itHelper.userBearer())
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(requestBody)))
         .andExpect(status().isCreated())
@@ -71,7 +71,7 @@ class TraceIdIT {
 
     // Act / Assert
     mockMvc.perform(post(BASE_URL)
-            .header("Authorization", testUtil.userBearer())
+            .header("Authorization", itHelper.userBearer())
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(requestBody)))
         .andExpect(status().isBadRequest())

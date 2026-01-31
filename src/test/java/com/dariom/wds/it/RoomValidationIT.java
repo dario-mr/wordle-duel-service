@@ -29,14 +29,14 @@ class RoomValidationIT {
   private ObjectMapper objectMapper;
 
   @Autowired
-  private TestUtil testUtil;
+  private IntegrationTestHelper itHelper;
 
   @Test
   void createRoom_missingLanguage_badRequest() throws Exception {
     var createReq = new HashMap<String, Object>();
 
     mockMvc.perform(post(BASE_URL)
-            .header("Authorization", testUtil.userBearer())
+            .header("Authorization", itHelper.userBearer())
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(createReq)))
         .andExpect(status().isBadRequest())
@@ -49,7 +49,7 @@ class RoomValidationIT {
     var createReq = Map.of("language", "XX");
 
     mockMvc.perform(post(BASE_URL)
-            .header("Authorization", testUtil.userBearer())
+            .header("Authorization", itHelper.userBearer())
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(createReq)))
         .andExpect(status().isBadRequest())
@@ -62,7 +62,7 @@ class RoomValidationIT {
     var createReq = Map.of("word", "   ");
 
     mockMvc.perform(post(BASE_URL + "/{roomId}/guess", 1)
-            .header("Authorization", testUtil.userBearer())
+            .header("Authorization", itHelper.userBearer())
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(createReq)))
         .andExpect(status().isBadRequest())
@@ -75,7 +75,7 @@ class RoomValidationIT {
     var createReq = Map.of();
 
     mockMvc.perform(post(BASE_URL + "/{roomId}/ready", 1)
-            .header("Authorization", testUtil.userBearer())
+            .header("Authorization", itHelper.userBearer())
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(createReq)))
         .andExpect(status().isBadRequest())
@@ -88,7 +88,7 @@ class RoomValidationIT {
     var createReq = Map.of("roundNumber", "0");
 
     mockMvc.perform(post(BASE_URL + "/{roomId}/ready", 1)
-            .header("Authorization", testUtil.userBearer())
+            .header("Authorization", itHelper.userBearer())
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(createReq)))
         .andExpect(status().isBadRequest())

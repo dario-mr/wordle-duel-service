@@ -29,6 +29,7 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
+import org.springframework.security.web.authentication.session.NullAuthenticatedSessionStrategy;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 
 /**
@@ -76,7 +77,12 @@ public class SecurityConfig {
     http
         .securityMatcher(apiMatcher, adminMatcher)
         .csrf(AbstractHttpConfigurer::disable)
-        .sessionManagement(sm -> sm.sessionCreationPolicy(STATELESS))
+        .sessionManagement(sm -> sm
+            .sessionCreationPolicy(STATELESS)
+            // Prevent Spring Security from attempting session fixation protection (changeSessionId)
+            // when a browser sends a SESSION cookie alongside Bearer JWT requests.
+            .sessionAuthenticationStrategy(new NullAuthenticatedSessionStrategy())
+        )
         .authorizeHttpRequests(auth -> auth
             .requestMatchers(adminMatcher).hasRole(ADMIN.getName())
             .requestMatchers(apiMatcher).authenticated()
