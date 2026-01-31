@@ -12,6 +12,8 @@ spring:
     liquibase-schema: wordle
   jpa:
     properties.hibernate.default_schema: wordle
+  data:
+    redis.repositories.enabled: false
   security:
     oauth2.client.registration:
       google:

@@ -23,7 +23,13 @@ The app reads configuration from environment variables and also supports a local
 1. Copy the provided example file: `cp .env.example .env`
 2. Set `PROFILE=dev` for local development.
 3. Set `WORDLE_JWT_SECRET`, `WORDLE_GOOGLE_CLIENT_ID`, and `WORDLE_GOOGLE_CLIENT_SECRET`.
-4. Run: `mvn spring-boot:run`
+4. Start Redis (required for OAuth2 login session state):
+
+   ```shell
+   docker run --rm -d --name wordle-duel-redis -p 6379:6379 redis:7-alpine
+   ```
+
+5. Run: `mvn spring-boot:run`
 
 Service starts on `http://localhost:8088` by default.
 
@@ -46,6 +52,9 @@ Select the profile with the `PROFILE` env var (defaults to `prod`).
 | `WORDLE_GOOGLE_CLIENT_ID`     | Google OAuth2 client id                  | `null`  |
 | `WORDLE_GOOGLE_CLIENT_SECRET` | Google OAuth2 client secret              | `null`  |
 | `WORDLE_JWT_SECRET`           | JWT signing secret (HMAC)                | `null`  |
+| `SPRING_DATA_REDIS_HOST`      | Redis host                               | `null`  |
+| `SPRING_DATA_REDIS_PORT`      | Redis port                               | `null`  |
+| `SPRING_SESSION_STORE_TYPE`   | HTTP session store (set to `redis`)      | `null`  |
 
 Notes:
 
@@ -53,11 +62,24 @@ Notes:
   in [application-prod.yaml](src/main/resources/application-prod.yaml) and expects `DB_PORT`,
   `DB_USER`, and `DB_PASSWORD`.
 - In `dev`, the H2 console is enabled and no DB env vars are required.
+- `SPRING_DATA_REDIS_HOST` / `SPRING_DATA_REDIS_PORT` configure the Redis connection and can be
+  reused by any Redis-backed features (sessions, caching, locks, etc.).
+- `SPRING_SESSION_STORE_TYPE` controls where HTTP sessions are stored. Set it to `redis` to store
+  sessions in Redis. Required for horizontally scalable OAuth2 login.
+- In Docker Compose deployments, set `SPRING_SESSION_STORE_TYPE=redis` and point
+  `SPRING_DATA_REDIS_HOST` / `SPRING_DATA_REDIS_PORT` to the Redis service (e.g.
+  `wordle-duel-service-redis:6379`).
+- In local development, if you run Redis on `localhost:6379` (see Quick start), you don't need to
+  set the Redis env vars.
 
 ## Authentication
 
 This service uses Google OAuth2 login to issue a long-lived refresh token (stored as an HttpOnly
 cookie) and short-lived access tokens (Bearer JWT).
+
+OAuth2 login uses a server-side session to persist the authorization request/state across the
+redirect. For horizontal scalability, sessions are stored in Redis; in local development you should
+run Redis (see Quick start).
 
 - OAuth2 login entrypoint: `GET /oauth2/authorization/google`
 - Refresh access token: `POST /auth/refresh` (returns a JWT; requires CSRF)
@@ -73,6 +95,12 @@ cookie) and short-lived access tokens (Bearer JWT).
 
 (Non-browser clients must send `X-WD-XSRF-TOKEN` header with the value from the `WD-XSRF-TOKEN`
 cookie)
+
+### Stop Redis (local)
+
+```shell
+docker stop wordle-duel-redis
+```
 
 ## API
 

@@ -33,18 +33,18 @@ class RoomListIT {
   private ObjectMapper objectMapper;
 
   @Resource
-  private TestUtil testUtil;
+  private IntegrationTestHelper itHelper;
 
   @Test
   void listRooms_returnsOnlyRoomsWherePlayerIsMember() throws Exception {
     // Arrange
-    var user1 = testUtil.createUser(PLAYER_1_ID, "player1@example.com", "John Smith");
-    var user2 = testUtil.createUser(PLAYER_2_ID, "player2@example.com", "Bart Simpson");
-    var user3 = testUtil.createUser(PLAYER_3_ID, "player3@example.com", "Lisa Simpson");
+    var user1 = itHelper.createUser(PLAYER_1_ID, "player1@example.com", "John Smith");
+    var user2 = itHelper.createUser(PLAYER_2_ID, "player2@example.com", "Bart Simpson");
+    var user3 = itHelper.createUser(PLAYER_3_ID, "player3@example.com", "Lisa Simpson");
 
-    var player1Bearer = testUtil.bearer(user1);
-    var player2Bearer = testUtil.bearer(user2);
-    var player3Bearer = testUtil.bearer(user3);
+    var player1Bearer = itHelper.bearer(user1);
+    var player2Bearer = itHelper.bearer(user2);
+    var player3Bearer = itHelper.bearer(user3);
 
     var createReq = Map.of("language", LANGUAGE);
 
@@ -54,7 +54,7 @@ class RoomListIT {
 
     // user2 creates a room, user1 joins it
     var roomCreatedByP2 = createRoom(player2Bearer, createReq);
-    testUtil.joinRoom(roomCreatedByP2, player1Bearer).andExpect(status().isOk());
+    itHelper.joinRoom(roomCreatedByP2, player1Bearer).andExpect(status().isOk());
 
     // user3 creates a room (should not be visible to user1)
     createRoom(player3Bearer, createReq);
@@ -69,7 +69,7 @@ class RoomListIT {
 
   private String createRoom(String bearer, Map<String, String> createReq)
       throws Exception {
-    var createRes = testUtil.createRoom(bearer, createReq)
+    var createRes = itHelper.createRoom(bearer, createReq)
         .andExpect(status().isCreated())
         .andReturn();
 

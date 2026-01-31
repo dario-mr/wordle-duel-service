@@ -2,6 +2,7 @@ package com.dariom.wds.it;
 
 import static com.dariom.wds.domain.Role.ADMIN;
 import static com.dariom.wds.domain.Role.USER;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -13,7 +14,10 @@ import com.dariom.wds.persistence.repository.jpa.AppUserJpaRepository;
 import com.dariom.wds.persistence.repository.jpa.RoleJpaRepository;
 import com.dariom.wds.service.auth.JwtService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.Cookie;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Lazy;
@@ -24,9 +28,12 @@ import org.springframework.test.web.servlet.ResultActions;
 @Lazy
 @Component
 @RequiredArgsConstructor
-class TestUtil {
+class IntegrationTestHelper {
+
+  public static final String CSRF_HEADER_NAME = "X-WD-XSRF-TOKEN";
 
   private static final String BASE_URL = "/api/v1/rooms";
+  private static final String CSRF_COOKIE_NAME = "WD-XSRF-TOKEN";
 
   private final MockMvc mockMvc;
   private final ObjectMapper objectMapper;
@@ -89,6 +96,38 @@ class TestUtil {
         .header("Authorization", bearer)
         .contentType(APPLICATION_JSON)
         .content(body instanceof String str ? str : objectMapper.writeValueAsString(body)));
+  }
+
+  Cookie fetchCsrfCookie() throws Exception {
+    var response = mockMvc.perform(get("/actuator/health"))
+        .andReturn()
+        .getResponse();
+
+    var csrfCookie = response.getCookie(CSRF_COOKIE_NAME);
+    assertThat(csrfCookie).isNotNull();
+    assertThat(csrfCookie.getValue()).isNotBlank();
+    return csrfCookie;
+  }
+
+  String extractCookieValue(List<String> setCookies, String cookieName) {
+    var header = findSetCookieHeader(setCookies, cookieName);
+
+    var start = cookieName.length() + 1;
+    var end = header.indexOf(';');
+    if (end == -1) {
+      end = header.length();
+    }
+
+    return header.substring(start, end);
+  }
+
+  String findSetCookieHeader(List<String> setCookies, String cookieName) {
+    return setCookies.stream()
+        .filter(Objects::nonNull)
+        .filter(h -> h.startsWith(cookieName + "="))
+        .findFirst()
+        .orElseThrow(() ->
+            new AssertionError("Missing Set-Cookie for " + cookieName + ": " + setCookies));
   }
 
   private String bearer(Role role) {
