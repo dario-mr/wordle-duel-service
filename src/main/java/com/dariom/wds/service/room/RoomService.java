@@ -5,19 +5,22 @@ import static com.dariom.wds.domain.RoomStatus.WAITING_FOR_PLAYERS;
 import static com.dariom.wds.service.room.RoomValidator.validateRoom;
 import static com.dariom.wds.websocket.model.EventType.ROOM_CREATED;
 
+import com.dariom.wds.config.lock.RoomLockProperties;
 import com.dariom.wds.domain.Language;
 import com.dariom.wds.domain.Room;
 import com.dariom.wds.domain.Round;
 import com.dariom.wds.exception.RoomAccessDeniedException;
-import com.dariom.wds.exception.RoomNotFoundException;
+import com.dariom.wds.exception.RoomLockedException;
 import com.dariom.wds.persistence.entity.RoomEntity;
-import com.dariom.wds.persistence.repository.jpa.RoomJpaRepository;
+import com.dariom.wds.persistence.repository.RoomRepository;
 import com.dariom.wds.service.DomainMapper;
 import com.dariom.wds.service.round.RoundService;
 import com.dariom.wds.service.user.UserService;
 import com.dariom.wds.websocket.model.PlayerJoinedPayload;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
+import jakarta.persistence.LockTimeoutException;
+import jakarta.persistence.PessimisticLockException;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -25,10 +28,9 @@ import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 @RequiredArgsConstructor
@@ -37,9 +39,8 @@ public class RoomService {
   private static final int MAX_PLAYERS = 2;
   private static final int INITIAL_SCORE = 0;
 
-  private final RoomJpaRepository roomJpaRepository;
-  private final RoomLockManager roomLockManager;
-  private final PlatformTransactionManager transactionManager;
+  private final RoomRepository roomRepository;
+  private final RoomLockProperties lockProperties;
   private final RoundService roundService;
   private final DomainMapper domainMapper;
   private final ApplicationEventPublisher eventPublisher;
@@ -55,7 +56,7 @@ public class RoomService {
     room.setPlayerScore(creatorPlayerId, INITIAL_SCORE);
     room.setCurrentRoundNumber(null);
 
-    var saved = roomJpaRepository.save(room);
+    var saved = roomRepository.save(room);
     var displayNamePerPlayer = getDisplayNamePerPlayer(saved);
 
     publishRoomEvent(saved.getId(), new RoomEvent(
@@ -66,17 +67,19 @@ public class RoomService {
     return domainMapper.toRoom(saved, null, displayNamePerPlayer);
   }
 
+  @Transactional
   public Room joinRoom(String roomId, String joiningPlayerId) {
-    return roomLockManager.withRoomLock(roomId, () -> {
-      var transactionTemplate = new TransactionTemplate(transactionManager);
-      return transactionTemplate.execute(
-          status -> joinRoomInTransaction(roomId, joiningPlayerId));
-    });
+    try {
+      return joinRoomInTransaction(roomId, joiningPlayerId);
+    } catch (PessimisticLockingFailureException | PessimisticLockException |
+             LockTimeoutException e) {
+      throw new RoomLockedException(roomId);
+    }
   }
 
   @Transactional(readOnly = true)
   public Room getRoom(String roomId, String requestingPlayerId) {
-    var room = findRoom(roomId);
+    var room = roomRepository.findWithPlayersById(roomId);
     ensurePlayerCanInspectRoom(room, requestingPlayerId);
 
     var currentRound = roundService.getCurrentRound(room.getId(), room.getCurrentRoundNumber())
@@ -87,7 +90,7 @@ public class RoomService {
 
   @Transactional(readOnly = true)
   public List<Room> listRoomsForPlayer(String playerId) {
-    var rooms = roomJpaRepository.findWithPlayersByPlayerId(playerId);
+    var rooms = roomRepository.findWithPlayersByPlayerId(playerId);
     var roomIds = rooms.stream().map(RoomEntity::getId).toList();
     var currentRoundPerRoomId = roundService.getCurrentRoundsByRoomIds(roomIds);
 
@@ -102,25 +105,27 @@ public class RoomService {
 
   @Transactional
   public long deleteInactiveRooms(Instant cutoff) {
-    return roomJpaRepository.deleteInactive(cutoff);
+    return roomRepository.deleteInactive(cutoff);
   }
 
   @Transactional
   public void deleteRoomById(String roomId) {
-    roomLockManager.withRoomLock(roomId, () -> {
-      var room = roomJpaRepository.findById(roomId)
-          .orElseThrow(() -> new RoomNotFoundException(roomId));
-      roomJpaRepository.delete(room);
-    });
+    try {
+      var room = roomRepository.findWithPlayersByIdForUpdate(roomId, lockProperties.acquireTimeout());
+      roomRepository.delete(room);
+    } catch (PessimisticLockingFailureException | PessimisticLockException |
+             LockTimeoutException e) {
+      throw new RoomLockedException(roomId);
+    }
   }
 
   private Room joinRoomInTransaction(String roomId, String joiningPlayerId) {
-    var room = findRoom(roomId);
+    var room = roomRepository.findWithPlayersByIdForUpdate(roomId, lockProperties.acquireTimeout());
     validateRoom(joiningPlayerId, domainMapper.toRoom(room, null, null), MAX_PLAYERS);
 
     addPlayerAndInitializeScore(room, joiningPlayerId);
     var startedRound = maybeStartRound(room);
-    var savedRoom = roomJpaRepository.save(room);
+    var savedRoom = roomRepository.save(room);
     var currentRound = startedRound
         .or(() -> roundService.getCurrentRound(
             savedRoom.getId(), savedRoom.getCurrentRoundNumber()))
@@ -128,11 +133,6 @@ public class RoomService {
     var displayNamePerPlayer = getDisplayNamePerPlayer(savedRoom);
 
     return domainMapper.toRoom(savedRoom, currentRound, displayNamePerPlayer);
-  }
-
-  private RoomEntity findRoom(String roomId) {
-    return roomJpaRepository.findWithPlayersById(roomId)
-        .orElseThrow(() -> new RoomNotFoundException(roomId));
   }
 
   private void addPlayerAndInitializeScore(RoomEntity room, String playerId) {
