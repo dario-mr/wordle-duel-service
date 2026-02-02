@@ -9,6 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -22,11 +23,11 @@ import com.dariom.wds.domain.Room;
 import com.dariom.wds.domain.Round;
 import com.dariom.wds.exception.RoomAccessDeniedException;
 import com.dariom.wds.exception.RoomFullException;
+import com.dariom.wds.exception.RoomLockedException;
 import com.dariom.wds.exception.RoomNotFoundException;
 import com.dariom.wds.persistence.entity.RoomEntity;
-import com.dariom.wds.persistence.repository.jpa.RoomJpaRepository;
+import com.dariom.wds.persistence.repository.RoomRepository;
 import com.dariom.wds.service.DomainMapper;
-import com.dariom.wds.service.NoOpTransactionManager;
 import com.dariom.wds.service.round.RoundService;
 import com.dariom.wds.service.user.UserService;
 import com.dariom.wds.websocket.model.PlayerJoinedPayload;
@@ -45,20 +46,18 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.integration.support.locks.DefaultLockRegistry;
-import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.dao.PessimisticLockingFailureException;
 
 @ExtendWith(MockitoExtension.class)
 class RoomServiceTest {
 
-  private final DefaultLockRegistry lockRegistry = new DefaultLockRegistry();
-  private final RoomLockManager roomLockManager = new RoomLockManager(lockRegistry,
-      new RoomLockProperties(true, Duration.ofSeconds(3), Duration.ofSeconds(60)));
-  private final PlatformTransactionManager transactionManager = new NoOpTransactionManager();
+  private final RoomLockProperties lockProperties = new RoomLockProperties(
+      Duration.ofSeconds(3)
+  );
   private final DomainMapper domainMapper = new DomainMapper();
 
   @Mock
-  private RoomJpaRepository roomJpaRepository;
+  private RoomRepository roomRepository;
   @Mock
   private RoundService roundService;
   @Mock
@@ -71,9 +70,8 @@ class RoomServiceTest {
   @BeforeEach
   void setUp() {
     roomService = new RoomService(
-        roomJpaRepository,
-        roomLockManager,
-        transactionManager,
+        roomRepository,
+        lockProperties,
         roundService,
         domainMapper,
         eventPublisher,
@@ -84,7 +82,7 @@ class RoomServiceTest {
   @Test
   void createRoom_validInput_returnsPersistedRoomAndPublishesRoomCreatedEvent() {
     // Arrange
-    when(roomJpaRepository.save(any(RoomEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+    when(roomRepository.save(any(RoomEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
     // Act
     var room = roomService.createRoom(IT, "p1");
@@ -113,7 +111,8 @@ class RoomServiceTest {
   @Test
   void getRoom_roomNotFound_throwsRoomNotFoundException() {
     // Arrange
-    when(roomJpaRepository.findWithPlayersById(anyString())).thenReturn(Optional.empty());
+    when(roomRepository.findWithPlayersById(anyString())).thenThrow(
+        new RoomNotFoundException("room-1"));
 
     // Act
     var thrown = catchThrowable(() -> roomService.getRoom("room-1", "player-1"));
@@ -123,14 +122,15 @@ class RoomServiceTest {
         .isInstanceOf(RoomNotFoundException.class)
         .hasMessageContaining("room-1");
 
-    verify(roomJpaRepository).findWithPlayersById("room-1");
+    verify(roomRepository).findWithPlayersById("room-1");
     verifyNoInteractions(roundService, eventPublisher);
   }
 
   @Test
   void joinRoom_roomNotFound_throwsRoomNotFoundException() {
     // Arrange
-    when(roomJpaRepository.findWithPlayersById(anyString())).thenReturn(Optional.empty());
+    when(roomRepository.findWithPlayersByIdForUpdate(anyString(), any()))
+        .thenThrow(new RoomNotFoundException("room-1"));
 
     // Act
     var thrown = catchThrowable(() -> roomService.joinRoom("room-1", "p2"));
@@ -140,9 +140,24 @@ class RoomServiceTest {
         .isInstanceOf(RoomNotFoundException.class)
         .hasMessageContaining("room-1");
 
-    verify(roomJpaRepository).findWithPlayersById("room-1");
-    verify(roomJpaRepository, never()).save(any(RoomEntity.class));
+    verify(roomRepository).findWithPlayersByIdForUpdate("room-1", lockProperties.acquireTimeout());
+    verify(roomRepository, never()).save(any(RoomEntity.class));
     verifyNoInteractions(roundService, eventPublisher);
+  }
+
+  @Test
+  void joinRoom_roomLocked_throwsRoomLockedException() {
+    // Arrange
+    when(roomRepository.findWithPlayersByIdForUpdate(anyString(), any()))
+        .thenThrow(new PessimisticLockingFailureException("locked"));
+
+    // Act
+    var thrown = catchThrowable(() -> roomService.joinRoom("room-1", "p2"));
+
+    // Assert
+    assertThat(thrown)
+        .isInstanceOf(RoomLockedException.class)
+        .hasMessageContaining("room-1");
   }
 
   @Test
@@ -152,7 +167,7 @@ class RoomServiceTest {
     room.addPlayer("p2");
     room.setPlayerScore("p2", 0);
 
-    when(roomJpaRepository.findWithPlayersById(anyString())).thenReturn(Optional.of(room));
+    when(roomRepository.findWithPlayersByIdForUpdate(anyString(), any())).thenReturn(room);
 
     // Act
     var thrown = catchThrowable(() -> roomService.joinRoom("room-1", "p3"));
@@ -162,8 +177,8 @@ class RoomServiceTest {
         .isInstanceOf(RoomFullException.class)
         .hasMessageContaining("room-1");
 
-    verify(roomJpaRepository).findWithPlayersById("room-1");
-    verifyNoMoreInteractions(roomJpaRepository);
+    verify(roomRepository).findWithPlayersByIdForUpdate("room-1", lockProperties.acquireTimeout());
+    verifyNoMoreInteractions(roomRepository);
     verifyNoInteractions(roundService, eventPublisher);
   }
 
@@ -172,9 +187,8 @@ class RoomServiceTest {
     // Arrange
     var entity = waitingRoom("room-1", "p1");
 
-    when(roomJpaRepository.findWithPlayersById(anyString())).thenReturn(
-        Optional.of(entity));
-    when(roomJpaRepository.save(any(RoomEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+    when(roomRepository.findWithPlayersByIdForUpdate(anyString(), any())).thenReturn(entity);
+    when(roomRepository.save(any(RoomEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
     when(roundService.startNewRound("room-1")).thenReturn(
         new Round(1, 6, Map.of(), Map.of(), PLAYING, null));
@@ -201,9 +215,8 @@ class RoomServiceTest {
     var entity = waitingRoom("room-1", "p1");
     entity.setPlayerScore("p1", 5);
 
-    when(roomJpaRepository.findWithPlayersById(anyString())).thenReturn(
-        Optional.of(entity));
-    when(roomJpaRepository.save(any(RoomEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+    when(roomRepository.findWithPlayersByIdForUpdate(anyString(), any())).thenReturn(entity);
+    when(roomRepository.save(any(RoomEntity.class))).thenAnswer(inv -> inv.getArgument(0));
     when(roundService.getCurrentRound(anyString(), any())).thenReturn(Optional.empty());
 
     // Act
@@ -221,8 +234,8 @@ class RoomServiceTest {
     // Arrange
     var entity = waitingRoom("room-1", "p1");
 
-    when(roomJpaRepository.findWithPlayersById(anyString())).thenReturn(
-        Optional.of(entity));
+    when(roomRepository.findWithPlayersById(anyString())).thenReturn(
+        entity);
     when(roundService.getCurrentRound(anyString(), any())).thenReturn(Optional.empty());
 
     // Act
@@ -248,8 +261,8 @@ class RoomServiceTest {
 
     var currentRound = new Round(1, 6, Map.of(), Map.of(), PLAYING, null);
 
-    when(roomJpaRepository.findWithPlayersById(anyString()))
-        .thenReturn(Optional.of(entity));
+    when(roomRepository.findWithPlayersById(anyString()))
+        .thenReturn(entity);
     when(roundService.getCurrentRound(anyString(), any()))
         .thenReturn(Optional.of(currentRound));
 
@@ -268,8 +281,8 @@ class RoomServiceTest {
     // Arrange
     var entity = waitingRoom("room-1", "p1");
 
-    when(roomJpaRepository.findWithPlayersById(anyString()))
-        .thenReturn(Optional.of(entity));
+    when(roomRepository.findWithPlayersById(anyString()))
+        .thenReturn(entity);
     when(roundService.getCurrentRound(anyString(), any())).thenReturn(Optional.empty());
 
     // Act
@@ -289,8 +302,8 @@ class RoomServiceTest {
     entity.addPlayer("p2");
     entity.setPlayerScore("p2", 0);
 
-    when(roomJpaRepository.findWithPlayersById(anyString()))
-        .thenReturn(Optional.of(entity));
+    when(roomRepository.findWithPlayersById(anyString()))
+        .thenReturn(entity);
 
     // Act
     var thrown = catchThrowable(() -> roomService.getRoom("room-1", "p3"));
@@ -300,7 +313,7 @@ class RoomServiceTest {
         .isInstanceOf(RoomAccessDeniedException.class)
         .hasMessage("Player <p3> cannot inspect room <room-1>");
 
-    verify(roomJpaRepository).findWithPlayersById("room-1");
+    verify(roomRepository).findWithPlayersById("room-1");
     verifyNoInteractions(roundService, userService, eventPublisher);
   }
 
@@ -311,8 +324,8 @@ class RoomServiceTest {
     entity.addPlayer("p2");
     entity.setPlayerScore("p2", 0);
 
-    when(roomJpaRepository.findWithPlayersById(anyString()))
-        .thenReturn(Optional.of(entity));
+    when(roomRepository.findWithPlayersById(anyString()))
+        .thenReturn(entity);
     when(roundService.getCurrentRound(anyString(), any())).thenReturn(Optional.empty());
 
     // Act
@@ -336,7 +349,7 @@ class RoomServiceTest {
 
     var currentRound = new Round(1, 6, Map.of(), Map.of(), PLAYING, null);
 
-    when(roomJpaRepository.findWithPlayersByPlayerId("p1"))
+    when(roomRepository.findWithPlayersByPlayerId("p1"))
         .thenReturn(List.of(waitingRoom, inProgressRoom));
     when(roundService.getCurrentRoundsByRoomIds(List.of("room-1", "room-2")))
         .thenReturn(Map.of("room-2", currentRound));
@@ -353,44 +366,45 @@ class RoomServiceTest {
     assertThat(rooms.get(0).currentRound()).isNull();
     assertThat(rooms.get(1).currentRound()).isEqualTo(currentRound);
 
-    verify(roomJpaRepository).findWithPlayersByPlayerId("p1");
+    verify(roomRepository).findWithPlayersByPlayerId("p1");
     verify(roundService).getCurrentRoundsByRoomIds(List.of("room-1", "room-2"));
     verify(userService, times(2)).getDisplayNamePerPlayer(Set.of("p1"));
-    verifyNoMoreInteractions(roomJpaRepository, roundService, userService);
+    verifyNoMoreInteractions(roomRepository, roundService, userService);
   }
 
   @Test
   void deleteInactiveRooms_cutoffProvided_deletesOldRooms() {
     // Arrange
     var cutoff = Instant.parse("2025-01-01T12:00:00Z");
-    when(roomJpaRepository.deleteInactive(cutoff)).thenReturn(3L);
+    when(roomRepository.deleteInactive(cutoff)).thenReturn(3L);
 
     // Act
     var deleted = roomService.deleteInactiveRooms(cutoff);
 
     // Assert
     assertThat(deleted).isEqualTo(3L);
-    verify(roomJpaRepository).deleteInactive(cutoff);
+    verify(roomRepository).deleteInactive(cutoff);
   }
 
   @Test
   void deleteRoomById_roomExists_deletesRoom() {
     // Arrange
     var room = waitingRoom("room-1", "p1");
-    when(roomJpaRepository.findById("room-1")).thenReturn(Optional.of(room));
+    when(roomRepository.findWithPlayersByIdForUpdate(eq("room-1"), any())).thenReturn(room);
 
     // Act
     roomService.deleteRoomById("room-1");
 
     // Assert
-    verify(roomJpaRepository).findById("room-1");
-    verify(roomJpaRepository).delete(room);
+    verify(roomRepository).findWithPlayersByIdForUpdate("room-1", lockProperties.acquireTimeout());
+    verify(roomRepository).delete(room);
   }
 
   @Test
   void deleteRoomById_roomMissing_throwsRoomNotFoundException() {
     // Arrange
-    when(roomJpaRepository.findById(anyString())).thenReturn(Optional.empty());
+    when(roomRepository.findWithPlayersByIdForUpdate(anyString(), any()))
+        .thenThrow(new RoomNotFoundException("room-1"));
 
     // Act
     var thrown = catchThrowable(() -> roomService.deleteRoomById("room-1"));
@@ -399,8 +413,8 @@ class RoomServiceTest {
     assertThat(thrown)
         .isInstanceOf(RoomNotFoundException.class)
         .hasMessage("Room <room-1> not found");
-    verify(roomJpaRepository).findById("room-1");
-    verify(roomJpaRepository, never()).delete(any());
+    verify(roomRepository).findWithPlayersByIdForUpdate("room-1", lockProperties.acquireTimeout());
+    verify(roomRepository, never()).delete(any());
   }
 
   private static RoomEntity waitingRoom(String roomId, String playerId) {

@@ -8,20 +8,22 @@ import static com.dariom.wds.domain.RoundStatus.PLAYING;
 import static com.dariom.wds.service.round.validation.RoomAccessValidator.validateRoomStatus;
 import static com.dariom.wds.websocket.model.EventType.PLAYER_STATUS_UPDATED;
 
+import com.dariom.wds.config.lock.RoomLockProperties;
 import com.dariom.wds.domain.Room;
 import com.dariom.wds.domain.Round;
 import com.dariom.wds.domain.RoundPlayerStatus;
-import com.dariom.wds.exception.RoomNotFoundException;
+import com.dariom.wds.exception.RoomLockedException;
 import com.dariom.wds.exception.RoundException;
 import com.dariom.wds.persistence.entity.RoomEntity;
-import com.dariom.wds.persistence.repository.jpa.RoomJpaRepository;
+import com.dariom.wds.persistence.repository.RoomRepository;
 import com.dariom.wds.persistence.repository.jpa.RoundJpaRepository;
 import com.dariom.wds.service.DomainMapper;
-import com.dariom.wds.service.room.RoomLockManager;
 import com.dariom.wds.service.user.UserService;
 import com.dariom.wds.websocket.model.PlayerStatusUpdatedPayload;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
+import jakarta.persistence.LockTimeoutException;
+import jakarta.persistence.PessimisticLockException;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.HashMap;
@@ -30,18 +32,16 @@ import java.util.Map;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
 
 @Service
 @RequiredArgsConstructor
 public class RoundService {
 
-  private final RoomLockManager roomLockManager;
-  private final PlatformTransactionManager transactionManager;
-  private final RoomJpaRepository roomJpaRepository;
+  private final RoomLockProperties lockProperties;
+  private final RoomRepository roomRepository;
   private final RoundJpaRepository roundJpaRepository;
   private final DomainMapper domainMapper;
   private final RoundLifecycleService roundLifecycleService;
@@ -77,30 +77,35 @@ public class RoundService {
 
   @Transactional
   public Round startNewRound(String roomId) {
-    var room = findRoom(roomId);
+    var room = roomRepository.findWithPlayersById(roomId);
     var round = roundLifecycleService.startNewRoundEntity(room);
-    roomJpaRepository.save(room);
+    roomRepository.save(room);
     return domainMapper.toRound(round);
   }
 
+  @Transactional
   public Room handleGuess(String roomId, String playerId, String guess) {
-    return roomLockManager.withRoomLock(roomId, () -> {
-      var transactionTemplate = new TransactionTemplate(transactionManager);
-      return transactionTemplate.execute(
-          status -> handleGuessInTransaction(roomId, playerId, guess));
-    });
+    try {
+      return handleGuessInTransaction(roomId, playerId, guess);
+    } catch (PessimisticLockingFailureException | PessimisticLockException |
+             LockTimeoutException e) {
+      throw new RoomLockedException(roomId);
+    }
   }
 
+  @Transactional
   public Room handleReady(String roomId, String playerId, Integer roundNumber) {
-    return roomLockManager.withRoomLock(roomId, () -> {
-      var transactionTemplate = new TransactionTemplate(transactionManager);
-      return transactionTemplate.execute(
-          status -> handleReadyInTransaction(roomId, playerId, roundNumber));
-    });
+    try {
+      return handleReadyInTransaction(roomId, playerId, roundNumber);
+    } catch (PessimisticLockingFailureException | PessimisticLockException |
+             LockTimeoutException e) {
+      throw new RoomLockedException(roomId);
+    }
   }
 
   private Room handleGuessInTransaction(String roomId, String playerId, String guess) {
-    var roomEntity = findRoom(roomId);
+    var roomEntity = roomRepository.findWithPlayersByIdForUpdate(roomId,
+        lockProperties.acquireTimeout());
     validateRoomStatus(playerId, roomId, roomEntity.getStatus(), roomEntity.getPlayerIds());
 
     var roundEntity = roundLifecycleService.ensureActiveRound(roomEntity);
@@ -117,14 +122,15 @@ public class RoundService {
     }
 
     roomEntity.setLastUpdatedAt(Instant.now(clock));
-    var saved = roomJpaRepository.save(roomEntity);
+    var saved = roomRepository.save(roomEntity);
     var displayNamePerPlayer = getDisplayNamePerPlayer(saved);
 
     return domainMapper.toRoom(roomEntity, domainMapper.toRound(roundEntity), displayNamePerPlayer);
   }
 
   private Room handleReadyInTransaction(String roomId, String playerId, Integer roundNumber) {
-    var roomEntity = findRoom(roomId);
+    var roomEntity = roomRepository.findWithPlayersByIdForUpdate(roomId,
+        lockProperties.acquireTimeout());
     validateRoomStatus(playerId, roomId, roomEntity.getStatus(), roomEntity.getPlayerIds());
 
     var currentRoundNumber = roomEntity.getCurrentRoundNumber();
@@ -158,16 +164,11 @@ public class RoundService {
     }
 
     roomEntity.setLastUpdatedAt(Instant.now(clock));
-    var saved = roomJpaRepository.save(roomEntity);
+    var saved = roomRepository.save(roomEntity);
     var displayNamePerPlayer = getDisplayNamePerPlayer(saved);
 
     return domainMapper.toRoom(roomEntity, domainMapper.toRound(currentRoundEntity),
         displayNamePerPlayer);
-  }
-
-  private RoomEntity findRoom(String roomId) {
-    return roomJpaRepository.findWithPlayersById(roomId)
-        .orElseThrow(() -> new RoomNotFoundException(roomId));
   }
 
   private void publishPlayerStatusUpdated(String roomId, RoundPlayerStatus playerStatus) {

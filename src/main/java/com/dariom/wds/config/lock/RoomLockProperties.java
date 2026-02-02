@@ -5,9 +5,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "room.lock")
 public record RoomLockProperties(
-    boolean enabled,
-    Duration acquireTimeout,
-    Duration expire
+    Duration acquireTimeout
 ) {
 
 }

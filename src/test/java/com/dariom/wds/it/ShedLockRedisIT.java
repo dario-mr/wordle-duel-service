@@ -2,6 +2,7 @@ package com.dariom.wds.it;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS;
 
 import jakarta.annotation.Resource;
 import java.util.concurrent.CountDownLatch;
@@ -13,6 +14,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.GenericContainer;
@@ -23,6 +25,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 @SpringBootTest
 @Import(ShedLockRedisIT.TestBeans.class)
 @Testcontainers(disabledWithoutDocker = true)
+@DirtiesContext(classMode = AFTER_CLASS)
 class ShedLockRedisIT {
 
   @Resource

@@ -61,9 +61,7 @@ springdoc:
 
 room:
   lock:
-    enabled: true
     acquire-timeout: PT3S
-    expire: PT60S
   cleanup:
     cron: "-"
     retention-days: 60
