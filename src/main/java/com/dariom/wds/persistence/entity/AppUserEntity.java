@@ -9,11 +9,13 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.CreationTimestamp;
 
 @Setter
 @Getter
@@ -36,6 +38,10 @@ public class AppUserEntity {
 
   @Column(name = "picture_url", length = 512)
   private String pictureUrl;
+
+  @CreationTimestamp
+  @Column(name = "created_on", nullable = false, updatable = false)
+  private Instant createdOn;
 
   @ManyToMany(fetch = EAGER)
   @JoinTable(

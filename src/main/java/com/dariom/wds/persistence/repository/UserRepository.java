@@ -12,6 +12,8 @@ import java.util.UUID;
 import java.util.function.Consumer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -56,6 +58,11 @@ public class UserRepository {
       log.error("Provided userId <{}> is not a valid UUID, returning empty user entity", appUserId);
       return Optional.empty();
     }
+  }
+
+  @Transactional(readOnly = true)
+  public Page<AppUserEntity> findAll(Pageable pageable) {
+    return appUserJpaRepository.findAll(pageable);
   }
 
   private void ensureRole(AppUserEntity user, Role role) {

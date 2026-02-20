@@ -11,3 +11,5 @@ databaseChangeLog:
       file: db/changelog/changes/005-oauth.yaml
   - include:
       file: db/changelog/changes/006-user-picture.yaml
+  - include:
+      file: db/changelog/changes/007-user-created-on.yaml

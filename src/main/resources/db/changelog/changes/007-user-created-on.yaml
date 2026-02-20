@@ -1,0 +1,15 @@
+databaseChangeLog:
+  - changeSet:
+      id: 012-add-user-created-on
+      author: dariom
+      changes:
+        - addColumn:
+            schemaName: wordle
+            tableName: app_user
+            columns:
+              - column:
+                  name: created_on
+                  type: timestamp with time zone
+                  defaultValueComputed: now()
+                  constraints:
+                    nullable: false

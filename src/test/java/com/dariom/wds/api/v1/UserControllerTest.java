@@ -30,7 +30,8 @@ class UserControllerTest {
   void me_validJwt_returnsOkWithUser() {
     // Arrange
     when(userProfileService.getUserProfile(anyString()))
-        .thenReturn(new UserProfile("user-1", "John Smith", "John", "https://example.com/pic.png"));
+        .thenReturn(new UserProfile("user-1", "John Smith", "John", "https://example.com/pic.png",
+            Instant.parse("2025-06-01T10:00:00Z")));
 
     // Act
     var response = userController.me(jwtWithUid("user-1"));

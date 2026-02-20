@@ -8,6 +8,8 @@ import com.dariom.wds.exception.UserNotFoundException;
 import com.dariom.wds.persistence.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -23,6 +25,16 @@ public class UserProfileService {
 
     var displayName = normalizeFullName(user.getFullName());
 
-    return new UserProfile(appUserId, user.getFullName(), displayName, user.getPictureUrl());
+    return new UserProfile(appUserId, user.getFullName(), displayName, user.getPictureUrl(),
+        user.getCreatedOn());
+  }
+
+  public Page<UserProfile> getAllUserProfiles(Pageable pageable) {
+    return userRepository.findAll(pageable)
+        .map(user -> {
+          var displayName = normalizeFullName(user.getFullName());
+          return new UserProfile(user.getId().toString(), user.getFullName(), displayName,
+              user.getPictureUrl(), user.getCreatedOn());
+        });
   }
 }
