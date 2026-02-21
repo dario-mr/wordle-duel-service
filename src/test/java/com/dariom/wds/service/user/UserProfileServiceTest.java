@@ -13,6 +13,7 @@ import com.dariom.wds.persistence.repository.UserRepository;
 import com.dariom.wds.service.DomainMapper;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -33,6 +34,9 @@ class UserProfileServiceTest {
   @Spy
   private DomainMapper domainMapper;
 
+  @Mock
+  private UserDetailsService userDetailsService;
+
   @InjectMocks
   private UserProfileService userProfileService;
 
@@ -42,6 +46,7 @@ class UserProfileServiceTest {
     var userId = "00000000-0000-0000-0000-000000000001";
     var userEntity = new AppUserEntity(UUID.fromString(userId), "email", "googleSub", "John Smith",
         "https://example.com/pic.png");
+    userEntity.setDisplayName("John");
     when(userRepository.findById(any())).thenReturn(Optional.of(userEntity));
 
     // Act
@@ -77,12 +82,13 @@ class UserProfileServiceTest {
     var userId = UUID.fromString("00000000-0000-0000-0000-000000000001");
     var userEntity = new AppUserEntity(userId, "email", "googleSub", "John Smith",
         "https://example.com/pic.png");
+    userEntity.setDisplayName("John");
     var pageable = PageRequest.of(0, 10);
     when(userRepository.findAll(anySpecification(), eq(pageable)))
         .thenReturn(new PageImpl<>(List.of(userEntity), pageable, 1));
 
     // Act
-    var result = userProfileService.getAllUserProfiles(pageable, null, null);
+    var result = userProfileService.getAllUserProfiles(pageable, null, null, null);
 
     // Assert
     assertThat(result.getContent()).hasSize(1);
@@ -103,13 +109,34 @@ class UserProfileServiceTest {
         .thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
     // Act
-    var result = userProfileService.getAllUserProfiles(pageable, "John", "example.com");
+    var result = userProfileService.getAllUserProfiles(pageable, "John Smith", "example.com",
+        "John");
 
     // Assert
     assertThat(result.getContent()).hasSize(0);
     assertThat(result.getTotalElements()).isEqualTo(0);
     assertThat(result.getTotalPages()).isEqualTo(0);
     verify(userRepository).findAll(anySpecification(), eq(pageable));
+  }
+
+  @Test
+  void getDisplayNamePerPlayer_returnsDisplayNames() {
+    // Arrange
+    var userId1 = "user-1";
+    var userId2 = "user-2";
+    when(userDetailsService.getUserDisplayName(userId1)).thenReturn("John");
+    when(userDetailsService.getUserDisplayName(userId2)).thenReturn("Bart");
+
+    // Act
+    var displayNamePerPlayer = userProfileService.getDisplayNamePerPlayer(Set.of(userId1, userId2));
+
+    // Assert
+    assertThat(displayNamePerPlayer).hasSize(2);
+    assertThat(displayNamePerPlayer.get(userId1)).isEqualTo("John");
+    assertThat(displayNamePerPlayer.get(userId2)).isEqualTo("Bart");
+
+    verify(userDetailsService).getUserDisplayName(userId1);
+    verify(userDetailsService).getUserDisplayName(userId2);
   }
 
   @SuppressWarnings("unchecked")

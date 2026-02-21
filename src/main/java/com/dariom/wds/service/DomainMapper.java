@@ -1,6 +1,5 @@
 package com.dariom.wds.service;
 
-import static com.dariom.wds.util.UserUtils.normalizeFullName;
 import static java.util.Collections.emptyList;
 import static java.util.Comparator.comparing;
 import static java.util.Comparator.comparingInt;
@@ -32,7 +31,7 @@ public class DomainMapper {
         user.getId().toString(),
         user.getEmail(),
         user.getFullName(),
-        normalizeFullName(user.getFullName()),
+        user.getDisplayName(),
         user.getPictureUrl(),
         user.getCreatedOn()
     );

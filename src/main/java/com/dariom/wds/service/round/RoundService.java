@@ -18,7 +18,7 @@ import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.repository.RoomRepository;
 import com.dariom.wds.persistence.repository.jpa.RoundJpaRepository;
 import com.dariom.wds.service.DomainMapper;
-import com.dariom.wds.service.user.UserService;
+import com.dariom.wds.service.user.UserProfileService;
 import com.dariom.wds.websocket.model.PlayerStatusUpdatedPayload;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
@@ -47,7 +47,7 @@ public class RoundService {
   private final RoundLifecycleService roundLifecycleService;
   private final GuessSubmissionService guessSubmissionService;
   private final ApplicationEventPublisher eventPublisher;
-  private final UserService userService;
+  private final UserProfileService userProfileService;
   private final Clock clock;
 
   @Transactional(readOnly = true)
@@ -178,6 +178,6 @@ public class RoundService {
 
   private Map<String, String> getDisplayNamePerPlayer(RoomEntity room) {
     var playerIds = room.getPlayerIds();
-    return userService.getDisplayNamePerPlayer(playerIds);
+    return userProfileService.getDisplayNamePerPlayer(playerIds);
   }
 }

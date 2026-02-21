@@ -29,11 +29,12 @@ public class AdminUserController {
   public Page<UserDto> getAllUsers(
       @PageableDefault(size = 50, sort = "fullName") Pageable pageable,
       @RequestParam(name = "fullName", required = false) String fullName,
-      @RequestParam(name = "email", required = false) String email
+      @RequestParam(name = "email", required = false) String email,
+      @RequestParam(name = "displayName", required = false) String displayName
   ) {
-    log.info("Admin get all users: fullName=<{}>, email=<{}>, pageable={}", fullName, email,
-        pageable);
-    return userProfileService.getAllUserProfiles(pageable, fullName, email)
+    log.info("Admin get all users: fullName=<{}>, displayName=<{}>, email=<{}>, pageable={}",
+        fullName, displayName, email, pageable);
+    return userProfileService.getAllUserProfiles(pageable, fullName, email, displayName)
         .map(this::toDto);
   }
 

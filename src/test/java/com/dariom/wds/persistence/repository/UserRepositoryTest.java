@@ -59,6 +59,7 @@ class UserRepositoryTest {
     // Assert
     assertThat(result).isSameAs(existing);
     assertThat(result.getFullName()).isEqualTo(fullName);
+    assertThat(result.getDisplayName()).isEqualTo("New");
     assertThat(result.getPictureUrl()).isEqualTo(pictureUrl);
     assertThat(result.getRoles())
         .extracting(RoleEntity::getName)
@@ -94,6 +95,7 @@ class UserRepositoryTest {
     assertThat(result).isSameAs(existing);
     assertThat(result.getGoogleSub()).isEqualTo(googleSub);
     assertThat(result.getFullName()).isEqualTo(fullName);
+    assertThat(result.getDisplayName()).isEqualTo("New");
     assertThat(result.getPictureUrl()).isEqualTo(pictureUrl);
     assertThat(result.getRoles())
         .extracting(RoleEntity::getName)
@@ -130,6 +132,7 @@ class UserRepositoryTest {
     assertThat(result.getEmail()).isEqualTo(email);
     assertThat(result.getGoogleSub()).isEqualTo(googleSub);
     assertThat(result.getFullName()).isEqualTo(fullName);
+    assertThat(result.getDisplayName()).isEqualTo("New");
     assertThat(result.getRoles())
         .extracting(RoleEntity::getName)
         .containsExactlyInAnyOrder(USER.getName());
@@ -144,6 +147,7 @@ class UserRepositoryTest {
     assertThat(userCaptor.getValue().getEmail()).isEqualTo(email);
     assertThat(userCaptor.getValue().getGoogleSub()).isEqualTo(googleSub);
     assertThat(userCaptor.getValue().getFullName()).isEqualTo(fullName);
+    assertThat(userCaptor.getValue().getDisplayName()).isEqualTo("New");
     assertThat(userCaptor.getValue().getPictureUrl()).isEqualTo(pictureUrl);
 
     verifyNoMoreInteractions(appUserJpaRepository, roleJpaRepository);

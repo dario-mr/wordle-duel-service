@@ -25,4 +25,12 @@ public class AppUserSpecifications {
     return (root, query, cb) ->
         cb.like(cb.lower(root.get("email")), "%" + email.toLowerCase() + "%");
   }
+
+  public static Specification<AppUserEntity> displayNameContains(String displayName) {
+    if (isBlank(displayName)) {
+      return null;
+    }
+    return (root, query, cb) ->
+        cb.like(cb.lower(root.get("displayName")), "%" + displayName.toLowerCase() + "%");
+  }
 }

@@ -1,6 +1,7 @@
 package com.dariom.wds.persistence.repository;
 
 import static com.dariom.wds.domain.Role.USER;
+import static com.dariom.wds.util.UserUtils.normalizeFullName;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import com.dariom.wds.domain.Role;
@@ -40,6 +41,7 @@ public class UserRepository {
 
     applyIfNotBlank(fullName, user::setFullName);
     applyIfNotBlank(pictureUrl, user::setPictureUrl);
+    user.setDisplayName(normalizeFullName(fullName));
     ensureRole(user, USER);
 
     return appUserJpaRepository.save(user);

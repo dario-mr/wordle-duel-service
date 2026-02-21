@@ -39,6 +39,9 @@ public class AppUserEntity {
   @Column(name = "picture_url", length = 512)
   private String pictureUrl;
 
+  @Column(name = "display_name", length = 32)
+  private String displayName;
+
   @CreationTimestamp
   @Column(name = "created_on", nullable = false, updatable = false)
   private Instant createdOn;

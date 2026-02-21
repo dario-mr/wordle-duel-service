@@ -64,6 +64,7 @@ class IntegrationTestHelper {
     var user = new AppUserEntity(UUID.fromString(userId), email, "google-sub-" + userId, fullName,
         "pictureUrl");
     user.addRole(role);
+    user.setDisplayName(fullName);
 
     return appUserJpaRepository.save(user);
   }

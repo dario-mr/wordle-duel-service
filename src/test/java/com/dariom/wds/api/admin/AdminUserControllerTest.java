@@ -37,12 +37,12 @@ class AdminUserControllerTest {
     var profile = new UserProfile("id-1", "john@example.com", "John Smith", "John",
         "https://example.com/pic.png", Instant.parse("2025-06-01T10:00:00Z"));
     var page = new PageImpl<>(List.of(profile));
-    when(userProfileService.getAllUserProfiles(any(Pageable.class), isNull(), isNull())).thenReturn(
-        page);
+    when(userProfileService.getAllUserProfiles(any(Pageable.class), isNull(), isNull(), isNull()))
+        .thenReturn(page);
 
     // Act
     var pageable = PageRequest.of(0, 20, Sort.by("fullName"));
-    var result = controller.getAllUsers(pageable, null, null);
+    var result = controller.getAllUsers(pageable, null, null, null);
 
     // Assert
     assertThat(result.getContent()).hasSize(1);
@@ -55,7 +55,7 @@ class AdminUserControllerTest {
     assertThat(dto.createdOn()).isEqualTo(Instant.parse("2025-06-01T10:00:00Z"));
 
     var captor = ArgumentCaptor.forClass(Pageable.class);
-    verify(userProfileService).getAllUserProfiles(captor.capture(), isNull(), isNull());
+    verify(userProfileService).getAllUserProfiles(captor.capture(), isNull(), isNull(), isNull());
     var captured = captor.getValue();
     assertThat(captured.getPageNumber()).isZero();
     assertThat(captured.getPageSize()).isEqualTo(20);
@@ -68,15 +68,16 @@ class AdminUserControllerTest {
     var profile = new UserProfile("id-1", "john@example.com", "John Smith", "John",
         "https://example.com/pic.png", Instant.parse("2025-06-01T10:00:00Z"));
     var page = new PageImpl<>(List.of(profile));
-    when(userProfileService.getAllUserProfiles(any(Pageable.class), eq("John"), eq("example.com")))
+    when(userProfileService.getAllUserProfiles(any(Pageable.class), eq("John Smith"),
+        eq("example.com"), eq("John")))
         .thenReturn(page);
 
     // Act
     var pageable = PageRequest.of(1, 10, Sort.by("email"));
-    var result = controller.getAllUsers(pageable, "John", "example.com");
+    var result = controller.getAllUsers(pageable, "John Smith", "example.com", "John");
 
     // Assert
     assertThat(result.getContent()).hasSize(1);
-    verify(userProfileService).getAllUserProfiles(pageable, "John", "example.com");
+    verify(userProfileService).getAllUserProfiles(pageable, "John Smith", "example.com", "John");
   }
 }

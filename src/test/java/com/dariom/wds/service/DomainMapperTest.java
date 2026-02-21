@@ -31,6 +31,7 @@ class DomainMapperTest {
     var userId = UUID.fromString("00000000-0000-0000-0000-000000000001");
     var entity = new AppUserEntity(userId, "john@example.com", "googleSub", "John Smith",
         "https://example.com/pic.png");
+    entity.setDisplayName("John");
 
     // Act
     var profile = mapper.toUserProfile(entity);

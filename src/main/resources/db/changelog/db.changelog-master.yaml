@@ -13,3 +13,5 @@ databaseChangeLog:
       file: db/changelog/changes/006-user-picture.yaml
   - include:
       file: db/changelog/changes/007-user-created-on.yaml
+  - include:
+      file: db/changelog/changes/008-user-display-name.yaml

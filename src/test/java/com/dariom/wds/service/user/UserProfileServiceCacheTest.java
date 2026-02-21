@@ -46,6 +46,11 @@ class UserProfileServiceCacheTest {
     UserRepository userRepository() {
       return Mockito.mock(UserRepository.class);
     }
+
+    @Bean
+    UserDetailsService userDetailsService() {
+      return Mockito.mock(UserDetailsService.class);
+    }
   }
 
   @Autowired

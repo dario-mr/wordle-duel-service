@@ -32,7 +32,7 @@ import com.dariom.wds.persistence.entity.RoundEntity;
 import com.dariom.wds.persistence.repository.RoomRepository;
 import com.dariom.wds.persistence.repository.jpa.RoundJpaRepository;
 import com.dariom.wds.service.DomainMapper;
-import com.dariom.wds.service.user.UserService;
+import com.dariom.wds.service.user.UserProfileService;
 import com.dariom.wds.websocket.model.PlayerStatusUpdatedPayload;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
@@ -71,7 +71,7 @@ class RoundServiceTest {
   @Mock
   private ApplicationEventPublisher eventPublisher;
   @Mock
-  private UserService userService;
+  private UserProfileService userProfileService;
 
   private final RoomLockProperties lockProperties = new RoomLockProperties(
       Duration.ofSeconds(3)
@@ -91,7 +91,7 @@ class RoundServiceTest {
         roundLifecycleService,
         guessSubmissionService,
         eventPublisher,
-        userService,
+        userProfileService,
         clock
     );
   }
@@ -190,7 +190,7 @@ class RoundServiceTest {
     when(guessSubmissionService.applyGuess(ROOM_ID, PLAYER_1, "pizza", roomEntity, roundEntity))
         .thenReturn(Optional.empty());
     when(roundLifecycleService.isRoundFinished(roomEntity, roundEntity)).thenReturn(false);
-    when(userService.getDisplayNamePerPlayer(any())).thenReturn(displayNamePerPlayer);
+    when(userProfileService.getDisplayNamePerPlayer(any())).thenReturn(displayNamePerPlayer);
 
     // Act
     var result = service.handleGuess(ROOM_ID, PLAYER_1, "pizza");
@@ -206,7 +206,7 @@ class RoundServiceTest {
     verify(guessSubmissionService).applyGuess(ROOM_ID, PLAYER_1, "pizza", roomEntity, roundEntity);
     verify(roomRepository).findWithPlayersByIdForUpdate(ROOM_ID, lockProperties.acquireTimeout());
     verify(roomRepository).save(roomEntity);
-    verify(userService).getDisplayNamePerPlayer(Set.of(PLAYER_1, PLAYER_2));
+    verify(userProfileService).getDisplayNamePerPlayer(Set.of(PLAYER_1, PLAYER_2));
   }
 
   @Test
@@ -222,7 +222,7 @@ class RoundServiceTest {
     when(guessSubmissionService.applyGuess(ROOM_ID, PLAYER_1, "pizza", roomEntity, roundEntity))
         .thenReturn(Optional.of(WON));
     when(roundLifecycleService.isRoundFinished(roomEntity, roundEntity)).thenReturn(false);
-    when(userService.getDisplayNamePerPlayer(any())).thenReturn(displayNamePerPlayer);
+    when(userProfileService.getDisplayNamePerPlayer(any())).thenReturn(displayNamePerPlayer);
 
     // Act
     service.handleGuess(ROOM_ID, PLAYER_1, "pizza");
@@ -231,7 +231,7 @@ class RoundServiceTest {
     verify(eventPublisher).publishEvent(new RoomEventToPublish(ROOM_ID,
         new RoomEvent(PLAYER_STATUS_UPDATED, new PlayerStatusUpdatedPayload(WON))));
     verify(roundLifecycleService, never()).finishRound(roundEntity, roomEntity);
-    verify(userService).getDisplayNamePerPlayer(Set.of(PLAYER_1, PLAYER_2));
+    verify(userProfileService).getDisplayNamePerPlayer(Set.of(PLAYER_1, PLAYER_2));
   }
 
   @Test
@@ -330,7 +330,7 @@ class RoundServiceTest {
     when(roomRepository.findWithPlayersByIdForUpdate(anyString(), any())).thenReturn(roomEntity);
     when(roundJpaRepository.findWithDetailsByRoomIdAndRoundNumber(ROOM_ID, 1))
         .thenReturn(Optional.of(roundEntity));
-    when(userService.getDisplayNamePerPlayer(any())).thenReturn(displayNamePerPlayer);
+    when(userProfileService.getDisplayNamePerPlayer(any())).thenReturn(displayNamePerPlayer);
 
     // Act
     var result = service.handleReady(ROOM_ID, PLAYER_1, 1);
@@ -348,7 +348,7 @@ class RoundServiceTest {
     verifyNoMoreInteractions(eventPublisher);
     verify(roundLifecycleService, never()).startNewRoundEntity(roomEntity);
     verify(roomRepository).save(roomEntity);
-    verify(userService).getDisplayNamePerPlayer(Set.of(PLAYER_1, PLAYER_2));
+    verify(userProfileService).getDisplayNamePerPlayer(Set.of(PLAYER_1, PLAYER_2));
   }
 
   @Test
@@ -370,7 +370,7 @@ class RoundServiceTest {
     when(roundJpaRepository.findWithDetailsByRoomIdAndRoundNumber(ROOM_ID, 1))
         .thenReturn(Optional.of(roundEntity));
     when(roundLifecycleService.startNewRoundEntity(roomEntity)).thenReturn(newRoundEntity);
-    when(userService.getDisplayNamePerPlayer(any())).thenReturn(displayNamePerPlayer);
+    when(userProfileService.getDisplayNamePerPlayer(any())).thenReturn(displayNamePerPlayer);
 
     // Act
     var result = service.handleReady(ROOM_ID, PLAYER_1, 1);
@@ -385,7 +385,7 @@ class RoundServiceTest {
     verify(roundLifecycleService).startNewRoundEntity(roomEntity);
     verify(roomRepository).save(roomEntity);
     verifyNoInteractions(eventPublisher);
-    verify(userService).getDisplayNamePerPlayer(Set.of(PLAYER_1, PLAYER_2));
+    verify(userProfileService).getDisplayNamePerPlayer(Set.of(PLAYER_1, PLAYER_2));
   }
 
   private static RoomEntity room(String roomId) {

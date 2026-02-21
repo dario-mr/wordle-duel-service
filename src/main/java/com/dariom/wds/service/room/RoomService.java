@@ -15,7 +15,7 @@ import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.repository.RoomRepository;
 import com.dariom.wds.service.DomainMapper;
 import com.dariom.wds.service.round.RoundService;
-import com.dariom.wds.service.user.UserService;
+import com.dariom.wds.service.user.UserProfileService;
 import com.dariom.wds.websocket.model.PlayerJoinedPayload;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
@@ -44,7 +44,7 @@ public class RoomService {
   private final RoundService roundService;
   private final DomainMapper domainMapper;
   private final ApplicationEventPublisher eventPublisher;
-  private final UserService userService;
+  private final UserProfileService userProfileService;
 
   @Transactional
   public Room createRoom(Language language, String creatorPlayerId) {
@@ -161,7 +161,7 @@ public class RoomService {
 
   private Map<String, String> getDisplayNamePerPlayer(RoomEntity room) {
     var playerIds = room.getPlayerIds();
-    return userService.getDisplayNamePerPlayer(playerIds);
+    return userProfileService.getDisplayNamePerPlayer(playerIds);
   }
 
   private void ensurePlayerCanInspectRoom(RoomEntity room, String requestingPlayerId) {

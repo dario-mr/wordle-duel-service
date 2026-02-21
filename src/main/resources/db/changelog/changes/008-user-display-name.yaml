@@ -1,0 +1,12 @@
+databaseChangeLog:
+  - changeSet:
+      id: 013-add-display-name
+      author: dariom
+      changes:
+        - addColumn:
+            schemaName: wordle
+            tableName: app_user
+            columns:
+              - column:
+                  name: display_name
+                  type: varchar(32)

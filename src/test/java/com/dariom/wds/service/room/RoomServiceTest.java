@@ -29,7 +29,7 @@ import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.repository.RoomRepository;
 import com.dariom.wds.service.DomainMapper;
 import com.dariom.wds.service.round.RoundService;
-import com.dariom.wds.service.user.UserService;
+import com.dariom.wds.service.user.UserProfileService;
 import com.dariom.wds.websocket.model.PlayerJoinedPayload;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
@@ -63,7 +63,7 @@ class RoomServiceTest {
   @Mock
   private ApplicationEventPublisher eventPublisher;
   @Mock
-  private UserService userService;
+  private UserProfileService userProfileService;
 
   private RoomService roomService;
 
@@ -75,7 +75,7 @@ class RoomServiceTest {
         roundService,
         domainMapper,
         eventPublisher,
-        userService
+        userProfileService
     );
   }
 
@@ -314,7 +314,7 @@ class RoomServiceTest {
         .hasMessage("Player <p3> cannot inspect room <room-1>");
 
     verify(roomRepository).findWithPlayersById("room-1");
-    verifyNoInteractions(roundService, userService, eventPublisher);
+    verifyNoInteractions(roundService, userProfileService, eventPublisher);
   }
 
   @Test
@@ -353,7 +353,7 @@ class RoomServiceTest {
         .thenReturn(List.of(waitingRoom, inProgressRoom));
     when(roundService.getCurrentRoundsByRoomIds(List.of("room-1", "room-2")))
         .thenReturn(Map.of("room-2", currentRound));
-    when(userService.getDisplayNamePerPlayer(any())).thenReturn(Map.of());
+    when(userProfileService.getDisplayNamePerPlayer(any())).thenReturn(Map.of());
 
     // Act
     var rooms = roomService.listRoomsForPlayer("p1");
@@ -368,8 +368,8 @@ class RoomServiceTest {
 
     verify(roomRepository).findWithPlayersByPlayerId("p1");
     verify(roundService).getCurrentRoundsByRoomIds(List.of("room-1", "room-2"));
-    verify(userService, times(2)).getDisplayNamePerPlayer(Set.of("p1"));
-    verifyNoMoreInteractions(roomRepository, roundService, userService);
+    verify(userProfileService, times(2)).getDisplayNamePerPlayer(Set.of("p1"));
+    verifyNoMoreInteractions(roomRepository, roundService, userProfileService);
   }
 
   @Test

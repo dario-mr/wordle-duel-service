@@ -25,10 +25,10 @@ class UserDetailsServiceTest {
   private UserDetailsService userDetailsService;
 
   @Test
-  void getUserDisplayName_userHasFullName_returnsDisplayName() {
+  void getUserDisplayName_userHasDisplayName_returnsDisplayName() {
     // Arrange
     var userId = "00000000-0000-0000-0000-000000000001";
-    var userEntity = userEntity(userId, "John Smith");
+    var userEntity = userEntity(userId, "John Smith", "John");
     when(userRepository.findById(any())).thenReturn(Optional.of(userEntity));
 
     // Act
@@ -43,7 +43,7 @@ class UserDetailsServiceTest {
   void getUserDisplayName_userHasBlankName_returnsAnonymous() {
     // Arrange
     var userId = "00000000-0000-0000-0000-000000000001";
-    var userEntity = userEntity(userId, "");
+    var userEntity = userEntity(userId, "", null);
     when(userRepository.findById(any())).thenReturn(Optional.of(userEntity));
 
     // Act
@@ -68,7 +68,10 @@ class UserDetailsServiceTest {
     verify(userRepository).findById(userId);
   }
 
-  private AppUserEntity userEntity(String userId, String fullName) {
-    return new AppUserEntity(UUID.fromString(userId), "email", "googleSub", fullName, "pictureUrl");
+  private AppUserEntity userEntity(String userId, String fullName, String displayName) {
+    var entity = new AppUserEntity(UUID.fromString(userId), "email", "googleSub", fullName,
+        "pictureUrl");
+    entity.setDisplayName(displayName);
+    return entity;
   }
 }
