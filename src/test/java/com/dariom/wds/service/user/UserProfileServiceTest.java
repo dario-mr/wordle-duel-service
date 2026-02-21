@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import com.dariom.wds.exception.UserNotFoundException;
 import com.dariom.wds.persistence.entity.AppUserEntity;
 import com.dariom.wds.persistence.repository.UserRepository;
+import com.dariom.wds.service.DomainMapper;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -16,6 +17,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -25,6 +27,9 @@ class UserProfileServiceTest {
 
   @Mock
   private UserRepository userRepository;
+
+  @Spy
+  private DomainMapper domainMapper;
 
   @InjectMocks
   private UserProfileService userProfileService;
@@ -42,6 +47,7 @@ class UserProfileServiceTest {
 
     // Assert
     assertThat(profile.id()).isEqualTo(userId);
+    assertThat(profile.email()).isEqualTo("email");
     assertThat(profile.displayName()).isEqualTo("John");
     assertThat(profile.pictureUrl()).isEqualTo("https://example.com/pic.png");
     verify(userRepository).findById(userId);
@@ -80,6 +86,7 @@ class UserProfileServiceTest {
     assertThat(result.getContent()).hasSize(1);
     var profile = result.getContent().getFirst();
     assertThat(profile.id()).isEqualTo(userId.toString());
+    assertThat(profile.email()).isEqualTo("email");
     assertThat(profile.fullName()).isEqualTo("John Smith");
     assertThat(profile.displayName()).isEqualTo("John");
     assertThat(profile.pictureUrl()).isEqualTo("https://example.com/pic.png");

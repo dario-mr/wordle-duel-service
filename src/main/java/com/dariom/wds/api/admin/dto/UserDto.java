@@ -6,6 +6,8 @@ import java.time.Instant;
 public record UserDto(
     @JsonProperty("id")
     String id,
+    @JsonProperty("email")
+    String email,
     @JsonProperty("fullName")
     String fullName,
     @JsonProperty("displayName")

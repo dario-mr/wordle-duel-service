@@ -1,5 +1,6 @@
 package com.dariom.wds.service;
 
+import static com.dariom.wds.util.UserUtils.normalizeFullName;
 import static java.util.Collections.emptyList;
 import static java.util.Comparator.comparing;
 import static java.util.Comparator.comparingInt;
@@ -12,6 +13,8 @@ import com.dariom.wds.domain.LetterResult;
 import com.dariom.wds.domain.Player;
 import com.dariom.wds.domain.Room;
 import com.dariom.wds.domain.Round;
+import com.dariom.wds.domain.UserProfile;
+import com.dariom.wds.persistence.entity.AppUserEntity;
 import com.dariom.wds.persistence.entity.GuessEntity;
 import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.entity.RoomPlayerEntity;
@@ -23,6 +26,17 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class DomainMapper {
+
+  public UserProfile toUserProfile(AppUserEntity user) {
+    return new UserProfile(
+        user.getId().toString(),
+        user.getEmail(),
+        user.getFullName(),
+        normalizeFullName(user.getFullName()),
+        user.getPictureUrl(),
+        user.getCreatedOn()
+    );
+  }
 
   public Room toRoom(RoomEntity room, Round currentRound,
       Map<String, String> displayNamePerPlayer) {

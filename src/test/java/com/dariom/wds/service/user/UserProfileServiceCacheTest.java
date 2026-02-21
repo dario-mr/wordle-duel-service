@@ -9,6 +9,7 @@ import com.dariom.wds.config.CacheConfig;
 import com.dariom.wds.persistence.entity.AppUserEntity;
 import com.dariom.wds.persistence.entity.RoleEntity;
 import com.dariom.wds.persistence.repository.UserRepository;
+import com.dariom.wds.service.DomainMapper;
 import com.dariom.wds.service.auth.OAuthUserService;
 import java.time.Instant;
 import java.util.HashMap;
@@ -28,6 +29,7 @@ import org.springframework.test.context.junit.jupiter.SpringJUnitConfig;
 
 @SpringJUnitConfig(classes = {
     CacheConfig.class,
+    DomainMapper.class,
     UserProfileService.class,
     OAuthUserService.class,
     UserProfileServiceCacheTest.TestConfig.class

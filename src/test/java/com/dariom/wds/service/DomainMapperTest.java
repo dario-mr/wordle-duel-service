@@ -11,17 +11,38 @@ import static org.assertj.core.api.Assertions.tuple;
 import com.dariom.wds.domain.Guess;
 import com.dariom.wds.domain.Player;
 import com.dariom.wds.domain.RoundStatus;
+import com.dariom.wds.persistence.entity.AppUserEntity;
 import com.dariom.wds.persistence.entity.GuessEntity;
 import com.dariom.wds.persistence.entity.LetterResultEmbeddable;
 import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.entity.RoundEntity;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 
 class DomainMapperTest {
 
   private final DomainMapper mapper = new DomainMapper();
+
+  @Test
+  void toUserProfile_validEntity_returnsMappedProfile() {
+    // Arrange
+    var userId = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    var entity = new AppUserEntity(userId, "john@example.com", "googleSub", "John Smith",
+        "https://example.com/pic.png");
+
+    // Act
+    var profile = mapper.toUserProfile(entity);
+
+    // Assert
+    assertThat(profile.id()).isEqualTo(userId.toString());
+    assertThat(profile.email()).isEqualTo("john@example.com");
+    assertThat(profile.fullName()).isEqualTo("John Smith");
+    assertThat(profile.displayName()).isEqualTo("John");
+    assertThat(profile.pictureUrl()).isEqualTo("https://example.com/pic.png");
+    assertThat(profile.createdOn()).isNull();
+  }
 
   @Test
   void toRoom_unsortedPlayers_returnsSortedPlayersAndScores() {
