@@ -1,6 +1,7 @@
 package com.dariom.wds.api.admin;
 
 import com.dariom.wds.api.admin.dto.UserDto;
+import com.dariom.wds.domain.UserProfile;
 import com.dariom.wds.service.user.UserProfileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -11,6 +12,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @Slf4j
@@ -25,11 +27,19 @@ public class AdminUserController {
   @Operation(summary = "List all users", description = "Returns a paginated list of all registered users.")
   @GetMapping
   public Page<UserDto> getAllUsers(
-      @PageableDefault(size = 50, sort = "fullName") Pageable pageable
+      @PageableDefault(size = 50, sort = "fullName") Pageable pageable,
+      @RequestParam(name = "fullName", required = false) String fullName,
+      @RequestParam(name = "email", required = false) String email
   ) {
-    log.info("Admin list users pageable={}", pageable);
-    return userProfileService.getAllUserProfiles(pageable)
-        .map(u ->
-            new UserDto(u.id(), u.email(), u.fullName(), u.displayName(), u.pictureUrl(), u.createdOn()));
+    log.info("Admin get all users: fullName=<{}>, email=<{}>, pageable={}", fullName, email,
+        pageable);
+    return userProfileService.getAllUserProfiles(pageable, fullName, email)
+        .map(this::toDto);
+  }
+
+  private UserDto toDto(UserProfile u) {
+    return new UserDto(
+        u.id(), u.email(), u.fullName(), u.displayName(), u.pictureUrl(), u.createdOn()
+    );
   }
 }

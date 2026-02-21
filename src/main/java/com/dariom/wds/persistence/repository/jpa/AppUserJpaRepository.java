@@ -5,8 +5,10 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
-public interface AppUserJpaRepository extends JpaRepository<AppUserEntity, UUID> {
+public interface AppUserJpaRepository extends JpaRepository<AppUserEntity, UUID>,
+    JpaSpecificationExecutor<AppUserEntity> {
 
   @EntityGraph(attributePaths = "roles")
   Optional<AppUserEntity> findByEmail(String email);

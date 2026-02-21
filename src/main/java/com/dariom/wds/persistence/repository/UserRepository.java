@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -61,8 +62,8 @@ public class UserRepository {
   }
 
   @Transactional(readOnly = true)
-  public Page<AppUserEntity> findAll(Pageable pageable) {
-    return appUserJpaRepository.findAll(pageable);
+  public Page<AppUserEntity> findAll(Specification<AppUserEntity> spec, Pageable pageable) {
+    return appUserJpaRepository.findAll(spec, pageable);
   }
 
   private void ensureRole(AppUserEntity user, Role role) {

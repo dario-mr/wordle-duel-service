@@ -3,6 +3,7 @@ package com.dariom.wds.service.user;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -21,6 +22,7 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.jpa.domain.Specification;
 
 @ExtendWith(MockitoExtension.class)
 class UserProfileServiceTest {
@@ -70,17 +72,17 @@ class UserProfileServiceTest {
   }
 
   @Test
-  void getAllUserProfiles_usersExist_returnsPagedProfiles() {
+  void getAllUserProfiles_withoutFilters_usersExist_returnsPagedProfiles() {
     // Arrange
     var userId = UUID.fromString("00000000-0000-0000-0000-000000000001");
     var userEntity = new AppUserEntity(userId, "email", "googleSub", "John Smith",
         "https://example.com/pic.png");
     var pageable = PageRequest.of(0, 10);
-    when(userRepository.findAll(any(PageRequest.class)))
+    when(userRepository.findAll(anySpecification(), eq(pageable)))
         .thenReturn(new PageImpl<>(List.of(userEntity), pageable, 1));
 
     // Act
-    var result = userProfileService.getAllUserProfiles(pageable);
+    var result = userProfileService.getAllUserProfiles(pageable, null, null);
 
     // Assert
     assertThat(result.getContent()).hasSize(1);
@@ -90,23 +92,28 @@ class UserProfileServiceTest {
     assertThat(profile.fullName()).isEqualTo("John Smith");
     assertThat(profile.displayName()).isEqualTo("John");
     assertThat(profile.pictureUrl()).isEqualTo("https://example.com/pic.png");
-    verify(userRepository).findAll(pageable);
+    verify(userRepository).findAll(anySpecification(), eq(pageable));
   }
 
   @Test
-  void getAllUserProfiles_usersDoNotExist_returnsEmptyPage() {
+  void getAllUserProfiles_withFilters_usersDoNotExist_returnsEmptyPage() {
     // Arrange
     var pageable = PageRequest.of(0, 10);
-    when(userRepository.findAll(any(PageRequest.class)))
+    when(userRepository.findAll(anySpecification(), eq(pageable)))
         .thenReturn(new PageImpl<>(List.of(), pageable, 0));
 
     // Act
-    var result = userProfileService.getAllUserProfiles(pageable);
+    var result = userProfileService.getAllUserProfiles(pageable, "John", "example.com");
 
     // Assert
     assertThat(result.getContent()).hasSize(0);
     assertThat(result.getTotalElements()).isEqualTo(0);
     assertThat(result.getTotalPages()).isEqualTo(0);
-    verify(userRepository).findAll(pageable);
+    verify(userRepository).findAll(anySpecification(), eq(pageable));
+  }
+
+  @SuppressWarnings("unchecked")
+  private Specification<AppUserEntity> anySpecification() {
+    return any(Specification.class);
   }
 }

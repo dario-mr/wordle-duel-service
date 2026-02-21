@@ -22,6 +22,9 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.jpa.domain.Specification;
 
 @ExtendWith(MockitoExtension.class)
 class UserRepositoryTest {
@@ -230,5 +233,23 @@ class UserRepositoryTest {
     // Assert
     assertThat(user).isEmpty();
     verifyNoInteractions(appUserJpaRepository);
+  }
+
+  @Test
+  void findAll_withSpecification_delegatesToJpaRepository() {
+    // Arrange
+    var pageable = PageRequest.of(0, 20);
+    Specification<AppUserEntity> spec = (root, query, cb) -> cb.conjunction();
+    var user = new AppUserEntity(UUID.randomUUID(), "user@test.com", "google-sub", "User Test", "");
+    var expectedPage = new PageImpl<>(java.util.List.of(user), pageable, 1);
+    when(appUserJpaRepository.findAll(spec, pageable)).thenReturn(expectedPage);
+
+    // Act
+    var result = userRepository.findAll(spec, pageable);
+
+    // Assert
+    assertThat(result).isSameAs(expectedPage);
+    verify(appUserJpaRepository).findAll(spec, pageable);
+    verifyNoMoreInteractions(appUserJpaRepository, roleJpaRepository);
   }
 }

@@ -86,4 +86,27 @@ class AdminUserListIT {
         .andExpect(jsonPath("$.page.totalElements").value(3))
         .andExpect(jsonPath("$.page.totalPages").value(2));
   }
+
+  @Test
+  void getAllUsers_withFilters_returnsMatchingUsers() throws Exception {
+    // Arrange
+    var adminBearer = itHelper.adminBearer();
+    itHelper.createUser("00000000-0000-0000-0000-000000000001", "alice@test.com", "Alice Smith");
+    itHelper.createUser("00000000-0000-0000-0000-000000000002", "bob@acme.com", "Bob Jones");
+    itHelper.createUser("00000000-0000-0000-0000-000000000003", "anna@test.com", "Anna Miles");
+
+    // Act
+    var result = mockMvc.perform(get("/admin/users")
+        .param("fullName", "an")
+        .param("email", "test.com")
+        .header("Authorization", adminBearer));
+
+    // Assert
+    result
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.content.length()").value(1))
+        .andExpect(jsonPath("$.content[0].fullName").value("Anna Miles"))
+        .andExpect(jsonPath("$.content[0].email").value("anna@test.com"))
+        .andExpect(jsonPath("$.page.totalElements").value(1));
+  }
 }
