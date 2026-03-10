@@ -17,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
-class RoomAccessIT {
+class RoomAccessIT extends AbstractRedisTest {
 
   private static final String LANGUAGE = "IT";
   private static final String PLAYER_1_ID = "11111111-1111-1111-1111-111111111111";

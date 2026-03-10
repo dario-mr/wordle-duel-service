@@ -12,3 +12,5 @@ jobs:
     uses: dario-mr/ci-pipelines/.github/workflows/java-coverage.yml@main
     with:
       pull-request-number: ${{ github.event.pull_request.number }}
+      with-redis: true
+      with-postgres: true

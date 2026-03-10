@@ -1,6 +1,6 @@
 package com.dariom.wds.persistence.repository.jpa;
 
-import static org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase.Replace.NONE;
+import static org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase.Replace.ANY;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -14,9 +14,10 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 @DataJpaTest(properties = {
     "spring.liquibase.enabled=false",
     "spring.sql.init.mode=never",
-    "spring.jpa.hibernate.ddl-auto=create-drop"
+    "spring.jpa.hibernate.ddl-auto=create-drop",
+    "spring.jpa.properties.hibernate.default_schema=public"
 })
-@AutoConfigureTestDatabase(replace = NONE)
+@AutoConfigureTestDatabase(replace = ANY)
 public @interface JpaRepositoryIT {
 
 }

@@ -26,7 +26,7 @@ The app reads configuration from environment variables and also supports a local
 4. Start Redis (required for OAuth2 login session state and job synchronization):
 
    ```shell
-   docker run --rm -d --name wordle-duel-service-redis -p 6379:6379 redis:7-alpine
+   docker run -d --name wordle-duel-service-redis -p 6379:6379 redis:7-alpine
    ```
 
 5. Run: `mvn spring-boot:run`

@@ -22,7 +22,7 @@ import org.springframework.test.web.servlet.MvcResult;
 @SpringBootTest
 @AutoConfigureMockMvc
 @DirtiesContext(classMode = AFTER_CLASS)
-class GuessSubmissionConcurrencyIT {
+class GuessSubmissionConcurrencyIT extends AbstractRedisTest {
 
   private static final String LANGUAGE = "IT";
   private static final String PLAYER_1_ID = "11111111-1111-1111-1111-111111111111";

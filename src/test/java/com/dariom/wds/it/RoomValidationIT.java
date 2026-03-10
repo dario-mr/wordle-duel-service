@@ -18,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
-class RoomValidationIT {
+class RoomValidationIT extends AbstractRedisTest {
 
   private static final String BASE_URL = "/api/v1/rooms";
 

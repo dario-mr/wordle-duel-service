@@ -14,7 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
-class AdminUserListIT {
+class AdminUserListIT extends AbstractRedisTest {
 
   @Resource
   private MockMvc mockMvc;

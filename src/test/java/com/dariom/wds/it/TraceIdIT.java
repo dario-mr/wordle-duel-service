@@ -21,7 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
-class TraceIdIT {
+class TraceIdIT extends AbstractRedisTest {
 
   private static final String BASE_URL = "/api/v1/rooms";
 

@@ -27,7 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
-class AdminRoomDeleteIT {
+class AdminRoomDeleteIT extends AbstractRedisTest {
 
   @Resource
   private MockMvc mockMvc;

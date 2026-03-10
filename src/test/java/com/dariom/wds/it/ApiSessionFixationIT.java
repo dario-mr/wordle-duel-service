@@ -2,44 +2,23 @@ package com.dariom.wds.it;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
-import static org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import jakarta.annotation.Resource;
 import jakarta.servlet.http.Cookie;
 import java.util.List;
+import java.util.Objects;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.wait.strategy.Wait;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
-@Testcontainers(disabledWithoutDocker = true)
 @SpringBootTest(webEnvironment = RANDOM_PORT)
 @AutoConfigureMockMvc
-@DirtiesContext(classMode = AFTER_CLASS)
-class ApiSessionFixationIT {
-
-  @Container
-  static final GenericContainer<?> redis = new GenericContainer<>("redis:7-alpine")
-      .withExposedPorts(6379)
-      .waitingFor(Wait.forListeningPort());
-
-  @DynamicPropertySource
-  static void registerRedisProperties(DynamicPropertyRegistry registry) {
-    registry.add("spring.session.store-type", () -> "redis");
-    registry.add("spring.data.redis.host", redis::getHost);
-    registry.add("spring.data.redis.port", () -> redis.getMappedPort(6379));
-  }
+class ApiSessionFixationIT extends AbstractRedisTest {
 
   @Resource
   private MockMvc mockMvc;
@@ -95,7 +74,7 @@ class ApiSessionFixationIT {
 
   private static String extractCookieValue(List<String> setCookies, String cookieName) {
     var header = setCookies.stream()
-        .filter(h -> h != null)
+        .filter(Objects::nonNull)
         .filter(h -> h.startsWith(cookieName + "="))
         .findFirst()
         .orElseThrow(

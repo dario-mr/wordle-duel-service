@@ -5,7 +5,7 @@ import static com.dariom.wds.domain.RoomStatus.WAITING_FOR_PLAYERS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS;
+import static org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase.Replace.NONE;
 
 import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.repository.RoomRepository;
@@ -16,30 +16,24 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.PessimisticLockingFailureException;
-import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.wait.strategy.Wait;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 @DataJpaTest(properties = {
     "spring.liquibase.enabled=false",
+    "spring.sql.init.mode=never",
     "spring.jpa.hibernate.ddl-auto=create-drop",
     "spring.jpa.properties.hibernate.default_schema=public"
 })
+@AutoConfigureTestDatabase(replace = NONE)
 @Import(RoomRepository.class)
-@Testcontainers(disabledWithoutDocker = true)
-@DirtiesContext(classMode = AFTER_CLASS)
-class RoomRepositoryLockIT {
+class RoomRepositoryLockIT extends AbstractPostgresTest {
 
   @Autowired
   private RoomRepository roomRepository;
@@ -49,22 +43,6 @@ class RoomRepositoryLockIT {
 
   @Autowired
   private PlatformTransactionManager transactionManager;
-
-  @Container
-  static final GenericContainer<?> postgres = new GenericContainer<>("postgres:16-alpine")
-      .withExposedPorts(5432)
-      .withEnv("POSTGRES_USER", "test")
-      .withEnv("POSTGRES_PASSWORD", "test")
-      .withEnv("POSTGRES_DB", "postgres")
-      .waitingFor(Wait.forListeningPort());
-
-  @DynamicPropertySource
-  static void registerProperties(DynamicPropertyRegistry registry) {
-    registry.add("spring.datasource.url", () -> "jdbc:postgresql://%s:%d/postgres".
-        formatted(postgres.getHost(), postgres.getMappedPort(5432)));
-    registry.add("spring.datasource.username", () -> "test");
-    registry.add("spring.datasource.password", () -> "test");
-  }
 
   @Test
   @Transactional(propagation = Propagation.NOT_SUPPORTED)

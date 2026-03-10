@@ -27,7 +27,7 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 import org.springframework.web.socket.messaging.WebSocketStompClient;
 
 @SpringBootTest(webEnvironment = RANDOM_PORT)
-class WebSocketConfigIT {
+class WebSocketConfigIT extends AbstractRedisTest {
 
   private static final Duration TIMEOUT = Duration.ofSeconds(5);
   private static final String ALLOWED_ORIGIN = "http://allowed-origin.test";

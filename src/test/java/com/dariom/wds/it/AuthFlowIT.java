@@ -26,7 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
-class AuthFlowIT {
+class AuthFlowIT extends AbstractRedisTest {
 
   private static final String ROOMS_URL = "/api/v1/rooms";
 

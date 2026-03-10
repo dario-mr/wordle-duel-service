@@ -19,7 +19,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 @SpringBootTest
-class RoomServiceTransactionIT {
+class RoomServiceTransactionIT extends AbstractRedisTest {
 
   private static final String ROOM_ID = "room-1";
   private static final String PLAYER_1 = "p1";

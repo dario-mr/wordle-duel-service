@@ -2,7 +2,6 @@ package com.dariom.wds.it;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS;
 
 import jakarta.annotation.Resource;
 import java.util.concurrent.CountDownLatch;
@@ -14,37 +13,16 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
-import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.DynamicPropertyRegistry;
-import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.wait.strategy.Wait;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 @SpringBootTest
 @Import(ShedLockRedisIT.TestBeans.class)
-@Testcontainers(disabledWithoutDocker = true)
-@DirtiesContext(classMode = AFTER_CLASS)
-class ShedLockRedisIT {
+class ShedLockRedisIT extends AbstractRedisTest {
 
   @Resource
   private LockedTestJob lockedTestJob;
 
   @Resource
   private AtomicInteger counter;
-
-  @Container
-  static final GenericContainer<?> redis = new GenericContainer<>("redis:7-alpine")
-      .withExposedPorts(6379)
-      .waitingFor(Wait.forListeningPort());
-
-  @DynamicPropertySource
-  static void registerRedisProperties(DynamicPropertyRegistry registry) {
-    registry.add("spring.data.redis.host", redis::getHost);
-    registry.add("spring.data.redis.port", () -> redis.getMappedPort(6379));
-    registry.add("spring.session.store-type", () -> "none");
-  }
 
   @Test
   void schedulerLock_allowsOnlyOneConcurrentExecution() throws Exception {

@@ -22,7 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 @SpringBootTest
 @AutoConfigureMockMvc
 @Transactional
-class AuthControllerIT {
+class AuthControllerIT extends AbstractRedisTest {
 
   @Resource
   private MockMvc mockMvc;
