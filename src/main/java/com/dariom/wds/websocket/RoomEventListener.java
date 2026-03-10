@@ -5,12 +5,11 @@ import static org.springframework.transaction.event.TransactionPhase.AFTER_COMMI
 import com.dariom.wds.websocket.model.RoomEventToPublish;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.event.TransactionalEventListener;
 
 /**
- * Publishes {@link RoomEventToPublish} to the room WebSocket topic.
+ * Listens for {@link RoomEventToPublish} application events and relays them to Redis Pub/Sub.
  *
  * <p>Events are sent {@code AFTER_COMMIT} to ensure clients only receive notifications for state
  * that was actually persisted in the database.
@@ -22,19 +21,11 @@ import org.springframework.transaction.event.TransactionalEventListener;
 @RequiredArgsConstructor
 public class RoomEventListener {
 
-  private final SimpMessagingTemplate messagingTemplate;
+  private final RedisRoomEventPublisher redisRoomEventPublisher;
 
   @TransactionalEventListener(phase = AFTER_COMMIT, fallbackExecution = true)
   public void on(RoomEventToPublish roomEvent) {
     log.info("Publishing {} for room <{}>", roomEvent.event(), roomEvent.roomId());
-    var roomId = roomEvent.roomId();
-    var event = roomEvent.event();
-
-    try {
-      messagingTemplate.convertAndSend("/topic/rooms/%s".formatted(roomId), event);
-    } catch (Exception e) {
-      log.error("Failed to publish room event: roomId=<{}>, event={}", roomId, roomEvent.event(),
-          e);
-    }
+    redisRoomEventPublisher.publish(roomEvent);
   }
 }

@@ -93,6 +93,7 @@ Redis is used for:
 - OAuth2 login HTTP session storage (Spring Session) to persist authorization request/state across
   the redirect in a horizontally scalable way.
 - Scheduler job synchronization (ShedLock) so only one instance executes scheduled cleanup jobs.
+- WebSocket event relay (Pub/Sub) so room events reach all connected clients across instances.
 
 Notes:
 

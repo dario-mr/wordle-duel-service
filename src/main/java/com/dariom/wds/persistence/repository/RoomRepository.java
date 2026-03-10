@@ -82,7 +82,6 @@ public class RoomRepository {
         statement.execute("set local lock_timeout = %d".formatted(timeoutMs));
       } catch (SQLException ignored) {
         // Best-effort: some DBs (e.g. H2) don't support Postgres lock_timeout
-        // todo remove once confirmed working
         log.warn("Failed to set local lock_timeout, ignoring it");
       }
     });
