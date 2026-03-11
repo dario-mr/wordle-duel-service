@@ -7,10 +7,10 @@ on:
     branches: [ main ]
 
 jobs:
-  build_and_push:
-    uses: dario-mr/ci-pipelines/.github/workflows/build-and-push.yml@main
+  build_and_push_java:
+    uses: dario-mr/ci-pipelines/.github/workflows/build-and-push-java.yml@main
     with:
-      image-name: dariomr8/wordle-duel-service:0.13.0
+      image-repo: dariomr8/wordle-duel-service
       with-redis: true
       with-postgres: true
     secrets:
