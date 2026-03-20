@@ -31,6 +31,9 @@ import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.session.NullAuthenticatedSessionStrategy;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher;
+import org.springframework.security.web.util.matcher.OrRequestMatcher;
+import org.springframework.security.web.util.matcher.RequestMatcher;
 
 /**
  * Configures Spring Security using two distinct {@link SecurityFilterChain}s.
@@ -40,7 +43,8 @@ import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
  * <ul>
  *   <li>Applies to {@code /api/**} and {@code /admin/**}.</li>
  *   <li>Stateless: no HTTP session is created/used.</li>
- *   <li>CSRF is disabled because these endpoints are called with {@code Authorization: Bearer <JWT>}.</li>
+ *   <li>CSRF is ignored for these endpoints because they are called with
+ *       {@code Authorization: Bearer <JWT>} rather than browser-managed cookies.</li>
  *   <li>Authentication is performed by the OAuth2 Resource Server (JWT) support.</li>
  * </ul>
  *
@@ -73,10 +77,11 @@ public class SecurityConfig {
     var matcher = requireMatcherProperties();
     var apiMatcher = matcher.api();
     var adminMatcher = matcher.admin();
+    var apiAndAdminMatcher = apiAndAdminRequestMatcher();
 
     http
-        .securityMatcher(apiMatcher, adminMatcher)
-        .csrf(AbstractHttpConfigurer::disable)
+        .securityMatcher(apiAndAdminMatcher)
+        .csrf(csrf -> csrf.ignoringRequestMatchers(apiAndAdminMatcher))
         .sessionManagement(sm -> sm
             .sessionCreationPolicy(STATELESS)
             // Prevent Spring Security from attempting session fixation protection (changeSessionId)
@@ -176,6 +181,15 @@ public class SecurityConfig {
         return oAuthUserService.createOrUpdatePrincipal(oidcUser);
       }
     };
+  }
+
+  RequestMatcher apiAndAdminRequestMatcher() {
+    var matcher = requireMatcherProperties();
+
+    return new OrRequestMatcher(
+        PathPatternRequestMatcher.withDefaults().matcher(matcher.api()),
+        PathPatternRequestMatcher.withDefaults().matcher(matcher.admin())
+    );
   }
 
   private SecurityProperties.CsrfProperties requireCsrfProperties() {
