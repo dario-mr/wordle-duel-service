@@ -8,6 +8,8 @@ on:
 
 jobs:
   build_and_push_java:
+    permissions:
+      contents: read
     uses: dario-mr/ci-pipelines/.github/workflows/build-and-push-java.yml@main
     with:
       image-repo: dariomr8/wordle-duel-service
