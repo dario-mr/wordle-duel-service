@@ -15,7 +15,9 @@ jobs:
       image-repo: dariomr8/wordle-duel-service
       with-redis: true
       with-postgres: true
-      platforms: linux/arm64,linux/amd64
+      dockerfile: Dockerfile.native
+      platforms: linux/amd64
+      runner-label: ubuntu-24.04
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
       DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}

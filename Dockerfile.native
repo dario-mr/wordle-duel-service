@@ -1,0 +1,13 @@
+FROM container-registry.oracle.com/graalvm/native-image:21 AS build
+RUN microdnf install -y maven findutils && microdnf clean all
+WORKDIR /app
+COPY . .
+RUN mvn -B -Pnative -DskipTests package
+
+FROM container-registry.oracle.com/os/oraclelinux:9-slim
+RUN microdnf install -y zlib && microdnf clean all
+WORKDIR /app
+COPY --from=build /app/target/wordle-duel-service /app/wordle-duel-service
+USER 65532:65532
+
+ENTRYPOINT ["/app/wordle-duel-service"]

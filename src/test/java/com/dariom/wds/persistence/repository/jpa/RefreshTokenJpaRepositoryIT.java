@@ -23,14 +23,14 @@ class RefreshTokenJpaRepositoryIT {
   private RoleJpaRepository roleRepository;
 
   @Test
-  void findByTokenHash_existingToken_returnsTokenWithUserAndRolesLoaded() {
+  void findWithUserByTokenHash_existingToken_returnsTokenWithUserAndRolesLoaded() {
     // Arrange
     var userId = UUID.randomUUID();
     var role = roleRepository.save(new RoleEntity("USER"));
 
     var user = userEntity(userId);
     user.addRole(role);
-    userRepository.save(user);
+    user = userRepository.save(user);
 
     var tokenId = UUID.randomUUID();
     var tokenHash = "a".repeat(64);
@@ -39,7 +39,7 @@ class RefreshTokenJpaRepositoryIT {
     repository.save(new RefreshTokenEntity(tokenId, user, tokenHash, now, now.plusSeconds(60)));
 
     // Act
-    var found = repository.findByTokenHash(tokenHash).orElseThrow();
+    var found = repository.findWithUserByTokenHash(tokenHash).orElseThrow();
 
     // Assert
     assertThat(found.getId()).isEqualTo(tokenId);
@@ -56,8 +56,7 @@ class RefreshTokenJpaRepositoryIT {
   void deleteExpired_deletesOnlyExpiredTokens() {
     // Arrange
     var userId = UUID.randomUUID();
-    var user = userEntity(userId);
-    userRepository.save(user);
+    var user = userRepository.save(userEntity(userId));
 
     var now = Instant.now();
     var expiredTokenHash = "b".repeat(64);
@@ -83,8 +82,40 @@ class RefreshTokenJpaRepositoryIT {
 
     // Assert
     assertThat(deleted).isEqualTo(1);
-    assertThat(repository.findByTokenHash(expiredTokenHash)).isEmpty();
-    assertThat(repository.findByTokenHash(validTokenHash)).isPresent();
+    assertThat(repository.findWithUserByTokenHash(expiredTokenHash)).isEmpty();
+    assertThat(repository.findWithUserByTokenHash(validTokenHash)).isPresent();
+  }
+
+  @Test
+  void deleteByTokenHash_deletesMatchingTokenOnly() {
+    // Arrange
+    var user = userRepository.save(userEntity(UUID.randomUUID()));
+    var now = Instant.now();
+    var deletedTokenHash = "d".repeat(64);
+    var remainingTokenHash = "e".repeat(64);
+
+    repository.save(new RefreshTokenEntity(
+        UUID.randomUUID(),
+        user,
+        deletedTokenHash,
+        now,
+        now.plusSeconds(60)
+    ));
+    repository.save(new RefreshTokenEntity(
+        UUID.randomUUID(),
+        user,
+        remainingTokenHash,
+        now,
+        now.plusSeconds(60)
+    ));
+
+    // Act
+    var deleted = repository.deleteByTokenHash(deletedTokenHash);
+
+    // Assert
+    assertThat(deleted).isEqualTo(1);
+    assertThat(repository.findWithUserByTokenHash(deletedTokenHash)).isEmpty();
+    assertThat(repository.findWithUserByTokenHash(remainingTokenHash)).isPresent();
   }
 
   private static AppUserEntity userEntity(UUID userId) {

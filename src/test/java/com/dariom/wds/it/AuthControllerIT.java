@@ -60,7 +60,7 @@ class AuthControllerIT extends AbstractRedisTest {
         .andReturn();
 
     // Assert
-    assertThat(refreshTokenJpaRepository.findByTokenHash(oldHash)).isEmpty();
+    assertThat(refreshTokenJpaRepository.findWithUserByTokenHash(oldHash)).isEmpty();
 
     var setCookies = result.getResponse().getHeaders(SET_COOKIE);
     var newRawToken = itHelper.extractCookieValue(setCookies,
@@ -69,7 +69,7 @@ class AuthControllerIT extends AbstractRedisTest {
     assertThat(newRawToken).isNotEqualTo(oldRawToken);
 
     var newHash = tokenHashing.sha256Hex(newRawToken);
-    assertThat(refreshTokenJpaRepository.findByTokenHash(newHash)).isPresent();
+    assertThat(refreshTokenJpaRepository.findWithUserByTokenHash(newHash)).isPresent();
   }
 
   @Test
@@ -127,7 +127,7 @@ class AuthControllerIT extends AbstractRedisTest {
         .andReturn();
 
     // Assert
-    assertThat(refreshTokenJpaRepository.findByTokenHash(tokenHash)).isEmpty();
+    assertThat(refreshTokenJpaRepository.findWithUserByTokenHash(tokenHash)).isEmpty();
 
     var setCookies = result.getResponse().getHeaders(SET_COOKIE);
     var refreshSetCookieHeader = itHelper.findSetCookieHeader(setCookies,

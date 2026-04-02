@@ -102,7 +102,7 @@ class AuthFlowIT extends AbstractRedisTest {
 
     // Verify the refresh token is actually gone from the DB and the cookie is cleared
     var tokenHash = tokenHashing.sha256Hex(newRawRefreshToken);
-    var tokenInDb = refreshTokenJpaRepository.findByTokenHash(tokenHash);
+    var tokenInDb = refreshTokenJpaRepository.findWithUserByTokenHash(tokenHash);
     assertThat(tokenInDb).isEmpty();
 
     var setCookies = logoutRes.getResponse().getHeaders(SET_COOKIE);
@@ -151,7 +151,7 @@ class AuthFlowIT extends AbstractRedisTest {
     var refreshJson = objectMapper.readTree(refreshRes.getResponse().getContentAsString());
     assertThat(refreshJson.get("code").asText()).isEqualTo("REFRESH_TOKEN_INVALID");
 
-    var tokenInDb = refreshTokenJpaRepository.findByTokenHash(tokenHash);
+    var tokenInDb = refreshTokenJpaRepository.findWithUserByTokenHash(tokenHash);
     assertThat(tokenInDb).isEmpty();
   }
 }

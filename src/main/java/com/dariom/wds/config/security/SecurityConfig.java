@@ -20,10 +20,6 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer.FrameOptionsConfig;
-import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserRequest;
-import org.springframework.security.oauth2.client.oidc.userinfo.OidcUserService;
-import org.springframework.security.oauth2.core.OAuth2AuthenticationException;
-import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
@@ -110,7 +106,7 @@ public class SecurityConfig {
       HttpSecurity http,
       CookieCsrfTokenRepository csrfTokenRepository,
       AuthenticationSuccessHandler oauth2SuccessHandler,
-      OAuthUserService oAuthUserService
+      DelegatingOidcUserService oidcUserService
   ) throws Exception {
     var matcher = requireMatcherProperties();
 
@@ -127,7 +123,7 @@ public class SecurityConfig {
             .anyRequest().denyAll()
         )
         .oauth2Login(oauth -> oauth
-            .userInfoEndpoint(user -> user.oidcUserService(oidcUserService(oAuthUserService)))
+            .userInfoEndpoint(user -> user.oidcUserService(oidcUserService))
             .successHandler(oauth2SuccessHandler)
         )
         .logout(AbstractHttpConfigurer::disable)
@@ -172,15 +168,8 @@ public class SecurityConfig {
   }
 
   @Bean
-  OidcUserService oidcUserService(OAuthUserService oAuthUserService) {
-    var delegate = new OidcUserService();
-    return new OidcUserService() {
-      @Override
-      public OidcUser loadUser(OidcUserRequest userRequest) throws OAuth2AuthenticationException {
-        var oidcUser = delegate.loadUser(userRequest);
-        return oAuthUserService.createOrUpdatePrincipal(oidcUser);
-      }
-    };
+  DelegatingOidcUserService oidcUserService(OAuthUserService oAuthUserService) {
+    return new DelegatingOidcUserService(oAuthUserService);
   }
 
   RequestMatcher apiAndAdminRequestMatcher() {
