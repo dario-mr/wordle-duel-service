@@ -2,7 +2,9 @@ package com.dariom.wds.config.security;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
+import static org.mockito.Mockito.mock;
 
+import com.dariom.wds.service.auth.OAuthUserService;
 import org.junit.jupiter.api.Test;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.security.web.util.matcher.RequestMatcher;
@@ -59,6 +61,25 @@ class SecurityConfigTest {
     assertThat(matches(matcher, "POST", "/api/v1/rooms")).isTrue();
     assertThat(matches(matcher, "DELETE", "/admin/rooms/1")).isTrue();
     assertThat(matches(matcher, "POST", "/auth/refresh")).isFalse();
+  }
+
+  @Test
+  void oidcUserService_returnsConcreteDelegatingService() {
+    var props = new SecurityProperties(
+        // Arrange
+        null,
+        new SecurityProperties.CsrfProperties("cookie", "header"),
+        new SecurityProperties.MatcherProperties("/api/**", "/admin/**", "/auth/**"),
+        null,
+        null
+    );
+    var config = new SecurityConfig(props);
+
+    // Act
+    var service = config.oidcUserService(mock(OAuthUserService.class));
+
+    // Assert
+    assertThat(service).isInstanceOf(DelegatingOidcUserService.class);
   }
 
   private static boolean matches(RequestMatcher matcher, String method, String path) {

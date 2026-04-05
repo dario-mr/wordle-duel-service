@@ -44,7 +44,7 @@ public class RefreshTokenService {
   public RefreshResult refresh(String rawToken) {
     var now = Instant.now(clock);
     var hashedToken = tokenHashing.sha256Hex(rawToken);
-    var existingToken = refreshTokenRepository.findByTokenHash(hashedToken)
+    var existingToken = refreshTokenRepository.findWithUserByTokenHash(hashedToken)
         .orElseThrow(InvalidRefreshTokenException::new);
 
     if (!existingToken.getExpiresAt().isAfter(now)) {
@@ -65,7 +65,7 @@ public class RefreshTokenService {
   @Transactional
   public void revoke(String rawToken) {
     var hashedToken = tokenHashing.sha256Hex(rawToken);
-    refreshTokenRepository.findByTokenHash(hashedToken)
+    refreshTokenRepository.findWithUserByTokenHash(hashedToken)
         .ifPresent(refreshTokenRepository::delete);
   }
 

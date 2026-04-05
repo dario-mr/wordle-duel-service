@@ -5,19 +5,23 @@ import static jakarta.persistence.FetchType.LAZY;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.PostLoad;
+import jakarta.persistence.PostPersist;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import java.time.Instant;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.Setter;
+import org.springframework.data.domain.Persistable;
 
 @Setter
 @Getter
 @Entity
 @Table(name = "refresh_token")
-public class RefreshTokenEntity {
+public class RefreshTokenEntity implements Persistable<UUID> {
 
   @Id
   @Column(name = "id", nullable = false)
@@ -36,6 +40,9 @@ public class RefreshTokenEntity {
   @Column(name = "expires_at", nullable = false)
   private Instant expiresAt;
 
+  @Transient
+  private boolean persisted;
+
   protected RefreshTokenEntity() {
   }
 
@@ -46,5 +53,16 @@ public class RefreshTokenEntity {
     this.tokenHash = tokenHash;
     this.createdAt = createdAt;
     this.expiresAt = expiresAt;
+  }
+
+  @Override
+  public boolean isNew() {
+    return !persisted;
+  }
+
+  @PostPersist
+  @PostLoad
+  void markPersisted() {
+    persisted = true;
   }
 }

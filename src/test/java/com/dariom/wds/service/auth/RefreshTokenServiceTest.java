@@ -1,6 +1,7 @@
 package com.dariom.wds.service.auth;
 
 import static com.dariom.wds.config.security.SecurityProperties.RefreshProperties;
+import static java.time.ZoneOffset.UTC;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
@@ -17,7 +18,6 @@ import com.dariom.wds.persistence.entity.RefreshTokenEntity;
 import com.dariom.wds.persistence.repository.jpa.RefreshTokenJpaRepository;
 import java.time.Clock;
 import java.time.Instant;
-import java.time.ZoneOffset;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -33,7 +33,7 @@ class RefreshTokenServiceTest {
   private static final Instant NOW = Instant.parse("2025-01-01T12:00:00Z");
   private static final int REFRESH_TOKEN_DURATION_DAYS = 7;
 
-  private final Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
+  private final Clock clock = Clock.fixed(NOW, UTC);
 
   @Mock
   private RefreshTokenGenerator refreshTokenGenerator;
@@ -115,7 +115,8 @@ class RefreshTokenServiceTest {
     );
 
     when(tokenHashing.sha256Hex(anyString())).thenReturn(existingHash, newHash);
-    when(refreshTokenRepository.findByTokenHash(existingHash)).thenReturn(Optional.of(existing));
+    when(refreshTokenRepository.findWithUserByTokenHash(existingHash)).thenReturn(
+        Optional.of(existing));
     when(refreshTokenGenerator.generate()).thenReturn(newRawToken);
     when(jwtService.createAccessToken(any(AppUserEntity.class)))
         .thenReturn(new AccessToken("access", 900));
@@ -128,7 +129,7 @@ class RefreshTokenServiceTest {
     assertThat(result.accessToken()).isEqualTo(new AccessToken("access", 900));
 
     verify(tokenHashing).sha256Hex(inputRawToken);
-    verify(refreshTokenRepository).findByTokenHash(existingHash);
+    verify(refreshTokenRepository).findWithUserByTokenHash(existingHash);
     verify(refreshTokenRepository).delete(existing);
 
     verify(refreshTokenGenerator).generate();
@@ -163,7 +164,8 @@ class RefreshTokenServiceTest {
     );
 
     when(tokenHashing.sha256Hex(anyString())).thenReturn(existingHash);
-    when(refreshTokenRepository.findByTokenHash(existingHash)).thenReturn(Optional.of(existing));
+    when(refreshTokenRepository.findWithUserByTokenHash(existingHash)).thenReturn(
+        Optional.of(existing));
 
     // Act
     var thrown = catchThrowable(() -> service.refresh(inputRawToken));
@@ -172,7 +174,7 @@ class RefreshTokenServiceTest {
     assertThat(thrown).isInstanceOf(InvalidRefreshTokenException.class);
 
     verify(tokenHashing).sha256Hex(inputRawToken);
-    verify(refreshTokenRepository).findByTokenHash(existingHash);
+    verify(refreshTokenRepository).findWithUserByTokenHash(existingHash);
     verify(refreshTokenRepository).delete(existing);
     verifyNoMoreInteractions(refreshTokenGenerator, tokenHashing, refreshTokenRepository,
         jwtService);
@@ -185,7 +187,7 @@ class RefreshTokenServiceTest {
     var existingHash = "old-hash";
 
     when(tokenHashing.sha256Hex(anyString())).thenReturn(existingHash);
-    when(refreshTokenRepository.findByTokenHash(existingHash)).thenReturn(Optional.empty());
+    when(refreshTokenRepository.findWithUserByTokenHash(existingHash)).thenReturn(Optional.empty());
 
     // Act
     var thrown = catchThrowable(() -> service.refresh(inputRawToken));
@@ -194,7 +196,7 @@ class RefreshTokenServiceTest {
     assertThat(thrown).isInstanceOf(InvalidRefreshTokenException.class);
 
     verify(tokenHashing).sha256Hex(inputRawToken);
-    verify(refreshTokenRepository).findByTokenHash(existingHash);
+    verify(refreshTokenRepository).findWithUserByTokenHash(existingHash);
     verifyNoMoreInteractions(refreshTokenGenerator, tokenHashing, refreshTokenRepository,
         jwtService);
   }
@@ -213,14 +215,15 @@ class RefreshTokenServiceTest {
     );
 
     when(tokenHashing.sha256Hex(anyString())).thenReturn(tokenHash);
-    when(refreshTokenRepository.findByTokenHash(tokenHash)).thenReturn(Optional.of(existing));
+    when(refreshTokenRepository.findWithUserByTokenHash(tokenHash)).thenReturn(
+        Optional.of(existing));
 
     // Act
     service.revoke(rawToken);
 
     // Assert
     verify(tokenHashing).sha256Hex(rawToken);
-    verify(refreshTokenRepository).findByTokenHash(tokenHash);
+    verify(refreshTokenRepository).findWithUserByTokenHash(tokenHash);
     verify(refreshTokenRepository).delete(existing);
     verifyNoMoreInteractions(refreshTokenGenerator, tokenHashing, refreshTokenRepository,
         jwtService);
@@ -233,14 +236,14 @@ class RefreshTokenServiceTest {
     var tokenHash = "hash";
 
     when(tokenHashing.sha256Hex(anyString())).thenReturn(tokenHash);
-    when(refreshTokenRepository.findByTokenHash(tokenHash)).thenReturn(Optional.empty());
+    when(refreshTokenRepository.findWithUserByTokenHash(tokenHash)).thenReturn(Optional.empty());
 
     // Act
     service.revoke(rawToken);
 
     // Assert
     verify(tokenHashing).sha256Hex(rawToken);
-    verify(refreshTokenRepository).findByTokenHash(tokenHash);
+    verify(refreshTokenRepository).findWithUserByTokenHash(tokenHash);
     verifyNoMoreInteractions(refreshTokenGenerator, tokenHashing, refreshTokenRepository,
         jwtService);
   }

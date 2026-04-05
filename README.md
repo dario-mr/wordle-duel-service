@@ -142,6 +142,10 @@ Room events are published to: `/topic/rooms/{roomId}`
 - Build JAR: `mvn package`
 - Coverage report: `mvn -Pcoverage verify` (HTML report at `target/site/jacoco/index.html`)
 
+## Native image
+
+See: [docs/native-image.md](docs/native-image.md)
+
 ## Docker
 
 Build:
