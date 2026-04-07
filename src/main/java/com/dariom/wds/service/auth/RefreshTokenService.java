@@ -45,11 +45,11 @@ public class RefreshTokenService {
     var now = Instant.now(clock);
     var hashedToken = tokenHashing.sha256Hex(rawToken);
     var existingToken = refreshTokenRepository.findWithUserByTokenHash(hashedToken)
-        .orElseThrow(InvalidRefreshTokenException::new);
+        .orElseThrow(() -> new InvalidRefreshTokenException("Refresh token not found in DB"));
 
     if (!existingToken.getExpiresAt().isAfter(now)) {
       refreshTokenRepository.delete(existingToken);
-      throw new InvalidRefreshTokenException();
+      throw new InvalidRefreshTokenException("Refresh token expired");
     }
 
     var user = existingToken.getUser();

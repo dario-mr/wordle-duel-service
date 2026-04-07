@@ -2,7 +2,7 @@
 
 Backend service for the Wordle Duel game.
 
-Built with Spring Boot (Java 21) and provides:
+Built with Spring Boot (Java 25) and provides:
 
 - REST API for room lifecycle and guesses
 - WebSocket (STOMP) events for live room updates
@@ -12,7 +12,7 @@ Built with Spring Boot (Java 21) and provides:
 
 ## Requirements
 
-- Java 21
+- Java 25
 - Maven 3.9+
 - Docker (optional, to run via container)
 

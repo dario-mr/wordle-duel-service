@@ -84,7 +84,8 @@ class AuthServiceTest {
 
     when(refreshTokenCookieService.readRefreshToken(any(HttpServletRequest.class))).thenReturn(
         of(rawToken));
-    when(refreshTokenService.refresh(anyString())).thenThrow(new InvalidRefreshTokenException());
+    when(refreshTokenService.refresh(anyString()))
+        .thenThrow(new InvalidRefreshTokenException("Invalid refresh token"));
 
     // Act
     var thrown = catchThrowable(() -> service.refreshToken(request, response));

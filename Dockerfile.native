@@ -1,4 +1,4 @@
-FROM container-registry.oracle.com/graalvm/native-image:21 AS build
+FROM container-registry.oracle.com/graalvm/native-image:25.0.2-ol9-20260120 AS build
 RUN microdnf install -y maven findutils && microdnf clean all
 WORKDIR /app
 COPY . .
