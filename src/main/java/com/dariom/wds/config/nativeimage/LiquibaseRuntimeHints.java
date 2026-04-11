@@ -16,7 +16,10 @@ import liquibase.change.core.AddUniqueConstraintChange;
 import liquibase.change.core.CreateIndexChange;
 import liquibase.change.core.CreateTableChange;
 import liquibase.change.core.DropColumnChange;
+import liquibase.change.core.DropForeignKeyConstraintChange;
+import liquibase.change.core.DropIndexChange;
 import liquibase.change.core.DropTableChange;
+import liquibase.change.core.InsertDataChange;
 import liquibase.change.core.RawSQLChange;
 import liquibase.change.visitor.ChangeVisitorFactory;
 import liquibase.changelog.ChangeLogHistoryServiceFactory;
@@ -111,7 +114,10 @@ public class LiquibaseRuntimeHints implements RuntimeHintsRegistrar {
       CreateTableChange.class,
       AddColumnChange.class,
       DropColumnChange.class,
+      DropForeignKeyConstraintChange.class,
+      DropIndexChange.class,
       DropTableChange.class,
+      InsertDataChange.class,
       AddForeignKeyConstraintChange.class,
       AddPrimaryKeyChange.class,
       AddUniqueConstraintChange.class,

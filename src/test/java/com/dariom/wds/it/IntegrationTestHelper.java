@@ -1,5 +1,7 @@
 package com.dariom.wds.it;
 
+import static com.dariom.wds.config.CacheConfig.DISPLAY_NAME_CACHE;
+import static com.dariom.wds.config.CacheConfig.USER_PROFILE_CACHE;
 import static com.dariom.wds.domain.Role.ADMIN;
 import static com.dariom.wds.domain.Role.USER;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -20,6 +22,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.CacheManager;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 import org.springframework.test.web.servlet.MockMvc;
@@ -40,6 +43,7 @@ class IntegrationTestHelper {
   private final JwtService jwtService;
   private final AppUserJpaRepository appUserJpaRepository;
   private final RoleJpaRepository roleJpaRepository;
+  private final CacheManager cacheManager;
 
   String userBearer() {
     return bearer(USER);
@@ -66,7 +70,9 @@ class IntegrationTestHelper {
     user.addRole(role);
     user.setDisplayName(fullName);
 
-    return appUserJpaRepository.save(user);
+    var savedUser = appUserJpaRepository.save(user);
+    evictUserCaches(userId);
+    return savedUser;
   }
 
   ResultActions createRoom(String bearer, Object body) throws Exception {
@@ -137,5 +143,17 @@ class IntegrationTestHelper {
     user.addRole(new RoleEntity(role.name()));
 
     return "Bearer " + jwtService.createAccessToken(user).token();
+  }
+
+  private void evictUserCaches(String userId) {
+    evictCache(DISPLAY_NAME_CACHE, userId);
+    evictCache(USER_PROFILE_CACHE, userId);
+  }
+
+  private void evictCache(String cacheName, String key) {
+    var cache = cacheManager.getCache(cacheName);
+    if (cache != null) {
+      cache.evict(key);
+    }
   }
 }
