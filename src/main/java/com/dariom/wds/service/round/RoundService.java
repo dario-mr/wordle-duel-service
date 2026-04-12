@@ -18,6 +18,7 @@ import com.dariom.wds.metrics.HotPathHibernateMetrics;
 import com.dariom.wds.metrics.HotPathMetrics;
 import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.repository.RoomRepository;
+import com.dariom.wds.persistence.repository.RoundReadRepository;
 import com.dariom.wds.persistence.repository.RoundRepository;
 import com.dariom.wds.service.DomainMapper;
 import com.dariom.wds.service.user.UserProfileService;
@@ -28,7 +29,6 @@ import jakarta.persistence.LockTimeoutException;
 import jakarta.persistence.PessimisticLockException;
 import java.time.Clock;
 import java.time.Instant;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -44,6 +44,7 @@ public class RoundService {
 
   private final RoomLockProperties lockProperties;
   private final RoomRepository roomRepository;
+  private final RoundReadRepository roundReadRepository;
   private final RoundRepository roundRepository;
   private final DomainMapper domainMapper;
   private final RoundLifecycleService roundLifecycleService;
@@ -62,11 +63,8 @@ public class RoundService {
       }
 
       return hotPathMetrics.record("round.get_current_round", "load_round", () ->
-          hotPathHibernateMetrics.record("round.get_current_round", "load_round", () ->
-              roundRepository.findWithDetailsByRoomIdAndRoundNumber(roomId, currentRoundNumber)
-          )
-      ).map(roundEntity -> hotPathMetrics.record("round.get_current_round", "map_round",
-          () -> domainMapper.toRound(roundEntity)));
+          roundReadRepository.findByRoomIdAndRoundNumber(roomId, currentRoundNumber)
+      );
     });
   }
 
@@ -77,16 +75,8 @@ public class RoundService {
         return Map.of();
       }
 
-      var roundPerRoomId = new HashMap<String, Round>();
-      var currentRounds = hotPathMetrics.record("round.get_current_rounds", "load_rounds",
-          () -> roundRepository.findCurrentRoundsWithDetailsByRoomIds(roomIds));
-      for (var roundEntity : currentRounds) {
-        var round = hotPathMetrics.record("round.get_current_rounds", "map_round",
-            () -> domainMapper.toRound(roundEntity));
-        roundPerRoomId.put(roundEntity.getRoom().getId(), round);
-      }
-
-      return roundPerRoomId;
+      return hotPathMetrics.record("round.get_current_rounds", "load_rounds",
+          () -> roundReadRepository.findCurrentByRoomIds(roomIds));
     });
   }
 
@@ -156,10 +146,10 @@ public class RoundService {
     }
 
     var roundEntity = hotPathMetrics.record("round.handle_ready", "load_round", () ->
-        hotPathHibernateMetrics.record("round.handle_ready", "load_round", () ->
-            roundRepository.findWithDetailsByRoomIdAndRoundNumber(roomId, currentRoundNumber)
+            hotPathHibernateMetrics.record("round.handle_ready", "load_round", () ->
+                roundRepository.findWithDetailsByRoomIdAndRoundNumber(roomId, currentRoundNumber)
+            )
         )
-    )
         .orElseThrow(() -> new RoundException(
             ROUND_NOT_CURRENT, "Round <%s> is not the current round".formatted(roundNumber)));
 

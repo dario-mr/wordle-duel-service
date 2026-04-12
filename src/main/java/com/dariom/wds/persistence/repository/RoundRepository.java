@@ -2,7 +2,6 @@ package com.dariom.wds.persistence.repository;
 
 import com.dariom.wds.persistence.entity.RoundEntity;
 import com.dariom.wds.persistence.repository.jpa.RoundJpaRepository;
-import java.util.List;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
@@ -16,9 +15,5 @@ public class RoundRepository {
   public Optional<RoundEntity> findWithDetailsByRoomIdAndRoundNumber(
       String roomId, int roundNumber) {
     return roundJpaRepository.findWithDetailsByRoomIdAndRoundNumber(roomId, roundNumber);
-  }
-
-  public List<RoundEntity> findCurrentRoundsWithDetailsByRoomIds(List<String> roomIds) {
-    return roundJpaRepository.findCurrentRoundsWithDetailsByRoomIds(roomIds);
   }
 }

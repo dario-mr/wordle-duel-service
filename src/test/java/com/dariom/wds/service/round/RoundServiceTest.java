@@ -31,6 +31,7 @@ import com.dariom.wds.metrics.HotPathHibernateMetrics;
 import com.dariom.wds.metrics.HotPathMetrics;
 import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.entity.RoundEntity;
+import com.dariom.wds.persistence.repository.RoundReadRepository;
 import com.dariom.wds.persistence.repository.RoomRepository;
 import com.dariom.wds.persistence.repository.RoundRepository;
 import com.dariom.wds.service.DomainMapper;
@@ -66,6 +67,8 @@ class RoundServiceTest {
   @Mock
   private RoomRepository roomRepository;
   @Mock
+  private RoundReadRepository roundReadRepository;
+  @Mock
   private RoundRepository roundRepository;
   @Mock
   private RoundLifecycleService roundLifecycleService;
@@ -92,6 +95,7 @@ class RoundServiceTest {
     service = new RoundService(
         lockProperties,
         roomRepository,
+        roundReadRepository,
         roundRepository,
         domainMapper,
         roundLifecycleService,
@@ -112,29 +116,26 @@ class RoundServiceTest {
     // Assert
     assertThat(result).isEmpty();
     assertThat(timerCount("round.get_current_round", "total", "success")).isEqualTo(1);
-    verify(roundRepository, never()).findWithDetailsByRoomIdAndRoundNumber(anyString(),
+    verify(roundReadRepository, never()).findByRoomIdAndRoundNumber(anyString(),
         anyInt());
   }
 
   @Test
-  void getCurrentRound_roundExists_recordsLoadAndMapTimers() {
+  void getCurrentRound_roundExists_recordsLoadTimer() {
     // Arrange
-    var room = inProgressRoom(ROOM_ID, 1, PLAYER_1, PLAYER_2);
-    var roundEntity = round(1, PLAYING);
-    roundEntity.setRoom(room);
-    when(hotPathHibernateMetrics.record(anyString(), anyString(), any()))
-        .thenAnswer(invocation -> invocation.<HotPathMetrics.ThrowingSupplier<?>>getArgument(2).get());
-    when(roundRepository.findWithDetailsByRoomIdAndRoundNumber(ROOM_ID, 1))
-        .thenReturn(Optional.of(roundEntity));
+    var round = domainMapper.toRound(round(1, PLAYING, Map.of(
+        PLAYER_1, RoundPlayerStatus.PLAYING,
+        PLAYER_2, RoundPlayerStatus.PLAYING
+    )));
+    when(roundReadRepository.findByRoomIdAndRoundNumber(ROOM_ID, 1)).thenReturn(Optional.of(round));
 
     // Act
     var result = service.getCurrentRound(ROOM_ID, 1);
 
     // Assert
-    assertThat(result).isPresent();
+    assertThat(result).containsSame(round);
     assertThat(timerCount("round.get_current_round", "total", "success")).isEqualTo(1);
     assertThat(timerCount("round.get_current_round", "load_round", "success")).isEqualTo(1);
-    assertThat(timerCount("round.get_current_round", "map_round", "success")).isEqualTo(1);
   }
 
   @Test
@@ -144,7 +145,7 @@ class RoundServiceTest {
 
     // Assert
     assertThat(result).isEmpty();
-    verifyNoInteractions(roundRepository);
+    verifyNoInteractions(roundReadRepository);
   }
 
   @Test
@@ -159,8 +160,11 @@ class RoundServiceTest {
     var round2 = round(2, ENDED);
     round2.setRoom(room2);
 
-    when(roundRepository.findCurrentRoundsWithDetailsByRoomIds(List.of("room-1", "room-2")))
-        .thenReturn(List.of(round1, round2));
+    when(roundReadRepository.findCurrentByRoomIds(List.of("room-1", "room-2")))
+        .thenReturn(Map.of(
+            "room-1", domainMapper.toRound(round1),
+            "room-2", domainMapper.toRound(round2)
+        ));
 
     // Act
     var result = service.getCurrentRoundsByRoomIds(List.of("room-1", "room-2"));
@@ -171,9 +175,8 @@ class RoundServiceTest {
     assertThat(result.get("room-2")).isEqualTo(domainMapper.toRound(round2));
     assertThat(timerCount("round.get_current_rounds", "total", "success")).isEqualTo(1);
     assertThat(timerCount("round.get_current_rounds", "load_rounds", "success")).isEqualTo(1);
-    assertThat(timerCount("round.get_current_rounds", "map_round", "success")).isEqualTo(2);
 
-    verify(roundRepository).findCurrentRoundsWithDetailsByRoomIds(List.of("room-1", "room-2"));
+    verify(roundReadRepository).findCurrentByRoomIds(List.of("room-1", "room-2"));
   }
 
   @Test

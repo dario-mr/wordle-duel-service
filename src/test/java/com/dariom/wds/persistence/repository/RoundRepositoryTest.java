@@ -6,7 +6,6 @@ import static org.mockito.Mockito.when;
 
 import com.dariom.wds.persistence.entity.RoundEntity;
 import com.dariom.wds.persistence.repository.jpa.RoundJpaRepository;
-import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -36,22 +35,5 @@ class RoundRepositoryTest {
     // Assert
     assertThat(found).containsSame(round);
     verify(roundJpaRepository).findWithDetailsByRoomIdAndRoundNumber("room-1", 2);
-  }
-
-  @Test
-  void findCurrentRoundsWithDetailsByRoomIds_roomIdsProvided_delegatesToJpaRepository() {
-    // Arrange
-    var round1 = new RoundEntity();
-    var round2 = new RoundEntity();
-    var roomIds = List.of("room-1", "room-2");
-    when(roundJpaRepository.findCurrentRoundsWithDetailsByRoomIds(roomIds))
-        .thenReturn(List.of(round1, round2));
-
-    // Act
-    var found = roundRepository.findCurrentRoundsWithDetailsByRoomIds(roomIds);
-
-    // Assert
-    assertThat(found).containsExactly(round1, round2);
-    verify(roundJpaRepository).findCurrentRoundsWithDetailsByRoomIds(roomIds);
   }
 }

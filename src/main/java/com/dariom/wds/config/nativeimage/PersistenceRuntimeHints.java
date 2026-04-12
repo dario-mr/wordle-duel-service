@@ -1,9 +1,13 @@
 package com.dariom.wds.config.nativeimage;
 
+import static org.springframework.aot.hint.MemberCategory.DECLARED_FIELDS;
 import static org.springframework.aot.hint.MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS;
 import static org.springframework.aot.hint.MemberCategory.INVOKE_PUBLIC_METHODS;
 
 import com.dariom.wds.persistence.entity.RoomPlayerIdEmbeddable;
+import com.dariom.wds.persistence.repository.jpa.projection.GuessLetterView;
+import com.dariom.wds.persistence.repository.jpa.projection.RoundHeaderView;
+import com.dariom.wds.persistence.repository.jpa.projection.RoundStatusView;
 import java.util.List;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.RuntimeHintsRegistrar;
@@ -42,10 +46,20 @@ public class PersistenceRuntimeHints implements RuntimeHintsRegistrar {
     hints.reflection().registerType(RoomPlayerIdEmbeddable.class,
         INVOKE_PUBLIC_CONSTRUCTORS,
         INVOKE_PUBLIC_METHODS);
+    registerRecord(hints, RoundHeaderView.class);
+    registerRecord(hints, RoundStatusView.class);
+    registerRecord(hints, GuessLetterView.class);
 
     for (var type : HIBERNATE_LOGGER_IMPLEMENTATIONS) {
       hints.reflection().registerType(type, INVOKE_PUBLIC_CONSTRUCTORS);
     }
+  }
+
+  private static void registerRecord(RuntimeHints hints, Class<?> type) {
+    hints.reflection().registerType(type,
+        INVOKE_PUBLIC_CONSTRUCTORS,
+        INVOKE_PUBLIC_METHODS,
+        DECLARED_FIELDS);
   }
 
 }
