@@ -24,6 +24,7 @@ import com.dariom.wds.domain.RoundStatus;
 import com.dariom.wds.exception.DictionaryEmptyException;
 import com.dariom.wds.exception.InvalidGuessException;
 import com.dariom.wds.exception.RoomNotReadyException;
+import com.dariom.wds.metrics.HotPathHibernateMetrics;
 import com.dariom.wds.metrics.HotPathMetrics;
 import com.dariom.wds.persistence.entity.GuessEntity;
 import com.dariom.wds.persistence.entity.RoomEntity;
@@ -61,6 +62,8 @@ class RoundLifecycleServiceTest {
   private RoundRepository roundRepository;
   @Mock
   private ApplicationEventPublisher eventPublisher;
+  @Mock
+  private HotPathHibernateMetrics hotPathHibernateMetrics;
 
   private final WordleProperties properties = new WordleProperties(6, 5);
   private final Clock clock = Clock.fixed(Instant.parse("2025-01-01T12:00:00Z"), UTC);
@@ -71,7 +74,7 @@ class RoundLifecycleServiceTest {
   @BeforeEach
   void setUp() {
     service = new RoundLifecycleService(dictionaryRepository, roundRepository, properties,
-        eventPublisher, clock, new HotPathMetrics(meterRegistry));
+        eventPublisher, clock, new HotPathMetrics(meterRegistry), hotPathHibernateMetrics);
 
   }
 
@@ -189,6 +192,8 @@ class RoundLifecycleServiceTest {
     var existingRound = new RoundEntity();
     existingRound.setRoundStatus(RoundStatus.PLAYING);
 
+    when(hotPathHibernateMetrics.record(anyString(), anyString(), any()))
+        .thenAnswer(invocation -> invocation.<HotPathMetrics.ThrowingSupplier<?>>getArgument(2).get());
     when(roundRepository.findWithDetailsByRoomIdAndRoundNumber(anyString(), anyInt()))
         .thenReturn(Optional.of(existingRound));
 
@@ -215,6 +220,8 @@ class RoundLifecycleServiceTest {
     var finishedRound = new RoundEntity();
     finishedRound.setRoundStatus(ENDED);
 
+    when(hotPathHibernateMetrics.record(anyString(), anyString(), any()))
+        .thenAnswer(invocation -> invocation.<HotPathMetrics.ThrowingSupplier<?>>getArgument(2).get());
     when(roundRepository.findWithDetailsByRoomIdAndRoundNumber(anyString(), anyInt()))
         .thenReturn(Optional.of(finishedRound));
 

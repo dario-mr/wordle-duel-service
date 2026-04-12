@@ -14,7 +14,7 @@ spring:
     properties:
       hibernate:
         default_schema: wordle
-        generate_statistics: ${HIBERNATE_GENERATE_STATISTICS:false}
+        generate_statistics: true
   data:
     redis.repositories.enabled: false
   security:

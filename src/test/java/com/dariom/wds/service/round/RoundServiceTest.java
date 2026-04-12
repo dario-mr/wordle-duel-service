@@ -27,6 +27,7 @@ import com.dariom.wds.domain.RoundStatus;
 import com.dariom.wds.exception.PlayerNotInRoomException;
 import com.dariom.wds.exception.RoomLockedException;
 import com.dariom.wds.exception.RoundException;
+import com.dariom.wds.metrics.HotPathHibernateMetrics;
 import com.dariom.wds.metrics.HotPathMetrics;
 import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.entity.RoundEntity;
@@ -74,6 +75,8 @@ class RoundServiceTest {
   private ApplicationEventPublisher eventPublisher;
   @Mock
   private UserProfileService userProfileService;
+  @Mock
+  private HotPathHibernateMetrics hotPathHibernateMetrics;
 
   private final RoomLockProperties lockProperties = new RoomLockProperties(
       Duration.ofSeconds(3)
@@ -96,7 +99,8 @@ class RoundServiceTest {
         eventPublisher,
         userProfileService,
         clock,
-        new HotPathMetrics(meterRegistry)
+        new HotPathMetrics(meterRegistry),
+        hotPathHibernateMetrics
     );
   }
 
@@ -118,6 +122,8 @@ class RoundServiceTest {
     var room = inProgressRoom(ROOM_ID, 1, PLAYER_1, PLAYER_2);
     var roundEntity = round(1, PLAYING);
     roundEntity.setRoom(room);
+    when(hotPathHibernateMetrics.record(anyString(), anyString(), any()))
+        .thenAnswer(invocation -> invocation.<HotPathMetrics.ThrowingSupplier<?>>getArgument(2).get());
     when(roundRepository.findWithDetailsByRoomIdAndRoundNumber(ROOM_ID, 1))
         .thenReturn(Optional.of(roundEntity));
 
@@ -327,6 +333,8 @@ class RoundServiceTest {
     var roundEntity = round(1, PLAYING, Map.of(PLAYER_1, WON));
 
     when(roomRepository.findWithPlayersByIdForUpdate(anyString(), any())).thenReturn(roomEntity);
+    when(hotPathHibernateMetrics.record(anyString(), anyString(), any()))
+        .thenAnswer(invocation -> invocation.<HotPathMetrics.ThrowingSupplier<?>>getArgument(2).get());
     when(roundRepository.findWithDetailsByRoomIdAndRoundNumber(ROOM_ID, 1))
         .thenReturn(Optional.of(roundEntity));
 
@@ -356,6 +364,8 @@ class RoundServiceTest {
 
     when(roomRepository.save(any())).thenReturn(roomEntity);
     when(roomRepository.findWithPlayersByIdForUpdate(anyString(), any())).thenReturn(roomEntity);
+    when(hotPathHibernateMetrics.record(anyString(), anyString(), any()))
+        .thenAnswer(invocation -> invocation.<HotPathMetrics.ThrowingSupplier<?>>getArgument(2).get());
     when(roundRepository.findWithDetailsByRoomIdAndRoundNumber(ROOM_ID, 1))
         .thenReturn(Optional.of(roundEntity));
     when(userProfileService.getDisplayNamePerPlayer(any())).thenReturn(displayNamePerPlayer);
@@ -395,6 +405,8 @@ class RoundServiceTest {
 
     when(roomRepository.save(any())).thenReturn(roomEntity);
     when(roomRepository.findWithPlayersByIdForUpdate(anyString(), any())).thenReturn(roomEntity);
+    when(hotPathHibernateMetrics.record(anyString(), anyString(), any()))
+        .thenAnswer(invocation -> invocation.<HotPathMetrics.ThrowingSupplier<?>>getArgument(2).get());
     when(roundRepository.findWithDetailsByRoomIdAndRoundNumber(ROOM_ID, 1))
         .thenReturn(Optional.of(roundEntity));
     when(roundLifecycleService.startNewRoundEntity(roomEntity)).thenReturn(newRoundEntity);

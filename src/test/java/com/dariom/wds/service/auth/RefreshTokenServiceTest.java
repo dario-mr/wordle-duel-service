@@ -13,6 +13,7 @@ import static org.mockito.Mockito.when;
 import com.dariom.wds.config.security.SecurityProperties;
 import com.dariom.wds.domain.AccessToken;
 import com.dariom.wds.exception.InvalidRefreshTokenException;
+import com.dariom.wds.metrics.HotPathHibernateMetrics;
 import com.dariom.wds.metrics.HotPathMetrics;
 import com.dariom.wds.persistence.entity.AppUserEntity;
 import com.dariom.wds.persistence.entity.RefreshTokenEntity;
@@ -45,6 +46,8 @@ class RefreshTokenServiceTest {
   private RefreshTokenJpaRepository refreshTokenRepository;
   @Mock
   private JwtService jwtService;
+  @Mock
+  private HotPathHibernateMetrics hotPathHibernateMetrics;
 
   private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
   private RefreshTokenService service;
@@ -63,7 +66,8 @@ class RefreshTokenServiceTest {
         refreshTokenRepository,
         jwtService,
         clock,
-        new HotPathMetrics(meterRegistry)
+        new HotPathMetrics(meterRegistry),
+        hotPathHibernateMetrics
     );
   }
 
@@ -119,6 +123,8 @@ class RefreshTokenServiceTest {
     );
 
     when(tokenHashing.sha256Hex(anyString())).thenReturn(existingHash, newHash);
+    when(hotPathHibernateMetrics.record(anyString(), anyString(), any()))
+        .thenAnswer(invocation -> invocation.<HotPathMetrics.ThrowingSupplier<?>>getArgument(2).get());
     when(refreshTokenRepository.findWithUserByTokenHash(existingHash)).thenReturn(
         Optional.of(existing));
     when(refreshTokenGenerator.generate()).thenReturn(newRawToken);
@@ -176,6 +182,8 @@ class RefreshTokenServiceTest {
     );
 
     when(tokenHashing.sha256Hex(anyString())).thenReturn(existingHash);
+    when(hotPathHibernateMetrics.record(anyString(), anyString(), any()))
+        .thenAnswer(invocation -> invocation.<HotPathMetrics.ThrowingSupplier<?>>getArgument(2).get());
     when(refreshTokenRepository.findWithUserByTokenHash(existingHash)).thenReturn(
         Optional.of(existing));
 
@@ -202,6 +210,8 @@ class RefreshTokenServiceTest {
     var existingHash = "old-hash";
 
     when(tokenHashing.sha256Hex(anyString())).thenReturn(existingHash);
+    when(hotPathHibernateMetrics.record(anyString(), anyString(), any()))
+        .thenAnswer(invocation -> invocation.<HotPathMetrics.ThrowingSupplier<?>>getArgument(2).get());
     when(refreshTokenRepository.findWithUserByTokenHash(existingHash)).thenReturn(Optional.empty());
 
     // Act

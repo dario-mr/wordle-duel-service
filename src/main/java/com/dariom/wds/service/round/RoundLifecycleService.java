@@ -12,6 +12,7 @@ import com.dariom.wds.domain.RoundStatus;
 import com.dariom.wds.exception.DictionaryEmptyException;
 import com.dariom.wds.exception.InvalidGuessException;
 import com.dariom.wds.exception.RoomNotReadyException;
+import com.dariom.wds.metrics.HotPathHibernateMetrics;
 import com.dariom.wds.metrics.HotPathMetrics;
 import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.entity.RoundEntity;
@@ -39,6 +40,7 @@ class RoundLifecycleService {
   private final ApplicationEventPublisher eventPublisher;
   private final Clock clock;
   private final HotPathMetrics hotPathMetrics;
+  private final HotPathHibernateMetrics hotPathHibernateMetrics;
 
   public RoundEntity ensureActiveRound(RoomEntity room) {
     if (room.getCurrentRoundNumber() == null) {
@@ -46,9 +48,11 @@ class RoundLifecycleService {
     }
 
     var round = hotPathMetrics.record("round.ensure_active_round", "load_round", () ->
+        hotPathHibernateMetrics.record("round.ensure_active_round", "load_round", () ->
             roundRepository.findWithDetailsByRoomIdAndRoundNumber(
                 room.getId(), room.getCurrentRoundNumber())
         )
+    )
         .orElseGet(() -> startNewRoundEntity(room));
 
     if (round.getRoundStatus() == ENDED) {

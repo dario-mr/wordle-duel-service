@@ -4,6 +4,7 @@ import static java.time.temporal.ChronoUnit.DAYS;
 
 import com.dariom.wds.config.security.SecurityProperties;
 import com.dariom.wds.domain.RefreshResult;
+import com.dariom.wds.metrics.HotPathHibernateMetrics;
 import com.dariom.wds.exception.InvalidRefreshTokenException;
 import com.dariom.wds.metrics.HotPathMetrics;
 import com.dariom.wds.persistence.entity.AppUserEntity;
@@ -27,6 +28,7 @@ public class RefreshTokenService {
   private final JwtService jwtService;
   private final Clock clock;
   private final HotPathMetrics hotPathMetrics;
+  private final HotPathHibernateMetrics hotPathHibernateMetrics;
 
   @Transactional
   public String createRefreshToken(AppUserEntity user) {
@@ -48,7 +50,9 @@ public class RefreshTokenService {
       var now = Instant.now(clock);
       var hashedToken = tokenHashing.sha256Hex(rawToken);
       var existingToken = hotPathMetrics.record("refresh_token.refresh", "load_token", () ->
-          refreshTokenRepository.findWithUserByTokenHash(hashedToken)
+          hotPathHibernateMetrics.record("refresh_token.refresh", "load_token", () ->
+              refreshTokenRepository.findWithUserByTokenHash(hashedToken)
+          )
               .orElseThrow(() -> new InvalidRefreshTokenException("Refresh token not found in DB"))
       );
 

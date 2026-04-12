@@ -14,6 +14,7 @@ import com.dariom.wds.domain.Round;
 import com.dariom.wds.domain.RoundPlayerStatus;
 import com.dariom.wds.exception.RoomLockedException;
 import com.dariom.wds.exception.RoundException;
+import com.dariom.wds.metrics.HotPathHibernateMetrics;
 import com.dariom.wds.metrics.HotPathMetrics;
 import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.repository.RoomRepository;
@@ -51,6 +52,7 @@ public class RoundService {
   private final UserProfileService userProfileService;
   private final Clock clock;
   private final HotPathMetrics hotPathMetrics;
+  private final HotPathHibernateMetrics hotPathHibernateMetrics;
 
   @Transactional(readOnly = true)
   public Optional<Round> getCurrentRound(String roomId, Integer currentRoundNumber) {
@@ -60,7 +62,9 @@ public class RoundService {
       }
 
       return hotPathMetrics.record("round.get_current_round", "load_round", () ->
-          roundRepository.findWithDetailsByRoomIdAndRoundNumber(roomId, currentRoundNumber)
+          hotPathHibernateMetrics.record("round.get_current_round", "load_round", () ->
+              roundRepository.findWithDetailsByRoomIdAndRoundNumber(roomId, currentRoundNumber)
+          )
       ).map(roundEntity -> hotPathMetrics.record("round.get_current_round", "map_round",
           () -> domainMapper.toRound(roundEntity)));
     });
@@ -152,8 +156,10 @@ public class RoundService {
     }
 
     var roundEntity = hotPathMetrics.record("round.handle_ready", "load_round", () ->
+        hotPathHibernateMetrics.record("round.handle_ready", "load_round", () ->
             roundRepository.findWithDetailsByRoomIdAndRoundNumber(roomId, currentRoundNumber)
         )
+    )
         .orElseThrow(() -> new RoundException(
             ROUND_NOT_CURRENT, "Round <%s> is not the current round".formatted(roundNumber)));
 
