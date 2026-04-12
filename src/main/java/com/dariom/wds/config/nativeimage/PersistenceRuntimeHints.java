@@ -1,9 +1,11 @@
 package com.dariom.wds.config.nativeimage;
 
+import static org.springframework.aot.hint.MemberCategory.DECLARED_FIELDS;
 import static org.springframework.aot.hint.MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS;
 import static org.springframework.aot.hint.MemberCategory.INVOKE_PUBLIC_METHODS;
 
 import com.dariom.wds.persistence.entity.RoomPlayerIdEmbeddable;
+import com.dariom.wds.persistence.repository.jpa.projection.RoundFlatRowView;
 import java.util.List;
 import org.springframework.aot.hint.RuntimeHints;
 import org.springframework.aot.hint.RuntimeHintsRegistrar;
@@ -13,7 +15,8 @@ public class PersistenceRuntimeHints implements RuntimeHintsRegistrar {
 
   private static final List<TypeReference> HIBERNATE_LOGGER_IMPLEMENTATIONS = List.of(
       TypeReference.of("org.hibernate.boot.jaxb.JaxbLogger_$logger"),
-      TypeReference.of("org.hibernate.bytecode.enhance.spi.interceptor.BytecodeInterceptorLogging_$logger"),
+      TypeReference.of(
+          "org.hibernate.bytecode.enhance.spi.interceptor.BytecodeInterceptorLogging_$logger"),
       TypeReference.of("org.hibernate.cache.spi.SecondLevelCacheLogger_$logger"),
       TypeReference.of("org.hibernate.dialect.DialectLogging_$logger"),
       TypeReference.of("org.hibernate.engine.jdbc.JdbcLogging_$logger"),
@@ -42,10 +45,18 @@ public class PersistenceRuntimeHints implements RuntimeHintsRegistrar {
     hints.reflection().registerType(RoomPlayerIdEmbeddable.class,
         INVOKE_PUBLIC_CONSTRUCTORS,
         INVOKE_PUBLIC_METHODS);
+    registerRecord(hints, RoundFlatRowView.class);
 
     for (var type : HIBERNATE_LOGGER_IMPLEMENTATIONS) {
       hints.reflection().registerType(type, INVOKE_PUBLIC_CONSTRUCTORS);
     }
+  }
+
+  private static void registerRecord(RuntimeHints hints, Class<?> type) {
+    hints.reflection().registerType(type,
+        INVOKE_PUBLIC_CONSTRUCTORS,
+        INVOKE_PUBLIC_METHODS,
+        DECLARED_FIELDS);
   }
 
 }

@@ -13,9 +13,12 @@ import static org.mockito.Mockito.when;
 import com.dariom.wds.config.security.SecurityProperties;
 import com.dariom.wds.domain.AccessToken;
 import com.dariom.wds.exception.InvalidRefreshTokenException;
+import com.dariom.wds.metrics.HotPathHibernateMetrics;
+import com.dariom.wds.metrics.HotPathMetrics;
 import com.dariom.wds.persistence.entity.AppUserEntity;
 import com.dariom.wds.persistence.entity.RefreshTokenEntity;
 import com.dariom.wds.persistence.repository.jpa.RefreshTokenJpaRepository;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.Optional;
@@ -43,7 +46,10 @@ class RefreshTokenServiceTest {
   private RefreshTokenJpaRepository refreshTokenRepository;
   @Mock
   private JwtService jwtService;
+  @Mock
+  private HotPathHibernateMetrics hotPathHibernateMetrics;
 
+  private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
   private RefreshTokenService service;
 
   @BeforeEach
@@ -59,7 +65,9 @@ class RefreshTokenServiceTest {
         tokenHashing,
         refreshTokenRepository,
         jwtService,
-        clock
+        clock,
+        new HotPathMetrics(meterRegistry),
+        hotPathHibernateMetrics
     );
   }
 
@@ -115,6 +123,8 @@ class RefreshTokenServiceTest {
     );
 
     when(tokenHashing.sha256Hex(anyString())).thenReturn(existingHash, newHash);
+    when(hotPathHibernateMetrics.record(anyString(), anyString(), any()))
+        .thenAnswer(invocation -> invocation.<HotPathMetrics.ThrowingSupplier<?>>getArgument(2).get());
     when(refreshTokenRepository.findWithUserByTokenHash(existingHash)).thenReturn(
         Optional.of(existing));
     when(refreshTokenGenerator.generate()).thenReturn(newRawToken);
@@ -144,6 +154,14 @@ class RefreshTokenServiceTest {
     assertThat(saved.getCreatedAt()).isEqualTo(NOW);
 
     verify(jwtService).createAccessToken(user);
+    assertThat(timerCount("refresh_token.refresh", "total", "success")).isEqualTo(1);
+    assertThat(timerCount("refresh_token.refresh", "load_token", "success")).isEqualTo(1);
+    assertThat(timerCount("refresh_token.refresh", "delete_existing_token", "success"))
+        .isEqualTo(1);
+    assertThat(timerCount("refresh_token.refresh", "create_refresh_token", "success"))
+        .isEqualTo(1);
+    assertThat(timerCount("refresh_token.refresh", "create_access_token", "success"))
+        .isEqualTo(1);
     verifyNoMoreInteractions(refreshTokenGenerator, tokenHashing, refreshTokenRepository,
         jwtService);
   }
@@ -164,6 +182,8 @@ class RefreshTokenServiceTest {
     );
 
     when(tokenHashing.sha256Hex(anyString())).thenReturn(existingHash);
+    when(hotPathHibernateMetrics.record(anyString(), anyString(), any()))
+        .thenAnswer(invocation -> invocation.<HotPathMetrics.ThrowingSupplier<?>>getArgument(2).get());
     when(refreshTokenRepository.findWithUserByTokenHash(existingHash)).thenReturn(
         Optional.of(existing));
 
@@ -176,6 +196,9 @@ class RefreshTokenServiceTest {
     verify(tokenHashing).sha256Hex(inputRawToken);
     verify(refreshTokenRepository).findWithUserByTokenHash(existingHash);
     verify(refreshTokenRepository).delete(existing);
+    assertThat(timerCount("refresh_token.refresh", "delete_expired_token", "success"))
+        .isEqualTo(1);
+    assertThat(timerCount("refresh_token.refresh", "total", "error")).isEqualTo(1);
     verifyNoMoreInteractions(refreshTokenGenerator, tokenHashing, refreshTokenRepository,
         jwtService);
   }
@@ -187,6 +210,8 @@ class RefreshTokenServiceTest {
     var existingHash = "old-hash";
 
     when(tokenHashing.sha256Hex(anyString())).thenReturn(existingHash);
+    when(hotPathHibernateMetrics.record(anyString(), anyString(), any()))
+        .thenAnswer(invocation -> invocation.<HotPathMetrics.ThrowingSupplier<?>>getArgument(2).get());
     when(refreshTokenRepository.findWithUserByTokenHash(existingHash)).thenReturn(Optional.empty());
 
     // Act
@@ -197,6 +222,8 @@ class RefreshTokenServiceTest {
 
     verify(tokenHashing).sha256Hex(inputRawToken);
     verify(refreshTokenRepository).findWithUserByTokenHash(existingHash);
+    assertThat(timerCount("refresh_token.refresh", "load_token", "error")).isEqualTo(1);
+    assertThat(timerCount("refresh_token.refresh", "total", "error")).isEqualTo(1);
     verifyNoMoreInteractions(refreshTokenGenerator, tokenHashing, refreshTokenRepository,
         jwtService);
   }
@@ -266,5 +293,12 @@ class RefreshTokenServiceTest {
   private static AppUserEntity userEntity() {
     return new AppUserEntity(UUID.randomUUID(), "user@test.com", "google-sub-1", "User Test",
         "pictureUrl");
+  }
+
+  private long timerCount(String operation, String step, String outcome) {
+    var timer = meterRegistry.find("wordle.hotpath.duration")
+        .tags("operation", operation, "step", step, "outcome", outcome)
+        .timer();
+    return timer == null ? 0 : timer.count();
   }
 }

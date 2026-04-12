@@ -4,7 +4,9 @@ import static java.time.temporal.ChronoUnit.DAYS;
 
 import com.dariom.wds.config.security.SecurityProperties;
 import com.dariom.wds.domain.RefreshResult;
+import com.dariom.wds.metrics.HotPathHibernateMetrics;
 import com.dariom.wds.exception.InvalidRefreshTokenException;
+import com.dariom.wds.metrics.HotPathMetrics;
 import com.dariom.wds.persistence.entity.AppUserEntity;
 import com.dariom.wds.persistence.entity.RefreshTokenEntity;
 import com.dariom.wds.persistence.repository.jpa.RefreshTokenJpaRepository;
@@ -25,6 +27,8 @@ public class RefreshTokenService {
   private final RefreshTokenJpaRepository refreshTokenRepository;
   private final JwtService jwtService;
   private final Clock clock;
+  private final HotPathMetrics hotPathMetrics;
+  private final HotPathHibernateMetrics hotPathHibernateMetrics;
 
   @Transactional
   public String createRefreshToken(AppUserEntity user) {
@@ -42,24 +46,34 @@ public class RefreshTokenService {
 
   @Transactional(noRollbackFor = InvalidRefreshTokenException.class)
   public RefreshResult refresh(String rawToken) {
-    var now = Instant.now(clock);
-    var hashedToken = tokenHashing.sha256Hex(rawToken);
-    var existingToken = refreshTokenRepository.findWithUserByTokenHash(hashedToken)
-        .orElseThrow(() -> new InvalidRefreshTokenException("Refresh token not found in DB"));
+    return hotPathMetrics.record("refresh_token.refresh", "total", () -> {
+      var now = Instant.now(clock);
+      var hashedToken = tokenHashing.sha256Hex(rawToken);
+      var existingToken = hotPathMetrics.record("refresh_token.refresh", "load_token", () ->
+          hotPathHibernateMetrics.record("refresh_token.refresh", "load_token", () ->
+              refreshTokenRepository.findWithUserByTokenHash(hashedToken)
+          )
+              .orElseThrow(() -> new InvalidRefreshTokenException("Refresh token not found in DB"))
+      );
 
-    if (!existingToken.getExpiresAt().isAfter(now)) {
-      refreshTokenRepository.delete(existingToken);
-      throw new InvalidRefreshTokenException("Refresh token expired");
-    }
+      if (!existingToken.getExpiresAt().isAfter(now)) {
+        hotPathMetrics.record("refresh_token.refresh", "delete_expired_token",
+            () -> refreshTokenRepository.delete(existingToken));
+        throw new InvalidRefreshTokenException("Refresh token expired");
+      }
 
-    var user = existingToken.getUser();
+      var user = existingToken.getUser();
 
-    refreshTokenRepository.delete(existingToken);
+      hotPathMetrics.record("refresh_token.refresh", "delete_existing_token",
+          () -> refreshTokenRepository.delete(existingToken));
 
-    var refreshToken = createRefreshToken(user);
-    var accessToken = jwtService.createAccessToken(user);
+      var refreshToken = hotPathMetrics.record("refresh_token.refresh", "create_refresh_token",
+          () -> createRefreshToken(user));
+      var accessToken = hotPathMetrics.record("refresh_token.refresh", "create_access_token",
+          () -> jwtService.createAccessToken(user));
 
-    return new RefreshResult(refreshToken, accessToken);
+      return new RefreshResult(refreshToken, accessToken);
+    });
   }
 
   @Transactional

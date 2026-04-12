@@ -24,16 +24,19 @@ import com.dariom.wds.domain.RoundStatus;
 import com.dariom.wds.exception.DictionaryEmptyException;
 import com.dariom.wds.exception.InvalidGuessException;
 import com.dariom.wds.exception.RoomNotReadyException;
+import com.dariom.wds.metrics.HotPathHibernateMetrics;
+import com.dariom.wds.metrics.HotPathMetrics;
 import com.dariom.wds.persistence.entity.GuessEntity;
 import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.entity.RoundEntity;
 import com.dariom.wds.persistence.repository.DictionaryRepository;
-import com.dariom.wds.persistence.repository.jpa.RoundJpaRepository;
+import com.dariom.wds.persistence.repository.RoundRepository;
 import com.dariom.wds.websocket.model.EventType;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
 import com.dariom.wds.websocket.model.RoundFinishedPayload;
 import com.dariom.wds.websocket.model.RoundStartedPayload;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
@@ -56,19 +59,22 @@ class RoundLifecycleServiceTest {
   @Mock
   private DictionaryRepository dictionaryRepository;
   @Mock
-  private RoundJpaRepository roundJpaRepository;
+  private RoundRepository roundRepository;
   @Mock
   private ApplicationEventPublisher eventPublisher;
+  @Mock
+  private HotPathHibernateMetrics hotPathHibernateMetrics;
 
   private final WordleProperties properties = new WordleProperties(6, 5);
   private final Clock clock = Clock.fixed(Instant.parse("2025-01-01T12:00:00Z"), UTC);
+  private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
 
   private RoundLifecycleService service;
 
   @BeforeEach
   void setUp() {
-    service = new RoundLifecycleService(dictionaryRepository, roundJpaRepository, properties,
-        eventPublisher, clock);
+    service = new RoundLifecycleService(dictionaryRepository, roundRepository, properties,
+        eventPublisher, clock, new HotPathMetrics(meterRegistry), hotPathHibernateMetrics);
 
   }
 
@@ -186,7 +192,9 @@ class RoundLifecycleServiceTest {
     var existingRound = new RoundEntity();
     existingRound.setRoundStatus(RoundStatus.PLAYING);
 
-    when(roundJpaRepository.findWithDetailsByRoomIdAndRoundNumber(anyString(), anyInt()))
+    when(hotPathHibernateMetrics.record(anyString(), anyString(), any()))
+        .thenAnswer(invocation -> invocation.<HotPathMetrics.ThrowingSupplier<?>>getArgument(2).get());
+    when(roundRepository.findWithDetailsByRoomIdAndRoundNumber(anyString(), anyInt()))
         .thenReturn(Optional.of(existingRound));
 
     // Act
@@ -194,8 +202,9 @@ class RoundLifecycleServiceTest {
 
     // Assert
     assertThat(actual).isSameAs(existingRound);
+    assertThat(timerCount("round.ensure_active_round", "load_round", "success")).isEqualTo(1);
     verify(spied, never()).startNewRoundEntity(any(RoomEntity.class));
-    verify(roundJpaRepository).findWithDetailsByRoomIdAndRoundNumber("room-1", 1);
+    verify(roundRepository).findWithDetailsByRoomIdAndRoundNumber("room-1", 1);
   }
 
   @Test
@@ -211,7 +220,9 @@ class RoundLifecycleServiceTest {
     var finishedRound = new RoundEntity();
     finishedRound.setRoundStatus(ENDED);
 
-    when(roundJpaRepository.findWithDetailsByRoomIdAndRoundNumber(anyString(), anyInt()))
+    when(hotPathHibernateMetrics.record(anyString(), anyString(), any()))
+        .thenAnswer(invocation -> invocation.<HotPathMetrics.ThrowingSupplier<?>>getArgument(2).get());
+    when(roundRepository.findWithDetailsByRoomIdAndRoundNumber(anyString(), anyInt()))
         .thenReturn(Optional.of(finishedRound));
 
     // Act
@@ -225,7 +236,7 @@ class RoundLifecycleServiceTest {
         );
 
     verify(spied, never()).startNewRoundEntity(any(RoomEntity.class));
-    verify(roundJpaRepository).findWithDetailsByRoomIdAndRoundNumber("room-1", 1);
+    verify(roundRepository).findWithDetailsByRoomIdAndRoundNumber("room-1", 1);
   }
 
   @Test
@@ -307,6 +318,13 @@ class RoundLifecycleServiceTest {
     guess.setAttemptNumber(attemptNumber);
 
     return guess;
+  }
+
+  private long timerCount(String operation, String step, String outcome) {
+    var timer = meterRegistry.find("wordle.hotpath.duration")
+        .tags("operation", operation, "step", step, "outcome", outcome)
+        .timer();
+    return timer == null ? 0 : timer.count();
   }
 
 }
