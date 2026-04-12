@@ -12,10 +12,11 @@ import com.dariom.wds.domain.RoundStatus;
 import com.dariom.wds.exception.DictionaryEmptyException;
 import com.dariom.wds.exception.InvalidGuessException;
 import com.dariom.wds.exception.RoomNotReadyException;
+import com.dariom.wds.metrics.HotPathMetrics;
 import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.entity.RoundEntity;
 import com.dariom.wds.persistence.repository.DictionaryRepository;
-import com.dariom.wds.persistence.repository.jpa.RoundJpaRepository;
+import com.dariom.wds.persistence.repository.RoundRepository;
 import com.dariom.wds.websocket.model.EventType;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
@@ -33,18 +34,21 @@ import org.springframework.stereotype.Service;
 class RoundLifecycleService {
 
   private final DictionaryRepository dictionaryRepository;
-  private final RoundJpaRepository roundJpaRepository;
+  private final RoundRepository roundRepository;
   private final WordleProperties properties;
   private final ApplicationEventPublisher eventPublisher;
   private final Clock clock;
+  private final HotPathMetrics hotPathMetrics;
 
   public RoundEntity ensureActiveRound(RoomEntity room) {
     if (room.getCurrentRoundNumber() == null) {
       return startNewRoundEntity(room);
     }
 
-    var round = roundJpaRepository
-        .findWithDetailsByRoomIdAndRoundNumber(room.getId(), room.getCurrentRoundNumber())
+    var round = hotPathMetrics.record("round.ensure_active_round", "load_round", () ->
+            roundRepository.findWithDetailsByRoomIdAndRoundNumber(
+                room.getId(), room.getCurrentRoundNumber())
+        )
         .orElseGet(() -> startNewRoundEntity(room));
 
     if (round.getRoundStatus() == ENDED) {

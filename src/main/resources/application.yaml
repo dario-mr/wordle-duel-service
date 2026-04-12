@@ -11,7 +11,10 @@ spring:
     default-schema: wordle
     liquibase-schema: wordle
   jpa:
-    properties.hibernate.default_schema: wordle
+    properties:
+      hibernate:
+        default_schema: wordle
+        generate_statistics: ${HIBERNATE_GENERATE_STATISTICS:false}
   data:
     redis.repositories.enabled: false
   security:

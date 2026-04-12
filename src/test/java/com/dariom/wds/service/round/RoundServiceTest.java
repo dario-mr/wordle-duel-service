@@ -27,15 +27,17 @@ import com.dariom.wds.domain.RoundStatus;
 import com.dariom.wds.exception.PlayerNotInRoomException;
 import com.dariom.wds.exception.RoomLockedException;
 import com.dariom.wds.exception.RoundException;
+import com.dariom.wds.metrics.HotPathMetrics;
 import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.entity.RoundEntity;
 import com.dariom.wds.persistence.repository.RoomRepository;
-import com.dariom.wds.persistence.repository.jpa.RoundJpaRepository;
+import com.dariom.wds.persistence.repository.RoundRepository;
 import com.dariom.wds.service.DomainMapper;
 import com.dariom.wds.service.user.UserProfileService;
 import com.dariom.wds.websocket.model.PlayerStatusUpdatedPayload;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -63,7 +65,7 @@ class RoundServiceTest {
   @Mock
   private RoomRepository roomRepository;
   @Mock
-  private RoundJpaRepository roundJpaRepository;
+  private RoundRepository roundRepository;
   @Mock
   private RoundLifecycleService roundLifecycleService;
   @Mock
@@ -78,6 +80,7 @@ class RoundServiceTest {
   );
   private final DomainMapper domainMapper = new DomainMapper();
   private final Clock clock = Clock.fixed(Instant.parse("2025-01-01T12:00:00Z"), ZoneOffset.UTC);
+  private final SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
 
   private RoundService service;
 
@@ -86,13 +89,14 @@ class RoundServiceTest {
     service = new RoundService(
         lockProperties,
         roomRepository,
-        roundJpaRepository,
+        roundRepository,
         domainMapper,
         roundLifecycleService,
         guessSubmissionService,
         eventPublisher,
         userProfileService,
-        clock
+        clock,
+        new HotPathMetrics(meterRegistry)
     );
   }
 
@@ -103,8 +107,28 @@ class RoundServiceTest {
 
     // Assert
     assertThat(result).isEmpty();
-    verify(roundJpaRepository, never()).findWithDetailsByRoomIdAndRoundNumber(anyString(),
+    assertThat(timerCount("round.get_current_round", "total", "success")).isEqualTo(1);
+    verify(roundRepository, never()).findWithDetailsByRoomIdAndRoundNumber(anyString(),
         anyInt());
+  }
+
+  @Test
+  void getCurrentRound_roundExists_recordsLoadAndMapTimers() {
+    // Arrange
+    var room = inProgressRoom(ROOM_ID, 1, PLAYER_1, PLAYER_2);
+    var roundEntity = round(1, PLAYING);
+    roundEntity.setRoom(room);
+    when(roundRepository.findWithDetailsByRoomIdAndRoundNumber(ROOM_ID, 1))
+        .thenReturn(Optional.of(roundEntity));
+
+    // Act
+    var result = service.getCurrentRound(ROOM_ID, 1);
+
+    // Assert
+    assertThat(result).isPresent();
+    assertThat(timerCount("round.get_current_round", "total", "success")).isEqualTo(1);
+    assertThat(timerCount("round.get_current_round", "load_round", "success")).isEqualTo(1);
+    assertThat(timerCount("round.get_current_round", "map_round", "success")).isEqualTo(1);
   }
 
   @Test
@@ -114,7 +138,7 @@ class RoundServiceTest {
 
     // Assert
     assertThat(result).isEmpty();
-    verifyNoInteractions(roundJpaRepository);
+    verifyNoInteractions(roundRepository);
   }
 
   @Test
@@ -129,7 +153,7 @@ class RoundServiceTest {
     var round2 = round(2, ENDED);
     round2.setRoom(room2);
 
-    when(roundJpaRepository.findCurrentRoundsWithDetailsByRoomIds(List.of("room-1", "room-2")))
+    when(roundRepository.findCurrentRoundsWithDetailsByRoomIds(List.of("room-1", "room-2")))
         .thenReturn(List.of(round1, round2));
 
     // Act
@@ -139,8 +163,11 @@ class RoundServiceTest {
     assertThat(result).hasSize(2);
     assertThat(result.get("room-1")).isEqualTo(domainMapper.toRound(round1));
     assertThat(result.get("room-2")).isEqualTo(domainMapper.toRound(round2));
+    assertThat(timerCount("round.get_current_rounds", "total", "success")).isEqualTo(1);
+    assertThat(timerCount("round.get_current_rounds", "load_rounds", "success")).isEqualTo(1);
+    assertThat(timerCount("round.get_current_rounds", "map_round", "success")).isEqualTo(2);
 
-    verify(roundJpaRepository).findCurrentRoundsWithDetailsByRoomIds(List.of("room-1", "room-2"));
+    verify(roundRepository).findCurrentRoundsWithDetailsByRoomIds(List.of("room-1", "room-2"));
   }
 
   @Test
@@ -269,7 +296,7 @@ class RoundServiceTest {
 
     verify(roomRepository).findWithPlayersByIdForUpdate(ROOM_ID, lockProperties.acquireTimeout());
     verifyNoMoreInteractions(roomRepository);
-    verifyNoInteractions(roundJpaRepository);
+    verifyNoInteractions(roundRepository);
     verifyNoInteractions(eventPublisher);
   }
 
@@ -287,7 +314,7 @@ class RoundServiceTest {
         .satisfies(ex -> assertThat(((RoundException) ex).getCode()).isEqualTo(ROUND_NOT_CURRENT));
 
     verify(roomRepository).findWithPlayersByIdForUpdate(ROOM_ID, lockProperties.acquireTimeout());
-    verify(roundJpaRepository, never()).findWithDetailsByRoomIdAndRoundNumber(
+    verify(roundRepository, never()).findWithDetailsByRoomIdAndRoundNumber(
         anyString(), anyInt());
     verify(roomRepository, never()).save(roomEntity);
     verifyNoInteractions(eventPublisher);
@@ -300,7 +327,7 @@ class RoundServiceTest {
     var roundEntity = round(1, PLAYING, Map.of(PLAYER_1, WON));
 
     when(roomRepository.findWithPlayersByIdForUpdate(anyString(), any())).thenReturn(roomEntity);
-    when(roundJpaRepository.findWithDetailsByRoomIdAndRoundNumber(ROOM_ID, 1))
+    when(roundRepository.findWithDetailsByRoomIdAndRoundNumber(ROOM_ID, 1))
         .thenReturn(Optional.of(roundEntity));
 
     // Act / Assert
@@ -309,6 +336,7 @@ class RoundServiceTest {
         .hasMessage("Round is not ended")
         .satisfies(ex -> assertThat(((RoundException) ex).getCode()).isEqualTo(ROUND_NOT_ENDED));
 
+    assertThat(timerCount("round.handle_ready", "load_round", "success")).isEqualTo(1);
     verify(roomRepository, never()).save(roomEntity);
     verifyNoInteractions(eventPublisher);
   }
@@ -328,7 +356,7 @@ class RoundServiceTest {
 
     when(roomRepository.save(any())).thenReturn(roomEntity);
     when(roomRepository.findWithPlayersByIdForUpdate(anyString(), any())).thenReturn(roomEntity);
-    when(roundJpaRepository.findWithDetailsByRoomIdAndRoundNumber(ROOM_ID, 1))
+    when(roundRepository.findWithDetailsByRoomIdAndRoundNumber(ROOM_ID, 1))
         .thenReturn(Optional.of(roundEntity));
     when(userProfileService.getDisplayNamePerPlayer(any())).thenReturn(displayNamePerPlayer);
 
@@ -367,7 +395,7 @@ class RoundServiceTest {
 
     when(roomRepository.save(any())).thenReturn(roomEntity);
     when(roomRepository.findWithPlayersByIdForUpdate(anyString(), any())).thenReturn(roomEntity);
-    when(roundJpaRepository.findWithDetailsByRoomIdAndRoundNumber(ROOM_ID, 1))
+    when(roundRepository.findWithDetailsByRoomIdAndRoundNumber(ROOM_ID, 1))
         .thenReturn(Optional.of(roundEntity));
     when(roundLifecycleService.startNewRoundEntity(roomEntity)).thenReturn(newRoundEntity);
     when(userProfileService.getDisplayNamePerPlayer(any())).thenReturn(displayNamePerPlayer);
@@ -434,5 +462,12 @@ class RoundServiceTest {
     }
 
     return round;
+  }
+
+  private long timerCount(String operation, String step, String outcome) {
+    var timer = meterRegistry.find("wordle.hotpath.duration")
+        .tags("operation", operation, "step", step, "outcome", outcome)
+        .timer();
+    return timer == null ? 0 : timer.count();
   }
 }
