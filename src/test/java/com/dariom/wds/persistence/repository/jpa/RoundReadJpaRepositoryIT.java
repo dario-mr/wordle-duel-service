@@ -28,25 +28,33 @@ class RoundReadJpaRepositoryIT {
   private RoomJpaRepository roomJpaRepository;
 
   @Test
-  void findRoundHeaderByRoomIdAndRoundNumber_existingRound_returnsProjection() {
+  void findFlatRowsByRoomIdAndRoundNumber_existingRound_returnsProjectionRows() {
     // Arrange
     saveRoundGraph("room-1", 1);
 
     // Act
-    var found = roundReadJpaRepository.findRoundHeaderByRoomIdAndRoundNumber("room-1", 1)
-        .orElseThrow();
+    var found = roundReadJpaRepository.findFlatRowsByRoomIdAndRoundNumber("room-1", 1);
 
     // Assert
-    assertThat(found.roundId()).isNotNull();
-    assertThat(found.roomId()).isEqualTo("room-1");
-    assertThat(found.roundNumber()).isEqualTo(1);
-    assertThat(found.maxAttempts()).isEqualTo(6);
-    assertThat(found.roundStatus()).isEqualTo(PLAYING);
-    assertThat(found.targetWord()).isEqualTo("PIZZA");
+    assertThat(found).isNotEmpty();
+    assertThat(found)
+        .extracting(row -> row.roomId() + ":" + row.roundNumber() + ":" + row.targetWord())
+        .containsOnly("room-1:1:PIZZA");
+    assertThat(found)
+        .extracting(row -> row.statusPlayerId() + ":" + row.playerStatus().name())
+        .contains("p1:PLAYING", "p2:LOST");
+    assertThat(found)
+        .filteredOn(row -> row.guessId() >= 0)
+        .extracting(row -> "%s:%d:%s".formatted(
+            row.guessPlayerId(),
+            row.attemptNumber(),
+            row.letterStatus().name()
+        ))
+        .contains("p1:1:CORRECT", "p1:1:PRESENT");
   }
 
   @Test
-  void findCurrentRoundHeadersByRoomIds_roomsHaveCurrentRounds_returnsCurrentRoundProjections() {
+  void findCurrentFlatRowsByRoomIds_roomsHaveCurrentRounds_returnsProjectionRowsForCurrentRounds() {
     // Arrange
     saveRoundGraph("room-1", 1);
     saveRoundGraph("room-2", 1, ENDED, false);
@@ -54,7 +62,7 @@ class RoundReadJpaRepositoryIT {
     saveRoomWithoutCurrentRound("room-3");
 
     // Act
-    var found = roundReadJpaRepository.findCurrentRoundHeadersByRoomIds(List.of(
+    var found = roundReadJpaRepository.findCurrentFlatRowsByRoomIds(List.of(
         "room-1",
         "room-2",
         "room-3"
@@ -62,46 +70,8 @@ class RoundReadJpaRepositoryIT {
 
     // Assert
     assertThat(found)
-        .extracting(header -> "%s:%d".formatted(header.roomId(), header.roundNumber()))
-        .containsExactlyInAnyOrder("room-1:1", "room-2:2");
-  }
-
-  @Test
-  void findRoundStatusesByRoundIds_existingRound_returnsStatusProjections() {
-    // Arrange
-    saveRoundGraph("room-1", 1);
-    var roundId = roundReadJpaRepository.findRoundHeaderByRoomIdAndRoundNumber("room-1", 1)
-        .orElseThrow()
-        .roundId();
-
-    // Act
-    var found = roundReadJpaRepository.findRoundStatusesByRoundIds(List.of(roundId));
-
-    // Assert
-    assertThat(found)
-        .extracting(status -> status.playerId() + ":" + status.status().name())
-        .containsExactlyInAnyOrder("p1:PLAYING", "p2:LOST");
-  }
-
-  @Test
-  void findGuessLettersByRoundIds_existingRound_returnsGuessLetterProjections() {
-    // Arrange
-    saveRoundGraph("room-1", 1);
-    var roundId = roundReadJpaRepository.findRoundHeaderByRoomIdAndRoundNumber("room-1", 1)
-        .orElseThrow()
-        .roundId();
-
-    // Act
-    var found = roundReadJpaRepository.findGuessLettersByRoundIds(List.of(roundId));
-
-    // Assert
-    assertThat(found)
-        .extracting(letter -> "%s:%d:%s".formatted(
-            letter.playerId(),
-            letter.attemptNumber(),
-            letter.letterStatus().name()
-        ))
-        .containsExactly("p1:1:CORRECT", "p1:1:PRESENT");
+        .extracting(row -> "%s:%d".formatted(row.roomId(), row.roundNumber()))
+        .contains("room-1:1", "room-2:2");
   }
 
   private void saveRoundGraph(String roomId, int roundNumber) {
