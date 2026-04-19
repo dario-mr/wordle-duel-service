@@ -181,22 +181,6 @@ class UserRepositoryTest {
   }
 
   @Test
-  void requireByEmail_unknownUser_throws() {
-    // Arrange
-    when(appUserJpaRepository.findByEmail(anyString())).thenReturn(Optional.empty());
-
-    // Act
-    var thrown = catchThrowable(() -> userRepository.requireByEmail("missing@test.com"));
-
-    // Assert
-    assertThat(thrown)
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessage("Unknown user: missing@test.com");
-
-    verify(appUserJpaRepository).findByEmail("missing@test.com");
-  }
-
-  @Test
   void findById_userExists_returnsUser() {
     // Arrange
     var id = UUID.randomUUID();

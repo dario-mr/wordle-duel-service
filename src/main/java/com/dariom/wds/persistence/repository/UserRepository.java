@@ -48,12 +48,6 @@ public class UserRepository {
   }
 
   @Transactional(readOnly = true)
-  public AppUserEntity requireByEmail(String email) {
-    return appUserJpaRepository.findByEmail(email)
-        .orElseThrow(() -> new IllegalArgumentException("Unknown user: " + email));
-  }
-
-  @Transactional(readOnly = true)
   public Optional<AppUserEntity> findById(String appUserId) {
     try {
       return appUserJpaRepository.findById(UUID.fromString(appUserId));

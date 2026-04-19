@@ -2,6 +2,7 @@ package com.dariom.wds.service.auth;
 
 import static com.dariom.wds.config.CacheConfig.DISPLAY_NAME_CACHE;
 import static com.dariom.wds.config.CacheConfig.USER_PROFILE_CACHE;
+import static com.dariom.wds.service.auth.OAuthUserService.APP_USER_ID_CLAIM;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -76,6 +77,7 @@ class OAuthUserServiceTest {
 
     // Assert
     assertThat(principal.getName()).isEqualTo(email);
+    assertThat(principal.<String>getAttribute(APP_USER_ID_CLAIM)).isEqualTo(user.getId().toString());
     assertThat(principal.getAuthorities())
         .extracting(GrantedAuthority::getAuthority)
         .containsExactlyInAnyOrder("ROLE_ADMIN", "ROLE_USER");

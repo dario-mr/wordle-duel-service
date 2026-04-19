@@ -48,7 +48,10 @@ app:
     jwt:
       issuer: ${spring.application.name}
       ttl-seconds: 900
-      secret: ${WORDLE_JWT_SECRET}
+      audience: wordle-duel
+      version: 1
+      private-key-pem: ${WORDLE_JWT_PRIVATE_KEY_PEM}
+      public-key-pem: ${WORDLE_JWT_PUBLIC_KEY_PEM}
     refresh:
       ttl-days: 180
       cookie-name: __Host-wd_refresh

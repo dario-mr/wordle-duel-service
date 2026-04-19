@@ -13,6 +13,8 @@ import com.dariom.wds.api.v1.dto.CreateRoomRequest;
 import com.dariom.wds.api.v1.dto.ReadyRequest;
 import com.dariom.wds.api.v1.dto.SubmitGuessRequest;
 import com.dariom.wds.api.v1.mapper.RoomMapper;
+import com.dariom.wds.config.security.AuthenticatedUser;
+import com.dariom.wds.config.security.AuthenticatedUserResolver;
 import com.dariom.wds.domain.Language;
 import com.dariom.wds.domain.Player;
 import com.dariom.wds.domain.Room;
@@ -38,9 +40,10 @@ class RoomControllerTest {
 
   @Mock
   private RoomService roomService;
-
   @Mock
   private RoundService roundService;
+  @Mock
+  private AuthenticatedUserResolver authenticatedUserResolver;
 
   private final RoomMapper roomMapper = new RoomMapper();
 
@@ -48,7 +51,13 @@ class RoomControllerTest {
 
   @BeforeEach
   void setUp() {
-    roomController = new RoomController(roomService, roundService, roomMapper);
+    roomController = new RoomController(roomService, roundService, roomMapper,
+        authenticatedUserResolver);
+    when(authenticatedUserResolver.from(any(Jwt.class)))
+        .thenAnswer(invocation -> {
+          var jwt = invocation.getArgument(0, Jwt.class);
+          return new AuthenticatedUser(jwt.getSubject(), "", java.util.Set.of("USER"));
+        });
   }
 
   @AfterEach
@@ -70,7 +79,7 @@ class RoomControllerTest {
     when(roomService.createRoom(any(Language.class), anyString())).thenReturn(domainRoom);
 
     // Act
-    var response = roomController.createRoom(new CreateRoomRequest(" it "), jwtWithUid("user-1"));
+    var response = roomController.createRoom(new CreateRoomRequest(" it "), jwtWithSub("user-1"));
 
     // Assert
     assertThat(response.getStatusCode().value()).isEqualTo(201);
@@ -90,7 +99,7 @@ class RoomControllerTest {
     when(roomService.joinRoom(anyString(), anyString())).thenReturn(domainRoom);
 
     // Act
-    var response = roomController.joinRoom("room-1", jwtWithUid("user-2"));
+    var response = roomController.joinRoom("room-1", jwtWithSub("user-2"));
 
     // Assert
     assertThat(response.getStatusCode().value()).isEqualTo(200);
@@ -108,7 +117,7 @@ class RoomControllerTest {
     when(roomService.listRoomsForPlayer(anyString())).thenReturn(domainRooms);
 
     // Act
-    var response = roomController.listRooms(jwtWithUid("user-1"));
+    var response = roomController.listRooms(jwtWithSub("user-1"));
 
     // Assert
     assertThat(response.getStatusCode().value()).isEqualTo(200);
@@ -127,7 +136,7 @@ class RoomControllerTest {
 
     // Act
     var response = roomController.submitGuess("room-1", new SubmitGuessRequest("pizza"),
-        jwtWithUid("user-1"));
+        jwtWithSub("user-1"));
 
     // Assert
     assertThat(response.getStatusCode().value()).isEqualTo(200);
@@ -147,7 +156,7 @@ class RoomControllerTest {
         domainRoom);
 
     // Act
-    var response = roomController.ready("room-1", new ReadyRequest(1), jwtWithUid("user-1"));
+    var response = roomController.ready("room-1", new ReadyRequest(1), jwtWithSub("user-1"));
 
     // Assert
     assertThat(response.getStatusCode().value()).isEqualTo(200);
@@ -156,14 +165,14 @@ class RoomControllerTest {
     verify(roundService).handleReady("room-1", "user-1", 1);
   }
 
-  private static Jwt jwtWithUid(String uid) {
+  private static Jwt jwtWithSub(String sub) {
     var now = Instant.now();
     return new Jwt(
         "test-token",
         now,
         now.plusSeconds(3600),
         Map.of("alg", "none"),
-        Map.of("uid", uid)
+        Map.of("sub", sub)
     );
   }
 

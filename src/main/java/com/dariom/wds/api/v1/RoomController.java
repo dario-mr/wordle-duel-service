@@ -7,6 +7,7 @@ import com.dariom.wds.api.v1.dto.ReadyRequest;
 import com.dariom.wds.api.v1.dto.RoomDto;
 import com.dariom.wds.api.v1.dto.SubmitGuessRequest;
 import com.dariom.wds.api.v1.mapper.RoomMapper;
+import com.dariom.wds.config.security.AuthenticatedUserResolver;
 import com.dariom.wds.domain.Language;
 import com.dariom.wds.service.room.RoomService;
 import com.dariom.wds.service.round.RoundService;
@@ -44,6 +45,7 @@ public class RoomController {
   private final RoomService roomService;
   private final RoundService roundService;
   private final RoomMapper roomMapper;
+  private final AuthenticatedUserResolver authenticatedUserResolver;
 
   @Operation(summary = "Create room", description = "Creates a new room and joins the creator as the first player.")
   @ApiResponses({
@@ -55,7 +57,7 @@ public class RoomController {
       @Valid @RequestBody CreateRoomRequest request,
       @AuthenticationPrincipal Jwt jwt
   ) {
-    var appUserId = jwt.getClaimAsString("uid");
+    var appUserId = authenticatedUserResolver.from(jwt).userId();
     log.info("Create room {} by user <{}>", request, appUserId);
     var language = Language.valueOf(request.language().trim().toUpperCase());
     var room = roomService.createRoom(language, appUserId);
@@ -76,7 +78,7 @@ public class RoomController {
       @Parameter(description = "Room identifier", required = true) @PathVariable String roomId,
       @AuthenticationPrincipal Jwt jwt
   ) {
-    var appUserId = jwt.getClaimAsString("uid");
+    var appUserId = authenticatedUserResolver.from(jwt).userId();
     log.info("Join room <{}> by user <{}>", roomId, appUserId);
     var room = roomService.joinRoom(roomId, appUserId);
     return ResponseEntity.ok(roomMapper.toDto(room, appUserId));
@@ -88,7 +90,7 @@ public class RoomController {
   })
   @GetMapping
   public ResponseEntity<List<RoomDto>> listRooms(@AuthenticationPrincipal Jwt jwt) {
-    var appUserId = jwt.getClaimAsString("uid");
+    var appUserId = authenticatedUserResolver.from(jwt).userId();
     log.info("List rooms for user <{}>", appUserId);
 
     var rooms = roomService.listRoomsForPlayer(appUserId);
@@ -107,7 +109,7 @@ public class RoomController {
       @Parameter(description = "Room identifier", required = true) @PathVariable String roomId,
       @AuthenticationPrincipal Jwt jwt
   ) {
-    var appUserId = jwt.getClaimAsString("uid");
+    var appUserId = authenticatedUserResolver.from(jwt).userId();
     log.info("Get room <{}>", roomId);
     var room = roomService.getRoom(roomId, appUserId);
     return ResponseEntity.ok(roomMapper.toDto(room, appUserId));
@@ -125,7 +127,7 @@ public class RoomController {
       @Valid @RequestBody SubmitGuessRequest request,
       @AuthenticationPrincipal Jwt jwt
   ) {
-    var appUserId = jwt.getClaimAsString("uid");
+    var appUserId = authenticatedUserResolver.from(jwt).userId();
     log.info("Submit guess in room <{}> by user <{}>: {}", roomId, appUserId, request);
     var room = roundService.handleGuess(roomId, appUserId, request.word());
     var response = new GuessResponse(roomMapper.toDto(room, appUserId));
@@ -145,7 +147,7 @@ public class RoomController {
       @Valid @RequestBody ReadyRequest request,
       @AuthenticationPrincipal Jwt jwt
   ) {
-    var appUserId = jwt.getClaimAsString("uid");
+    var appUserId = authenticatedUserResolver.from(jwt).userId();
     log.info("Player ready in room <{}> by user <{}>: {}", roomId, appUserId, request);
     var room = roundService.handleReady(roomId, appUserId, request.roundNumber());
     return ResponseEntity.ok(roomMapper.toDto(room, appUserId));

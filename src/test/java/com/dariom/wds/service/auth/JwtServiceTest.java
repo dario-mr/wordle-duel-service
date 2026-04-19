@@ -39,7 +39,7 @@ class JwtServiceTest {
   void setUp() {
     var securityProperties = new SecurityProperties(
         "", null, null,
-        new JwtProperties("test-issuer", 900, "test-secret"),
+        new JwtProperties("test-issuer", 900, "wordle-duel", 1L, "private-key", "public-key"),
         null
     );
 
@@ -73,6 +73,13 @@ class JwtServiceTest {
     var claims = captor.getValue().getClaims();
     assertThat(claims.getClaimAsStringList("roles"))
         .containsExactly("ADMIN", "USER");
+    assertThat(claims.getSubject()).isEqualTo(userId.toString());
+    assertThat(claims.getAudience()).containsExactly("wordle-duel");
+    assertThat(claims.getClaimAsString("ver")).isEqualTo("1");
+    assertThat(claims.getClaimAsString("email")).isEqualTo("user@test.com");
+    assertThat(claims.getClaimAsString("name")).isEqualTo("User Test");
+    assertThat(claims.getClaimAsString("picture")).isEqualTo("pictureUrl");
+    assertThat(captor.getValue().getJwsHeader().getAlgorithm().getName()).isEqualTo("RS256");
   }
 
   private static AppUserEntity userEntity(UUID userId) {

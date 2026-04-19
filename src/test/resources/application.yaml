@@ -40,7 +40,47 @@ app:
     jwt:
       issuer: wordle-duel-service-test
       ttl-seconds: 900
-      secret: test-secret-test-secret-test-secret-32bytes
+      audience: wordle-duel
+      version: 1
+      private-key-pem: |
+        -----BEGIN PRIVATE KEY-----
+        MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDPnKpZcgNBleN4
+        hyJFC51Ni2JRi00JC/ZAMZMVHjH5AyXAuSsead1WnWT0dlHZvbU+HUauPt0bnoKG
+        uDl0vmdhpp3U9fnzBTeI5JQL0ZOoPr9lWwgy7u6sPRhtTacEzVmoJpMbQqPU+ApB
+        pI024xtrI5/Rpp2SvRf521cDTXHe+Zkhvvgx3TKw6JB1hLF654MoP/OBikawzwO/
+        Eo4KaAAj/WLYco2BnAZSxbnOTuXfmeYol6YBYlLfYphyyYp5S0inbOG4fLHwAHYi
+        sQaMZpmemaYFUb+6sU+tUvuHOiFrZqLlbP3KgsIqv7XkuJVop5ZYL82wHWdB4yLB
+        w4ZeKIX9AgMBAAECggEAI7KjvOUEh9Cyz/zmaNpeJiD/GxfZe2J96VxM1s7+FzvS
+        EEEWl7Bq0VOXcgxtNwQuZ5uHlXr0MGVROsJvCLKbmpgYX++alo2RVr288gpLehyt
+        8srUDlP0oJORwWueeg4oKihV15ReEMbElrRpXqRuyL2To6wjQIG4n2r2W3hDyeuw
+        JKOa1+lLvSZ58YamqejAy+reUd/gUrUNyZhkHtwlOd997BqHpWgSg7mUGh1fI0Xu
+        QuLobn0xucxpBtYL9MWHqfRFrY/lk2y4p0nrD2KaW2UzWPD0hyRlFznIMGzD+CKO
+        K9CWyX66voga4qVqDazaoNc0jJdar/HnxbzvQadZEQKBgQDyvZ/732v06VnvoLc4
+        XqhDyNOH2NBtNTfMRjw2Fu46rt/RjS/C/XOgGoTWBGAThXUfPt2Kc3DSXJKubsP7
+        Jb0KcBZbbUw2oPlvWvPClNptrZtXlVn8XBq3ED9aWpiT+OZ9OQ3QE1NiL1XGpziq
+        MLBO1ipZrAjZKSXvX6fcRrlrLQKBgQDa89DwfFpzusYHZVpoyr/NY3apLE7eEG2u
+        5UJTw+vnLnVhu3ndTK6SYE16tZtZ5NnEoNsr9AuQz6Prayn/gq8N9V4Etzun2Flh
+        zGaG8AHa6zRqF8soXU0AqGprNZ3v6HNFSEKneY00dd2Xmdzuj8/KAVitII2t8hsD
+        oJxwldsIEQKBgQDkbsLhms3Tes4iDZKev6WFtLYr/0OVoiFSYT5EgKvMGcmTQFSU
+        IUPwhURAy3lGpa8kqlp98klYDboT4TUZYdhWvEit3Vt9hVt3CZafpMkxsdCgSXKX
+        ZG3XnLih5OP1TKRLb6eqCqXLnlQQUEmpD4y7hBvyq0zgYDLM463qQ7w2OQKBgQC6
+        jkPYpBvtv5Y7dwAxiY8jUTwpqLcKPrU17+EzvhuiPtOFElgjVtLnpWZex542Weey
+        wdv891Njb4gbbpO6QX8mRYp2Oil6Obzut1okXxs1jHJ8cwmGuviBNv51mpmXcFfH
+        EGq6h7bonATSxyaXnbFOTRdha/tL2p1p2c9xnj2iAQKBgDM3YFxTEKzzMPl5/zwZ
+        z4AxaRwBkN0FpcVz7W6vVn99/OVKqWdDaXcSleqp3EESIhNWfkE3faQlT1Ifmwlz
+        ape/cYlZ+bLWcVSNx8dy8Dt0VXHdfuWmzmo8UG5IoYhP9oyvAchRl8m/o/BnWWg1
+        YIuAT7IKw7Njw66kONO+51eG
+        -----END PRIVATE KEY-----
+      public-key-pem: |
+        -----BEGIN PUBLIC KEY-----
+        MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAz5yqWXIDQZXjeIciRQud
+        TYtiUYtNCQv2QDGTFR4x+QMlwLkrHmndVp1k9HZR2b21Ph1Grj7dG56Chrg5dL5n
+        Yaad1PX58wU3iOSUC9GTqD6/ZVsIMu7urD0YbU2nBM1ZqCaTG0Kj1PgKQaSNNuMb
+        ayOf0aadkr0X+dtXA01x3vmZIb74Md0ysOiQdYSxeueDKD/zgYpGsM8DvxKOCmgA
+        I/1i2HKNgZwGUsW5zk7l35nmKJemAWJS32KYcsmKeUtIp2zhuHyx8AB2IrEGjGaZ
+        npmmBVG/urFPrVL7hzoha2ai5Wz9yoLCKr+15LiVaKeWWC/NsB1nQeMiwcOGXiiF
+        /QIDAQAB
+        -----END PUBLIC KEY-----
     refresh:
       ttl-days: 180
       cookie-name: wd_refresh

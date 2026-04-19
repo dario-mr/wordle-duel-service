@@ -22,7 +22,8 @@ The app reads configuration from environment variables and also supports a local
 
 1. Copy the provided example file: `cp .env.example .env`
 2. Set `PROFILE=dev` for local development.
-3. Set `WORDLE_JWT_SECRET`, `WORDLE_GOOGLE_CLIENT_ID`, and `WORDLE_GOOGLE_CLIENT_SECRET`.
+3. Set `WORDLE_GOOGLE_CLIENT_ID`, `WORDLE_GOOGLE_CLIENT_SECRET`,
+   `WORDLE_JWT_PRIVATE_KEY_PEM`, and `WORDLE_JWT_PUBLIC_KEY_PEM`.
 4. Start Redis (required for OAuth2 login session state and job synchronization):
 
    ```shell
@@ -42,18 +43,19 @@ Select the profile with the `PROFILE` env var (defaults to `prod`).
 
 ## Environment variables
 
-| Variable                      | Description                              | Default |
-|-------------------------------|------------------------------------------|---------|
-| `PORT`                        | HTTP server port                         | `8088`  |
-| `PROFILE`                     | Spring profile (`dev` / `prod`)          | `prod`  |
-| `DB_PORT`                     | PostgreSQL port (used by `prod` profile) | `null`  |
-| `DB_USER`                     | PostgreSQL username                      | `null`  |
-| `DB_PASSWORD`                 | PostgreSQL password                      | `null`  |
-| `WORDLE_GOOGLE_CLIENT_ID`     | Google OAuth2 client id                  | `null`  |
-| `WORDLE_GOOGLE_CLIENT_SECRET` | Google OAuth2 client secret              | `null`  |
-| `WORDLE_JWT_SECRET`           | JWT signing secret (HMAC)                | `null`  |
-| `SPRING_DATA_REDIS_HOST`      | Redis host                               | `null`  |
-| `SPRING_DATA_REDIS_PORT`      | Redis port                               | `null`  |
+| Variable                      | Description                                   | Default |
+|-------------------------------|-----------------------------------------------|---------|
+| `PORT`                        | HTTP server port                              | `8088`  |
+| `PROFILE`                     | Spring profile (`dev` / `prod`)               | `prod`  |
+| `DB_PORT`                     | PostgreSQL port (used by `prod` profile)      | `null`  |
+| `DB_USER`                     | PostgreSQL username                           | `null`  |
+| `DB_PASSWORD`                 | PostgreSQL password                           | `null`  |
+| `WORDLE_GOOGLE_CLIENT_ID`     | Google OAuth2 client id                       | `null`  |
+| `WORDLE_GOOGLE_CLIENT_SECRET` | Google OAuth2 client secret                   | `null`  |
+| `WORDLE_JWT_PRIVATE_KEY_PEM`  | RSA private key PEM content for JWT signing   | `null`  |
+| `WORDLE_JWT_PUBLIC_KEY_PEM`   | RSA public key PEM content for JWT validation | `null`  |
+| `SPRING_DATA_REDIS_HOST`      | Redis host                                    | `null`  |
+| `SPRING_DATA_REDIS_PORT`      | Redis port                                    | `null`  |
 
 Notes:
 
@@ -65,7 +67,7 @@ Notes:
 ## Authentication
 
 This service uses Google OAuth2 login to issue a long-lived refresh token (stored as an HttpOnly
-cookie) and short-lived access tokens (Bearer JWT).
+cookie) and short-lived access tokens (Bearer JWT signed with `RS256`).
 
 OAuth2 login uses a server-side session to persist the authorization request/state across the
 redirect. For horizontal scalability, sessions are stored in Redis; in local development you should
@@ -74,6 +76,34 @@ run Redis (see Quick start).
 - OAuth2 login entrypoint: `GET /oauth2/authorization/google`
 - Refresh access token: `POST /auth/refresh` (returns a JWT; requires CSRF)
 - Logout: `POST /auth/logout`
+
+Access token details:
+
+- `iss`: `wordle-duel-service` by default
+- `sub`: local app user UUID (`app_user.id`)
+- `aud`: `wordle-duel`
+- `ver`: `1`
+- `email`: current user email
+- `roles`: application roles such as `USER` / `ADMIN`
+
+The service validates both issuer and audience on incoming bearer tokens.
+
+### Generate Local JWT Keys
+
+Generate a local RSA keypair with `openssl`:
+
+```shell
+openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out jwt-private.pem
+openssl rsa -pubout -in jwt-private.pem -out jwt-public.pem
+```
+
+If you store the keys in `.env`, use the PEM contents, not the file paths. Quoted single-line
+values with escaped newlines work well:
+
+```dotenv
+WORDLE_JWT_PRIVATE_KEY_PEM='-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n'
+WORDLE_JWT_PUBLIC_KEY_PEM='-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----\n'
+```
 
 ### Obtain an access token via Swagger UI
 

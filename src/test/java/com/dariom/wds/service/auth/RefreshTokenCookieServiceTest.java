@@ -34,7 +34,7 @@ class RefreshTokenCookieServiceTest {
   void setUp() {
     var securityProperties = new SecurityProperties(
         "", null, null,
-        new JwtProperties("issuer", 900, "secret"),
+        new JwtProperties("issuer", 900, "wordle-duel", 1L, "private-key", "public-key"),
         new RefreshProperties(7, "wd_refresh", "Lax", "/", false)
     );
 

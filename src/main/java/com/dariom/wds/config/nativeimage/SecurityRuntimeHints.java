@@ -9,6 +9,7 @@ import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationRequest;
 import org.springframework.security.oauth2.core.endpoint.OAuth2AuthorizationResponseType;
+import org.springframework.security.oauth2.core.oidc.OidcUserInfo;
 
 public class SecurityRuntimeHints implements RuntimeHintsRegistrar {
 
@@ -16,7 +17,8 @@ public class SecurityRuntimeHints implements RuntimeHintsRegistrar {
       OAuth2AuthorizationRequest.class,
       OAuth2AuthorizationResponseType.class,
       AuthorizationGrantType.class,
-      ClientAuthenticationMethod.class
+      ClientAuthenticationMethod.class,
+      OidcUserInfo.class
   );
 
   private static final List<TypeReference> SERIALIZABLE_JDK_TYPES = List.of(

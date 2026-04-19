@@ -1,6 +1,6 @@
 package com.dariom.wds.service.auth;
 
-import static org.springframework.security.oauth2.jose.jws.MacAlgorithm.HS256;
+import static org.springframework.security.oauth2.jose.jws.SignatureAlgorithm.RS256;
 import static org.springframework.security.oauth2.jwt.JwtEncoderParameters.from;
 
 import com.dariom.wds.config.security.SecurityProperties;
@@ -9,6 +9,7 @@ import com.dariom.wds.persistence.entity.AppUserEntity;
 import com.dariom.wds.persistence.entity.RoleEntity;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.oauth2.jwt.JwsHeader;
 import org.springframework.security.oauth2.jwt.JwtClaimsSet;
@@ -32,17 +33,26 @@ public class JwtService {
         .map(RoleEntity::getName)
         .sorted()
         .toList();
+    var subject = user.getId().toString();
 
     var claimsBuilder = JwtClaimsSet.builder()
         .issuer(props.issuer())
         .issuedAt(now)
         .expiresAt(expiresAt)
-        .subject(user.getEmail())
-        .claim("uid", user.getId().toString())
+        .subject(subject)
+        .audience(List.of(props.audience()))
+        .claim("ver", props.version())
+        .claim("email", user.getEmail())
         .claim("roles", roles);
+    if (user.getFullName() != null) {
+      claimsBuilder.claim("name", user.getFullName());
+    }
+    if (user.getPictureUrl() != null) {
+      claimsBuilder.claim("picture", user.getPictureUrl());
+    }
     var claims = claimsBuilder.build();
 
-    var header = JwsHeader.with(HS256).build();
+    var header = JwsHeader.with(RS256).build();
     var tokenValue = jwtEncoder.encode(from(header, claims)).getTokenValue();
 
     return new AccessToken(tokenValue, props.ttlSeconds());

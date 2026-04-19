@@ -5,11 +5,13 @@ import static com.dariom.wds.config.CacheConfig.USER_PROFILE_CACHE;
 import static java.util.stream.Collectors.toSet;
 
 import com.dariom.wds.persistence.repository.UserRepository;
+import java.util.HashMap;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.CacheManager;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.core.oidc.OidcUserInfo;
 import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
 import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.stereotype.Service;
@@ -57,6 +59,8 @@ import org.springframework.stereotype.Service;
 @RequiredArgsConstructor
 public class OAuthUserService {
 
+  public static final String APP_USER_ID_CLAIM = "app_user_id";
+
   private final UserRepository userRepository;
   private final CacheManager cacheManager;
 
@@ -76,8 +80,11 @@ public class OAuthUserService {
     var authorities = user.getRoles().stream()
         .map(r -> new SimpleGrantedAuthority("ROLE_" + r.getName()))
         .collect(toSet());
+    var claims = new HashMap<>(oidcUser.getClaims());
+    claims.put(APP_USER_ID_CLAIM, user.getId().toString());
 
-    return new DefaultOidcUser(authorities, oidcUser.getIdToken(), oidcUser.getUserInfo(), "email");
+    return new DefaultOidcUser(authorities, oidcUser.getIdToken(), new OidcUserInfo(claims),
+        "email");
   }
 
   private void evictUserCaches(String appUserId) {

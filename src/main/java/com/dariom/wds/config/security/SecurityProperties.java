@@ -41,7 +41,10 @@ public record SecurityProperties(
   public record JwtProperties(
       String issuer,
       int ttlSeconds,
-      String secret
+      String audience,
+      long version,
+      String privateKeyPem,
+      String publicKeyPem
   ) {
 
   }

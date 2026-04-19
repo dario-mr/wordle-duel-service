@@ -15,7 +15,7 @@
   <artifactId>wordle-duel-service</artifactId>
   <name>Worlde Duel service</name>
   <description>Backend service for the Wordle Duel game</description>
-  <version>0.15.1</version>
+  <version>0.16.1</version>
 
   <properties>
     <java.version>25</java.version>

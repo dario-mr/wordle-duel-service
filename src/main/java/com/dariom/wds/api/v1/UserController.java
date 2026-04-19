@@ -2,6 +2,7 @@ package com.dariom.wds.api.v1;
 
 import com.dariom.wds.api.common.ErrorResponse;
 import com.dariom.wds.api.v1.dto.UserMeDto;
+import com.dariom.wds.config.security.AuthenticatedUserResolver;
 import com.dariom.wds.service.user.UserProfileService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -9,6 +10,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -18,14 +20,12 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/users")
+@RequiredArgsConstructor
 @Tag(name = "Users", description = "User profile endpoints")
 public class UserController {
 
   private final UserProfileService userProfileService;
-
-  public UserController(UserProfileService userProfileService) {
-    this.userProfileService = userProfileService;
-  }
+  private final AuthenticatedUserResolver authenticatedUserResolver;
 
   @Operation(summary = "Get current user", description = "Returns the current authenticated user's profile.")
   @ApiResponses({
@@ -34,7 +34,7 @@ public class UserController {
   })
   @GetMapping("/me")
   public ResponseEntity<UserMeDto> me(@AuthenticationPrincipal Jwt jwt) {
-    var appUserId = jwt.getClaimAsString("uid");
+    var appUserId = authenticatedUserResolver.from(jwt).userId();
     var profile = userProfileService.getUserProfile(appUserId);
     return ResponseEntity.ok(new UserMeDto(
         profile.id(), profile.fullName(), profile.displayName(), profile.pictureUrl()
