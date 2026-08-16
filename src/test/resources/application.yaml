@@ -14,10 +14,6 @@ spring:
         client-secret: test-secret
         scope: openid, profile, email
 
-management:
-  health:
-    redis.enabled: true
-
 wordle:
   max-attempts: 1
   word-length: 5

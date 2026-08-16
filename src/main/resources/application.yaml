@@ -23,6 +23,8 @@ spring:
         redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
 
 management:
+  health:
+    redis.enabled: false
   endpoints:
     web.exposure.include: health,info,prometheus
   endpoint:
