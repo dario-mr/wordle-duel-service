@@ -5,6 +5,7 @@ import java.util.List;
 public record Room(
     String id,
     Language language,
+    RoomRounds rounds,
     RoomStatus status,
     List<Player> players,
     Round currentRound

@@ -1,0 +1,15 @@
+databaseChangeLog:
+  - changeSet:
+      id: 014-room-rounds
+      author: dariom
+      changes:
+        - addColumn:
+            schemaName: wordle
+            tableName: rooms
+            columns:
+              - column:
+                  name: rounds
+                  type: varchar(16)
+                  defaultValue: ENDLESS
+                  constraints:
+                    nullable: false

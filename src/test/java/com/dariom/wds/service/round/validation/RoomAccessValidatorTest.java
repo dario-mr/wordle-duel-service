@@ -3,6 +3,8 @@ package com.dariom.wds.service.round.validation;
 import static com.dariom.wds.domain.Language.IT;
 import static com.dariom.wds.domain.RoomStatus.IN_PROGRESS;
 import static com.dariom.wds.domain.RoomStatus.WAITING_FOR_PLAYERS;
+import static com.dariom.wds.domain.RoomRounds.FIVE;
+import static com.dariom.wds.domain.RoomStatus.CLOSED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
@@ -71,10 +73,31 @@ class RoomAccessValidatorTest {
     );
   }
 
+  @Test
+  void validateRoomStatus_roomClosed_throwsRoomNotReadyException() {
+    // Arrange
+    var room = room(CLOSED, "p1");
+
+    // Act
+    var thrown = catchThrowable(() -> RoomAccessValidator.validateRoomStatus(
+        "p1",
+        room.id(),
+        room.status(),
+        Set.of("p1")
+    ));
+
+    // Assert
+    assertThat(thrown)
+        .isInstanceOf(RoomNotReadyException.class)
+        .hasMessage(
+            "Room <room-1> is not ready: required status IN_PROGRESS, got CLOSED");
+  }
+
   private static Room room(RoomStatus status, String... playerIds) {
     return new Room(
         "room-1",
         IT,
+        FIVE,
         status,
         Arrays.stream(playerIds).map(pid -> new Player(pid, 0, "John" + pid)).toList(),
         null

@@ -36,6 +36,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -146,6 +147,13 @@ public class ApiErrorHandler {
 
     return ResponseEntity.status(BAD_REQUEST)
         .body(new ErrorResponse(errorCode, message));
+  }
+
+  @ExceptionHandler(HttpMessageNotReadableException.class)
+  public ResponseEntity<ErrorResponse> handleMessageNotReadable(HttpMessageNotReadableException ex) {
+    log.warn("Request body is not readable: {}", ex.getMostSpecificCause().getMessage());
+    return ResponseEntity.status(BAD_REQUEST)
+        .body(new ErrorResponse(GENERIC_BAD_REQUEST, "Invalid request"));
   }
 
 }

@@ -34,6 +34,7 @@ class RoomValidationIT extends AbstractRedisTest {
   @Test
   void createRoom_missingLanguage_badRequest() throws Exception {
     var createReq = new HashMap<String, Object>();
+    createReq.put("rounds", 5);
 
     mockMvc.perform(post(BASE_URL)
             .header("Authorization", itHelper.userBearer())
@@ -46,7 +47,7 @@ class RoomValidationIT extends AbstractRedisTest {
 
   @Test
   void createRoom_invalidLanguage_badRequest() throws Exception {
-    var createReq = Map.of("language", "XX");
+    var createReq = Map.of("language", "XX", "rounds", 5);
 
     mockMvc.perform(post(BASE_URL)
             .header("Authorization", itHelper.userBearer())
@@ -55,6 +56,19 @@ class RoomValidationIT extends AbstractRedisTest {
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.code").value("INVALID_LANGUAGE"))
         .andExpect(jsonPath("$.message").value("language is invalid"));
+  }
+
+  @Test
+  void createRoom_invalidRounds_badRequest() throws Exception {
+    var createReq = Map.of("language", "IT", "rounds", 7);
+
+    mockMvc.perform(post(BASE_URL)
+            .header("Authorization", itHelper.userBearer())
+            .contentType(APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(createReq)))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("GENERIC_BAD_REQUEST"))
+        .andExpect(jsonPath("$.message").value("Invalid request"));
   }
 
   @Test

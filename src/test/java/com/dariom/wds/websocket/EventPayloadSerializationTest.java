@@ -36,6 +36,7 @@ class EventPayloadSerializationTest {
         roomEvent(EventType.ROUND_STARTED, new RoundStartedPayload(1, 6)),
         roomEvent(EventType.ROUND_FINISHED, new RoundFinishedPayload(1)),
         roomEvent(EventType.ROOM_CREATED, new PlayerJoinedPayload("player-1", List.of("player-1"))),
+        roomEvent(EventType.ROOM_CLOSED, new ScoresUpdatedPayload(Map.of("p1", 10, "p2", 5))),
         roomEvent(EventType.SCORES_UPDATED, new ScoresUpdatedPayload(Map.of("p1", 10, "p2", 5))),
         roomEvent(EventType.PLAYER_STATUS_UPDATED,
             new PlayerStatusUpdatedPayload(RoundPlayerStatus.WON)),

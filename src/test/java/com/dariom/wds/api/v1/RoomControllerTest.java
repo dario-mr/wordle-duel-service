@@ -3,6 +3,7 @@ package com.dariom.wds.api.v1;
 import static com.dariom.wds.domain.Language.IT;
 import static com.dariom.wds.domain.RoomStatus.IN_PROGRESS;
 import static com.dariom.wds.domain.RoomStatus.WAITING_FOR_PLAYERS;
+import static com.dariom.wds.domain.RoomRounds.FIVE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -76,10 +77,11 @@ class RoomControllerTest {
     var domainRoom = room(WAITING_FOR_PLAYERS);
     var expectedDto = roomMapper.toDto(domainRoom, "user-1");
 
-    when(roomService.createRoom(any(Language.class), anyString())).thenReturn(domainRoom);
+    when(roomService.createRoom(any(Language.class), any(), anyString())).thenReturn(domainRoom);
 
     // Act
-    var response = roomController.createRoom(new CreateRoomRequest(" it "), jwtWithSub("user-1"));
+    var response = roomController.createRoom(new CreateRoomRequest(" it ", FIVE),
+        jwtWithSub("user-1"));
 
     // Assert
     assertThat(response.getStatusCode().value()).isEqualTo(201);
@@ -87,7 +89,7 @@ class RoomControllerTest {
     assertThat(response.getHeaders().getLocation()).isNotNull();
     assertThat(response.getHeaders().getLocation().toString()).endsWith("/api/v1/rooms/room-1");
 
-    verify(roomService).createRoom(IT, "user-1");
+    verify(roomService).createRoom(IT, FIVE, "user-1");
   }
 
   @Test
@@ -180,6 +182,7 @@ class RoomControllerTest {
     return new Room(
         "room-1",
         IT,
+        FIVE,
         roomStatus,
         List.of(new Player("p1", 0, "John")),
         null

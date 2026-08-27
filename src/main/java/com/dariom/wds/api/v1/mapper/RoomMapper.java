@@ -26,6 +26,7 @@ public class RoomMapper {
     return new RoomDto(
         room.id(),
         room.language(),
+        room.rounds(),
         room.status(),
         toPlayerDto(room.players()),
         toRoundDto(room.currentRound(), requestingPlayerId)

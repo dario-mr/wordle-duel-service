@@ -60,7 +60,7 @@ public class RoomController {
     var appUserId = authenticatedUserResolver.from(jwt).userId();
     log.info("Create room {} by user <{}>", request, appUserId);
     var language = Language.valueOf(request.language().trim().toUpperCase());
-    var room = roomService.createRoom(language, appUserId);
+    var room = roomService.createRoom(language, request.rounds(), appUserId);
     var roomDto = roomMapper.toDto(room, appUserId);
     var roomUri = getRoomUri(roomDto.id());
 

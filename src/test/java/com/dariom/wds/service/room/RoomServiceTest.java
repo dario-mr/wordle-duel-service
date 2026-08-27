@@ -1,6 +1,7 @@
 package com.dariom.wds.service.room;
 
 import static com.dariom.wds.domain.Language.IT;
+import static com.dariom.wds.domain.RoomRounds.FIVE;
 import static com.dariom.wds.domain.RoomStatus.IN_PROGRESS;
 import static com.dariom.wds.domain.RoomStatus.WAITING_FOR_PLAYERS;
 import static com.dariom.wds.domain.RoundStatus.PLAYING;
@@ -85,10 +86,11 @@ class RoomServiceTest {
     when(roomRepository.save(any(RoomEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
     // Act
-    var room = roomService.createRoom(IT, "p1");
+    var room = roomService.createRoom(IT, FIVE, "p1");
 
     // Assert
     assertThat(room.id()).isNotBlank();
+    assertThat(room.rounds()).isEqualTo(FIVE);
     assertThat(room.status()).isEqualTo(WAITING_FOR_PLAYERS);
     assertThat(room.players()).extracting(Player::id).containsExactly("p1");
     assertThat(room.players()).singleElement().satisfies(p -> assertThat(p.score()).isEqualTo(0));

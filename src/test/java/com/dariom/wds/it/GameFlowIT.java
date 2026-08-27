@@ -136,7 +136,7 @@ class GameFlowIT extends AbstractRedisTest {
 
   private String createRoom(String bearer, String expectedPlayerId)
       throws Exception {
-    var createReq = Map.of("language", LANGUAGE);
+    var createReq = Map.<String, Object>of("language", LANGUAGE, "rounds", 5);
 
     var createRes = itHelper.createRoom(bearer, createReq)
         .andExpect(status().isCreated())

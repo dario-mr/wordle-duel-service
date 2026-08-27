@@ -3,6 +3,7 @@ package com.dariom.wds.api.v1.mapper;
 import static com.dariom.wds.domain.Language.IT;
 import static com.dariom.wds.domain.LetterStatus.CORRECT;
 import static com.dariom.wds.domain.RoomStatus.IN_PROGRESS;
+import static com.dariom.wds.domain.RoomRounds.FIVE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.tuple;
 
@@ -36,13 +37,15 @@ class RoomMapperTest {
         null
     );
 
-    var room = new Room("room-1", IT, IN_PROGRESS, List.of(new Player("p1", 0, "John")), round);
+    var room = new Room("room-1", IT, FIVE, IN_PROGRESS,
+        List.of(new Player("p1", 0, "John")), round);
 
     // Act
     var dto = mapper.toDto(room, "p1");
 
     // Assert
     assertThat(dto.currentRound()).isNotNull();
+    assertThat(dto.rounds()).isEqualTo(FIVE);
     assertThat(dto.currentRound().guessesByPlayerId()).containsKey("p1");
     assertThat(dto.currentRound().guessesByPlayerId().get("p1"))
         .extracting(GuessDto::attemptNumber)
@@ -62,7 +65,8 @@ class RoomMapperTest {
         "PIZZA"
     );
 
-    var room = new Room("room-1", IT, IN_PROGRESS, List.of(new Player("p1", 0, "John")), round);
+    var room = new Room("room-1", IT, FIVE, IN_PROGRESS,
+        List.of(new Player("p1", 0, "John")), round);
 
     // Act
     var dto = mapper.toDto(room, "p1");
@@ -81,7 +85,8 @@ class RoomMapperTest {
         "PIZZA"
     );
 
-    var room = new Room("room-1", IT, IN_PROGRESS, List.of(new Player("p1", 0, "John")), round);
+    var room = new Room("room-1", IT, FIVE, IN_PROGRESS,
+        List.of(new Player("p1", 0, "John")), round);
 
     // Act
     var dto = mapper.toDto(room, "p1");
@@ -100,7 +105,8 @@ class RoomMapperTest {
         "PIZZA"
     );
 
-    var room = new Room("room-1", IT, IN_PROGRESS, List.of(new Player("p1", 0, "John")), round);
+    var room = new Room("room-1", IT, FIVE, IN_PROGRESS,
+        List.of(new Player("p1", 0, "John")), round);
 
     // Act
     var dto = mapper.toDto(room, "someone-else");

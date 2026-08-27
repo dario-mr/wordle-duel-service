@@ -40,7 +40,7 @@ class RoomAccessIT extends AbstractRedisTest {
     var player2Bearer = itHelper.bearer(user2);
     var player3Bearer = itHelper.bearer(user3);
 
-    var createReq = Map.of("language", LANGUAGE);
+    var createReq = Map.of("language", LANGUAGE, "rounds", 5);
     var createRes = itHelper.createRoom(player1Bearer, createReq)
         .andExpect(status().isCreated())
         .andExpect(header().exists("Location"))

@@ -3,6 +3,7 @@ package com.dariom.wds.service.room;
 import static com.dariom.wds.domain.Language.IT;
 import static com.dariom.wds.domain.RoomStatus.CLOSED;
 import static com.dariom.wds.domain.RoomStatus.WAITING_FOR_PLAYERS;
+import static com.dariom.wds.domain.RoomRounds.FIVE;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
@@ -18,7 +19,7 @@ class RoomValidatorTest {
   @Test
   void validateRoom_roomClosed_throwsRoomClosedException() {
     // Arrange
-    var room = new Room("room-1", IT, CLOSED, List.of(player("p1")), null);
+    var room = new Room("room-1", IT, FIVE, CLOSED, List.of(player("p1")), null);
 
     // Act
     var thrown = catchThrowable(() -> RoomValidator.validateRoom("p2", room, 2));
@@ -35,6 +36,7 @@ class RoomValidatorTest {
     var room = new Room(
         "room-1",
         IT,
+        FIVE,
         WAITING_FOR_PLAYERS,
         List.of(player("p1"), player("p2")),
         null
@@ -55,6 +57,7 @@ class RoomValidatorTest {
     var room = new Room(
         "room-1",
         IT,
+        FIVE,
         WAITING_FOR_PLAYERS,
         List.of(player("p1"), player("p2")),
         null

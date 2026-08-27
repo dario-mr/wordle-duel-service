@@ -37,7 +37,7 @@ class TraceIdIT extends AbstractRedisTest {
   @Test
   void requestWithoutTraceIdHeader_generatesTraceIdInResponseHeader() throws Exception {
     // Arrange
-    var requestBody = Map.of("language", "IT");
+    var requestBody = Map.of("language", "IT", "rounds", 5);
 
     // Act / Assert
     mockMvc.perform(post(BASE_URL)
@@ -52,7 +52,7 @@ class TraceIdIT extends AbstractRedisTest {
   void requestWithTraceIdHeader_reusesTraceIdInResponseHeader() throws Exception {
     // Arrange
     var traceId = "trace-id-from-client";
-    var requestBody = Map.of("language", "IT");
+    var requestBody = Map.of("language", "IT", "rounds", 5);
 
     // Act / Assert
     mockMvc.perform(post(BASE_URL)

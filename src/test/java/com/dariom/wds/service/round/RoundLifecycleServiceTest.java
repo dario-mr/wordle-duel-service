@@ -5,6 +5,8 @@ import static com.dariom.wds.domain.Language.IT;
 import static com.dariom.wds.domain.RoundPlayerStatus.LOST;
 import static com.dariom.wds.domain.RoundPlayerStatus.PLAYING;
 import static com.dariom.wds.domain.RoundPlayerStatus.WON;
+import static com.dariom.wds.domain.RoomRounds.FIVE;
+import static com.dariom.wds.domain.RoomStatus.CLOSED;
 import static com.dariom.wds.domain.RoundStatus.ENDED;
 import static com.dariom.wds.websocket.model.EventType.ROUND_STARTED;
 import static java.time.ZoneOffset.UTC;
@@ -34,9 +36,11 @@ import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
 import com.dariom.wds.websocket.model.RoundFinishedPayload;
 import com.dariom.wds.websocket.model.RoundStartedPayload;
+import com.dariom.wds.websocket.model.ScoresUpdatedPayload;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import org.junit.jupiter.api.BeforeEach;
@@ -261,6 +265,36 @@ class RoundLifecycleServiceTest {
             EventType.ROUND_FINISHED,
             new RoundFinishedPayload(1)
         )));
+  }
+
+  @Test
+  void finishRound_finalFiniteRound_closesRoomAndPublishesRoomClosed() {
+    // Arrange
+    var round = new RoundEntity();
+    round.setRoundStatus(RoundStatus.PLAYING);
+    round.setRoundNumber(5);
+    round.setMaxAttempts(6);
+    round.setPlayerStatus(PLAYER_1, WON);
+    round.setPlayerStatus(PLAYER_2, LOST);
+    round.setGuesses(List.of(guess(PLAYER_1, 1)));
+
+    var room = new RoomEntity();
+    room.setId("room-1");
+    room.setConfiguredRounds(FIVE);
+    room.setCurrentRoundNumber(5);
+    room.addPlayer(PLAYER_1);
+    room.addPlayer(PLAYER_2);
+
+    // Act
+    service.finishRound(round, room);
+
+    // Assert
+    assertThat(room.getStatus()).isEqualTo(CLOSED);
+    assertThat(room.getCurrentRoundNumber()).isEqualTo(5);
+    verify(eventPublisher).publishEvent(new RoomEventToPublish("room-1", new RoomEvent(
+        EventType.ROOM_CLOSED,
+        new ScoresUpdatedPayload(Map.of(PLAYER_1, 6, PLAYER_2, 0))
+    )));
   }
 
   @Test

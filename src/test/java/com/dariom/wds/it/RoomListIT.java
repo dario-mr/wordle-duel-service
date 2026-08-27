@@ -46,7 +46,7 @@ class RoomListIT extends AbstractRedisTest {
     var player2Bearer = itHelper.bearer(user2);
     var player3Bearer = itHelper.bearer(user3);
 
-    var createReq = Map.of("language", LANGUAGE);
+    var createReq = Map.<String, Object>of("language", LANGUAGE, "rounds", 5);
 
     // user1 creates a room
     var roomCreatedByP1 = createRoom(player1Bearer, createReq);
@@ -67,7 +67,7 @@ class RoomListIT extends AbstractRedisTest {
         .andExpect(jsonPath("$[*].id", contains(roomCreatedByP2, roomCreatedByP1)));
   }
 
-  private String createRoom(String bearer, Map<String, String> createReq)
+  private String createRoom(String bearer, Map<String, Object> createReq)
       throws Exception {
     var createRes = itHelper.createRoom(bearer, createReq)
         .andExpect(status().isCreated())

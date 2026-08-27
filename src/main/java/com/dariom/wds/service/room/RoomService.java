@@ -8,6 +8,7 @@ import static com.dariom.wds.websocket.model.EventType.ROOM_CREATED;
 import com.dariom.wds.config.lock.RoomLockProperties;
 import com.dariom.wds.domain.Language;
 import com.dariom.wds.domain.Room;
+import com.dariom.wds.domain.RoomRounds;
 import com.dariom.wds.domain.Round;
 import com.dariom.wds.exception.RoomAccessDeniedException;
 import com.dariom.wds.exception.RoomLockedException;
@@ -47,10 +48,11 @@ public class RoomService {
   private final UserProfileService userProfileService;
 
   @Transactional
-  public Room createRoom(Language language, String creatorPlayerId) {
+  public Room createRoom(Language language, RoomRounds rounds, String creatorPlayerId) {
     var room = new RoomEntity();
     room.setId(UUID.randomUUID().toString());
     room.setLanguage(language);
+    room.setConfiguredRounds(rounds);
     room.setStatus(WAITING_FOR_PLAYERS);
     room.addPlayer(creatorPlayerId);
     room.setPlayerScore(creatorPlayerId, INITIAL_SCORE);

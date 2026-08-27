@@ -1,8 +1,10 @@
 package com.dariom.wds.service.round;
 
+import static com.dariom.wds.domain.RoomStatus.CLOSED;
 import static com.dariom.wds.domain.RoundPlayerStatus.PLAYING;
 import static com.dariom.wds.domain.RoundPlayerStatus.WON;
 import static com.dariom.wds.domain.RoundStatus.ENDED;
+import static com.dariom.wds.websocket.model.EventType.ROOM_CLOSED;
 import static com.dariom.wds.websocket.model.EventType.ROUND_STARTED;
 
 import com.dariom.wds.api.common.ErrorCode;
@@ -21,6 +23,7 @@ import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
 import com.dariom.wds.websocket.model.RoundFinishedPayload;
 import com.dariom.wds.websocket.model.RoundStartedPayload;
+import com.dariom.wds.websocket.model.ScoresUpdatedPayload;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.concurrent.ThreadLocalRandom;
@@ -116,6 +119,15 @@ class RoundLifecycleService {
         EventType.ROUND_FINISHED,
         new RoundFinishedPayload(round.getRoundNumber())
     ));
+
+    if (room.getConfiguredRounds() != null
+        && room.getConfiguredRounds().isFinalRound(round.getRoundNumber())) {
+      room.setStatus(CLOSED);
+      publishRoomEvent(room.getId(), new RoomEvent(
+          ROOM_CLOSED,
+          new ScoresUpdatedPayload(room.getScoresByPlayerId())
+      ));
+    }
   }
 
   private String randomTargetWord(Language language) {

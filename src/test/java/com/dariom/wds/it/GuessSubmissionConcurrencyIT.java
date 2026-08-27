@@ -128,7 +128,7 @@ class GuessSubmissionConcurrencyIT extends AbstractRedisTest {
   }
 
   private String createRoomAndJoin() throws Exception {
-    var createRes = itHelper.createRoom(player1Bearer, Map.of("language", LANGUAGE))
+    var createRes = itHelper.createRoom(player1Bearer, Map.of("language", LANGUAGE, "rounds", 5))
         .andExpect(status().isCreated())
         .andReturn();
 

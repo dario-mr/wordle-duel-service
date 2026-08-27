@@ -6,6 +6,7 @@ import static jakarta.persistence.FetchType.LAZY;
 import static java.util.stream.Collectors.toUnmodifiableSet;
 
 import com.dariom.wds.domain.Language;
+import com.dariom.wds.domain.RoomRounds;
 import com.dariom.wds.domain.RoomStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -44,6 +45,10 @@ public class RoomEntity {
   @Enumerated(STRING)
   @Column(name = "status")
   private RoomStatus status;
+
+  @Enumerated(STRING)
+  @Column(name = "rounds", nullable = false)
+  private RoomRounds configuredRounds = RoomRounds.ENDLESS;
 
   @OneToMany(mappedBy = "room", cascade = ALL, orphanRemoval = true, fetch = LAZY)
   private Set<RoomPlayerEntity> roomPlayers = new HashSet<>();

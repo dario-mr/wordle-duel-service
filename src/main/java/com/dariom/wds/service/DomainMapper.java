@@ -42,6 +42,7 @@ public class DomainMapper {
     return new Room(
         room.getId(),
         room.getLanguage(),
+        room.getConfiguredRounds(),
         room.getStatus(),
         toPlayers(room.getRoomPlayers(), displayNamePerPlayer),
         currentRound

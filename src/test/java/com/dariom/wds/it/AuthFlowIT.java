@@ -56,7 +56,7 @@ class AuthFlowIT extends AbstractRedisTest {
     // Creating a room without a Bearer token returns 401
     mockMvc.perform(post(ROOMS_URL)
             .contentType(APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(Map.of("language", "IT"))))
+            .content(objectMapper.writeValueAsString(Map.of("language", "IT", "rounds", 5))))
         .andExpect(status().isUnauthorized());
 
     // Create a real user + role and seed a refresh token directly into the DB
@@ -89,7 +89,7 @@ class AuthFlowIT extends AbstractRedisTest {
     assertThat(newRawRefreshToken).isNotEqualTo(oldRawRefreshToken);
 
     // Creating a room with a valid access token succeeds
-    itHelper.createRoom("Bearer " + accessToken, Map.of("language", "IT"))
+    itHelper.createRoom("Bearer " + accessToken, Map.of("language", "IT", "rounds", 5))
         .andExpect(status().isCreated());
 
     // Logout should revoke the current refresh token and clear the refresh cookie
