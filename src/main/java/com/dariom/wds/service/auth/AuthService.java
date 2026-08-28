@@ -1,7 +1,6 @@
 package com.dariom.wds.service.auth;
 
 import com.dariom.wds.domain.RefreshResult;
-import com.dariom.wds.exception.InvalidRefreshTokenException;
 import com.dariom.wds.exception.RefreshTokenEmptyException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -19,14 +18,9 @@ public class AuthService {
     var rawToken = refreshTokenCookieService.readRefreshToken(request)
         .orElseThrow(RefreshTokenEmptyException::new);
 
-    try {
-      var refreshed = refreshTokenService.refresh(rawToken);
-      refreshTokenCookieService.setRefreshToken(response, refreshed.refreshToken());
-      return refreshed;
-    } catch (InvalidRefreshTokenException ex) {
-      refreshTokenCookieService.clearRefreshToken(response);
-      throw ex;
-    }
+    var refreshed = refreshTokenService.refresh(rawToken);
+    refreshTokenCookieService.setRefreshToken(response, refreshed.refreshToken());
+    return refreshed;
   }
 
   public void clearRefreshToken(HttpServletRequest request, HttpServletResponse response) {

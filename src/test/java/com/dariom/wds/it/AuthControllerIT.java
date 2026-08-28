@@ -87,7 +87,7 @@ class AuthControllerIT extends AbstractRedisTest {
   }
 
   @Test
-  void refresh_invalidRefreshCookie_returns401AndClearsRefreshCookie() throws Exception {
+  void refresh_invalidRefreshCookie_returns401WithoutClearingRefreshCookie() throws Exception {
     // Arrange
     var csrfCookie = itHelper.fetchCsrfCookie();
     var refreshCookie = new Cookie(securityProperties.refresh().cookieName(), "not-a-valid-token");
@@ -103,9 +103,8 @@ class AuthControllerIT extends AbstractRedisTest {
 
     // Assert
     var setCookies = result.getResponse().getHeaders(SET_COOKIE);
-    var refreshSetCookieHeader = itHelper.findSetCookieHeader(setCookies,
-        securityProperties.refresh().cookieName());
-    assertThat(refreshSetCookieHeader).contains("Max-Age=0");
+    assertThat(setCookies)
+        .noneMatch(header -> header.startsWith(securityProperties.refresh().cookieName() + "="));
   }
 
   @Test

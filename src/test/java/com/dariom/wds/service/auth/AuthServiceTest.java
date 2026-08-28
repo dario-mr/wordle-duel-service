@@ -78,7 +78,7 @@ class AuthServiceTest {
   }
 
   @Test
-  void refreshToken_invalidToken_clearsCookieAndRethrows() {
+  void refreshToken_invalidToken_doesNotClearCookieAndRethrows() {
     // Arrange
     var rawToken = "raw-token";
 
@@ -95,7 +95,6 @@ class AuthServiceTest {
 
     verify(refreshTokenCookieService).readRefreshToken(request);
     verify(refreshTokenService).refresh(rawToken);
-    verify(refreshTokenCookieService).clearRefreshToken(response);
     verifyNoMoreInteractions(refreshTokenService, refreshTokenCookieService);
   }
 
