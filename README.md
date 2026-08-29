@@ -42,17 +42,17 @@ Select the profile with the `PROFILE` env var (defaults to `prod`).
 
 ## Environment variables
 
-| Variable                      | Description                                   | Default |
-|-------------------------------|-----------------------------------------------|---------|
-| `PORT`                        | HTTP server port                              | `8088`  |
-| `PROFILE`                     | Spring profile (`dev` / `prod`)               | `prod`  |
-| `DB_PORT`                     | PostgreSQL port (used by `prod` profile)      | `null`  |
-| `DB_USER`                     | PostgreSQL username                           | `null`  |
-| `DB_PASSWORD`                 | PostgreSQL password                           | `null`  |
-| `WORDLE_GOOGLE_CLIENT_ID`     | Google OAuth2 client id                       | `null`  |
-| `WORDLE_GOOGLE_CLIENT_SECRET` | Google OAuth2 client secret                   | `null`  |
-| `SPRING_DATA_REDIS_HOST`      | Redis host                                    | `null`  |
-| `SPRING_DATA_REDIS_PORT`      | Redis port                                    | `null`  |
+| Variable                      | Description                              | Default |
+|-------------------------------|------------------------------------------|---------|
+| `PORT`                        | HTTP server port                         | `8088`  |
+| `PROFILE`                     | Spring profile (`dev` / `prod`)          | `prod`  |
+| `DB_PORT`                     | PostgreSQL port (used by `prod` profile) | `null`  |
+| `DB_USER`                     | PostgreSQL username                      | `null`  |
+| `DB_PASSWORD`                 | PostgreSQL password                      | `null`  |
+| `WORDLE_GOOGLE_CLIENT_ID`     | Google OAuth2 client id                  | `null`  |
+| `WORDLE_GOOGLE_CLIENT_SECRET` | Google OAuth2 client secret              | `null`  |
+| `SPRING_DATA_REDIS_HOST`      | Redis host                               | `null`  |
+| `SPRING_DATA_REDIS_PORT`      | Redis port                               | `null`  |
 
 Notes:
 
@@ -65,7 +65,7 @@ Notes:
 
 This service uses Google OAuth2 login and a Redis-backed Spring Security session. The session cookie
 is HttpOnly, Secure, SameSite=Lax, and named `__Host-wd_session` in production (`wd_session` in
-development). The session idle timeout is 30 minutes.
+development). The session idle timeout is 180 days.
 
 - OAuth2 login entrypoint: `GET /oauth2/authorization/google`
 - Current user: `GET /api/v1/users/me`
