@@ -22,9 +22,7 @@ import com.dariom.wds.domain.Room;
 import com.dariom.wds.domain.RoomStatus;
 import com.dariom.wds.service.room.RoomService;
 import com.dariom.wds.service.round.RoundService;
-import java.time.Instant;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -32,7 +30,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockHttpServletRequest;
-import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
@@ -45,6 +43,8 @@ class RoomControllerTest {
   private RoundService roundService;
   @Mock
   private AuthenticatedUserResolver authenticatedUserResolver;
+  @Mock
+  private OidcUser oidcUser;
 
   private final RoomMapper roomMapper = new RoomMapper();
 
@@ -54,11 +54,8 @@ class RoomControllerTest {
   void setUp() {
     roomController = new RoomController(roomService, roundService, roomMapper,
         authenticatedUserResolver);
-    when(authenticatedUserResolver.from(any(Jwt.class)))
-        .thenAnswer(invocation -> {
-          var jwt = invocation.getArgument(0, Jwt.class);
-          return new AuthenticatedUser(jwt.getSubject(), "", java.util.Set.of("USER"));
-        });
+    when(authenticatedUserResolver.from(any(OidcUser.class)))
+        .thenReturn(new AuthenticatedUser("user-1", "", java.util.Set.of("USER")));
   }
 
   @AfterEach
@@ -80,8 +77,7 @@ class RoomControllerTest {
     when(roomService.createRoom(any(Language.class), any(), anyString())).thenReturn(domainRoom);
 
     // Act
-    var response = roomController.createRoom(new CreateRoomRequest(" it ", FIVE),
-        jwtWithSub("user-1"));
+    var response = roomController.createRoom(new CreateRoomRequest(" it ", FIVE), oidcUser);
 
     // Assert
     assertThat(response.getStatusCode().value()).isEqualTo(201);
@@ -99,9 +95,11 @@ class RoomControllerTest {
     var expectedDto = roomMapper.toDto(domainRoom, "user-2");
 
     when(roomService.joinRoom(anyString(), anyString())).thenReturn(domainRoom);
+    when(authenticatedUserResolver.from(oidcUser))
+        .thenReturn(new AuthenticatedUser("user-2", "", java.util.Set.of("USER")));
 
     // Act
-    var response = roomController.joinRoom("room-1", jwtWithSub("user-2"));
+    var response = roomController.joinRoom("room-1", oidcUser);
 
     // Assert
     assertThat(response.getStatusCode().value()).isEqualTo(200);
@@ -119,7 +117,7 @@ class RoomControllerTest {
     when(roomService.listRoomsForPlayer(anyString())).thenReturn(domainRooms);
 
     // Act
-    var response = roomController.listRooms(jwtWithSub("user-1"));
+    var response = roomController.listRooms(oidcUser);
 
     // Assert
     assertThat(response.getStatusCode().value()).isEqualTo(200);
@@ -137,8 +135,7 @@ class RoomControllerTest {
     when(roundService.handleGuess(anyString(), anyString(), anyString())).thenReturn(domainRoom);
 
     // Act
-    var response = roomController.submitGuess("room-1", new SubmitGuessRequest("pizza"),
-        jwtWithSub("user-1"));
+    var response = roomController.submitGuess("room-1", new SubmitGuessRequest("pizza"), oidcUser);
 
     // Assert
     assertThat(response.getStatusCode().value()).isEqualTo(200);
@@ -158,24 +155,13 @@ class RoomControllerTest {
         domainRoom);
 
     // Act
-    var response = roomController.ready("room-1", new ReadyRequest(1), jwtWithSub("user-1"));
+    var response = roomController.ready("room-1", new ReadyRequest(1), oidcUser);
 
     // Assert
     assertThat(response.getStatusCode().value()).isEqualTo(200);
     assertThat(response.getBody()).isEqualTo(expectedDto);
 
     verify(roundService).handleReady("room-1", "user-1", 1);
-  }
-
-  private static Jwt jwtWithSub(String sub) {
-    var now = Instant.now();
-    return new Jwt(
-        "test-token",
-        now,
-        now.plusSeconds(3600),
-        Map.of("alg", "none"),
-        Map.of("sub", sub)
-    );
   }
 
   private static Room room(RoomStatus roomStatus) {

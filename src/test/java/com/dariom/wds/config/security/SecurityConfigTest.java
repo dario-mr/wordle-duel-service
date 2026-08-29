@@ -14,7 +14,7 @@ class SecurityConfigTest {
   @Test
   void csrfTokenRepository_csrfPropertiesMissing_throwsIllegalStateException() {
     // Arrange
-    var props = new SecurityProperties(null, null, null, null, null);
+    var props = new SecurityProperties(null, null, null);
     var config = new SecurityConfig(props);
 
     // Act
@@ -30,7 +30,7 @@ class SecurityConfigTest {
   void apiSecurityFilterChain_matcherPropertiesMissing_throwsIllegalStateException() {
     // Arrange
     var props = new SecurityProperties(null,
-        new SecurityProperties.CsrfProperties("cookie", "header"), null, null, null);
+        new SecurityProperties.CsrfProperties("cookie", "header"), null);
     var config = new SecurityConfig(props);
 
     // Act
@@ -48,9 +48,7 @@ class SecurityConfigTest {
     var props = new SecurityProperties(
         null,
         new SecurityProperties.CsrfProperties("cookie", "header"),
-        new SecurityProperties.MatcherProperties("/api/**", "/admin/**", "/auth/**"),
-        null,
-        null
+        new SecurityProperties.MatcherProperties("/api/**", "/admin/**", "/auth/**")
     );
     var config = new SecurityConfig(props);
 
@@ -60,7 +58,7 @@ class SecurityConfigTest {
     // Assert
     assertThat(matches(matcher, "POST", "/api/v1/rooms")).isTrue();
     assertThat(matches(matcher, "DELETE", "/admin/rooms/1")).isTrue();
-    assertThat(matches(matcher, "POST", "/auth/refresh")).isFalse();
+    assertThat(matches(matcher, "POST", "/auth/logout")).isFalse();
   }
 
   @Test
@@ -69,9 +67,7 @@ class SecurityConfigTest {
         // Arrange
         null,
         new SecurityProperties.CsrfProperties("cookie", "header"),
-        new SecurityProperties.MatcherProperties("/api/**", "/admin/**", "/auth/**"),
-        null,
-        null
+        new SecurityProperties.MatcherProperties("/api/**", "/admin/**", "/auth/**")
     );
     var config = new SecurityConfig(props);
 

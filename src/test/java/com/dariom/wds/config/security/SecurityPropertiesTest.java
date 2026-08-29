@@ -9,7 +9,7 @@ class SecurityPropertiesTest {
   @Test
   void whitelistPatternsArray_null_returnsEmptyArray() {
     // Arrange
-    var props = new SecurityProperties(null, null, null, null, null);
+    var props = new SecurityProperties(null, null, null);
 
     // Act
     var result = props.whitelistPatternsArray();
@@ -21,7 +21,7 @@ class SecurityPropertiesTest {
   @Test
   void whitelistPatternsArray_blank_returnsEmptyArray() {
     // Arrange
-    var props = new SecurityProperties("  ", null, null, null, null);
+    var props = new SecurityProperties("  ", null, null);
 
     // Act
     var result = props.whitelistPatternsArray();
@@ -33,7 +33,7 @@ class SecurityPropertiesTest {
   @Test
   void whitelistPatternsArray_hasBlanks_filtersAndTrims() {
     // Arrange
-    var props = new SecurityProperties(" /actuator/** , , /swagger-ui/** ", null, null, null, null);
+    var props = new SecurityProperties(" /actuator/** , , /swagger-ui/** ", null, null);
 
     // Act
     var result = props.whitelistPatternsArray();

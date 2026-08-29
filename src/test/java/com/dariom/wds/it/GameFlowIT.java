@@ -44,26 +44,26 @@ class GameFlowIT extends AbstractRedisTest {
     var user1 = itHelper.createUser(PLAYER_1_ID, "player1@example.com", "John Smith");
     var user2 = itHelper.createUser(PLAYER_2_ID, "player2@example.com", "Bart Simpson");
 
-    var player1Bearer = itHelper.bearer(user1);
-    var player2Bearer = itHelper.bearer(user2);
+    var player1Authentication = itHelper.userAuthentication(user1);
+    var player2Authentication = itHelper.userAuthentication(user2);
 
     // player1 creates the room
-    var roomId = createRoom(player1Bearer, PLAYER_1_ID);
+    var roomId = createRoom(player1Authentication, PLAYER_1_ID);
 
     // player2 joins the room
-    var joinRoomRes = itHelper.joinRoom(roomId, player2Bearer).andExpect(status().isOk());
+    var joinRoomRes = itHelper.joinRoom(roomId, player2Authentication).andExpect(status().isOk());
     expectRoomInProgress(joinRoomRes, "$", roomId, 1, "PLAYING", "PLAYING", "PLAYING");
     joinRoomRes.andExpect(jsonPath("$.currentRound.solution").doesNotExist());
     joinRoomRes.andExpect(jsonPath("$.currentRound.guessesByPlayerId").value(anEmptyMap()));
 
     // ready not allowed while round is still playing
-    itHelper.ready(roomId, player1Bearer, 1)
+    itHelper.ready(roomId, player1Authentication, 1)
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.code").value("ROUND_NOT_ENDED"))
         .andExpect(jsonPath("$.message", not(emptyOrNullString())));
 
     // player1 submits guess
-    var player1GuessRes = itHelper.submitGuess(roomId, player1Bearer, WORD)
+    var player1GuessRes = itHelper.submitGuess(roomId, player1Authentication, WORD)
         .andExpect(status().isOk());
     expectRoomInProgress(player1GuessRes, "$.room", roomId, 1, "PLAYING", "LOST", "PLAYING");
     player1GuessRes.andExpect(
@@ -74,13 +74,13 @@ class GameFlowIT extends AbstractRedisTest {
     expectNoGuesses(player1GuessRes, "$.room", PLAYER_2_ID);
 
     // player2 still can't see solution
-    var roomForP2AfterP1GuessRes = itHelper.getRoom(roomId, player2Bearer)
+    var roomForP2AfterP1GuessRes = itHelper.getRoom(roomId, player2Authentication)
         .andExpect(status().isOk());
     expectRoomInProgress(roomForP2AfterP1GuessRes, "$", roomId, 1, "PLAYING", "LOST", "PLAYING");
     roomForP2AfterP1GuessRes.andExpect(jsonPath("$.currentRound.solution").doesNotExist());
 
     // player2 submits guess
-    var player2GuessRes = itHelper.submitGuess(roomId, player2Bearer, WORD)
+    var player2GuessRes = itHelper.submitGuess(roomId, player2Authentication, WORD)
         .andExpect(status().isOk());
     expectRoomInProgress(player2GuessRes, "$.room", roomId, 1, "ENDED", "LOST", "LOST");
     player2GuessRes.andExpect(
@@ -91,7 +91,7 @@ class GameFlowIT extends AbstractRedisTest {
     expectSingleGuess(player2GuessRes, "$.room", PLAYER_2_ID, WORD, 1);
 
     // round is finished (both players lost)
-    var roomRes = itHelper.getRoom(roomId, player1Bearer).andExpect(status().isOk());
+    var roomRes = itHelper.getRoom(roomId, player1Authentication).andExpect(status().isOk());
     expectRoomInProgress(roomRes, "$", roomId, 1, "ENDED", "LOST", "LOST");
     roomRes.andExpect(jsonPath("$.currentRound.solution").value(not(emptyOrNullString())));
     roomRes.andExpect(jsonPath("$.currentRound.solution").value(hasLength(WORD.length())));
@@ -99,46 +99,48 @@ class GameFlowIT extends AbstractRedisTest {
     expectGuessWordOnly(roomRes, "$", PLAYER_2_ID, WORD);
 
     // submitting another guess is illegal once round is finished
-    itHelper.submitGuess(roomId, player1Bearer, WORD)
+    itHelper.submitGuess(roomId, player1Authentication, WORD)
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.code").value("ROUND_FINISHED"))
         .andExpect(jsonPath("$.message", not(emptyOrNullString())));
 
     // room still has the same finished round
-    var roomAfterIllegalGuessRes = itHelper.getRoom(roomId, player1Bearer)
+    var roomAfterIllegalGuessRes = itHelper.getRoom(roomId, player1Authentication)
         .andExpect(status().isOk());
     expectRoomInProgress(roomAfterIllegalGuessRes, "$", roomId, 1, "ENDED", "LOST", "LOST");
     roomAfterIllegalGuessRes.andExpect(
         jsonPath("$.currentRound.solution").value(not(emptyOrNullString())));
 
     // player1 ready (idempotent)
-    var readyP1Res = itHelper.ready(roomId, player1Bearer, 1).andExpect(status().isOk());
+    var readyP1Res = itHelper.ready(roomId, player1Authentication, 1).andExpect(status().isOk());
     expectRoomInProgress(readyP1Res, "$", roomId, 1, "ENDED", "READY", "LOST");
     readyP1Res.andExpect(jsonPath("$.currentRound.solution").value(not(emptyOrNullString())));
 
-    itHelper.ready(roomId, player1Bearer, 1)
+    itHelper.ready(roomId, player1Authentication, 1)
         .andExpect(status().isOk())
         .andExpect(jsonPath(
             path("$", ".currentRound.statusByPlayerId['" + PLAYER_1_ID + "']")).value("READY"));
 
     // wrong round number rejected
-    itHelper.ready(roomId, player2Bearer, 2)
+    itHelper.ready(roomId, player2Authentication, 2)
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.code").value("ROUND_NOT_CURRENT"))
         .andExpect(jsonPath("$.message", not(emptyOrNullString())));
 
     // player2 ready triggers next round start
-    var readyP2Res = itHelper.ready(roomId, player2Bearer, 1).andExpect(status().isOk());
+    var readyP2Res = itHelper.ready(roomId, player2Authentication, 1).andExpect(status().isOk());
     expectRoomInProgress(readyP2Res, "$", roomId, 2, "PLAYING", "PLAYING", "PLAYING");
     readyP2Res.andExpect(jsonPath("$.currentRound.solution").doesNotExist());
     readyP2Res.andExpect(jsonPath("$.currentRound.guessesByPlayerId").value(anEmptyMap()));
   }
 
-  private String createRoom(String bearer, String expectedPlayerId)
+  private String createRoom(
+      org.springframework.test.web.servlet.request.RequestPostProcessor authentication,
+      String expectedPlayerId)
       throws Exception {
     var createReq = Map.<String, Object>of("language", LANGUAGE, "rounds", 5);
 
-    var createRes = itHelper.createRoom(bearer, createReq)
+    var createRes = itHelper.createRoom(authentication, createReq)
         .andExpect(status().isCreated())
         .andExpect(header().exists("Location"))
         .andExpect(jsonPath("$.id", not(emptyOrNullString())))

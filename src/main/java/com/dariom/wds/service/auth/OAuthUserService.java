@@ -9,7 +9,6 @@ import java.util.HashMap;
 import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.CacheManager;
-import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.core.oidc.OidcUserInfo;
 import org.springframework.security.oauth2.core.oidc.user.DefaultOidcUser;
@@ -44,16 +43,9 @@ import org.springframework.stereotype.Service;
  *
  * <p><b>What it does NOT do</b></p>
  * <ul>
- *   <li>Does NOT handle remember-me token restoration</li>
  *   <li>Does NOT run on every request</li>
  *   <li>Does NOT validate OAuth2 tokens (Spring does that)</li>
  * </ul>
- *
- * <p>
- * The returned principal uses the user's email as
- * {@link Authentication#getName()},
- * so that remember-me tokens can later reload the user consistently.
- * </p>
  */
 @Service
 @RequiredArgsConstructor

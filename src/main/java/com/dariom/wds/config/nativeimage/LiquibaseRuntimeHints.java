@@ -50,6 +50,7 @@ import liquibase.parser.SnapshotParserFactory;
 import liquibase.parser.SqlParserFactory;
 import liquibase.plugin.PluginFactory;
 import liquibase.precondition.PreconditionFactory;
+import liquibase.precondition.core.IndexExistsPrecondition;
 import liquibase.report.ShowSummaryGeneratorFactory;
 import liquibase.resource.PathHandlerFactory;
 import liquibase.serializer.ChangeLogSerializerFactory;
@@ -133,6 +134,9 @@ public class LiquibaseRuntimeHints implements RuntimeHintsRegistrar {
       hints.reflection().registerType(type,
           INVOKE_PUBLIC_CONSTRUCTORS, INVOKE_DECLARED_CONSTRUCTORS);
     }
+
+    hints.reflection().registerType(IndexExistsPrecondition.class,
+        INVOKE_PUBLIC_CONSTRUCTORS, INVOKE_PUBLIC_METHODS);
 
     for (var type : LIQUIBASE_CHECKSUM_TYPES) {
       hints.reflection().registerType(type,

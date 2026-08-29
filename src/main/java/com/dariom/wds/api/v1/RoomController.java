@@ -26,7 +26,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -55,9 +55,9 @@ public class RoomController {
   @PostMapping
   public ResponseEntity<RoomDto> createRoom(
       @Valid @RequestBody CreateRoomRequest request,
-      @AuthenticationPrincipal Jwt jwt
+      @AuthenticationPrincipal OidcUser oidcUser
   ) {
-    var appUserId = authenticatedUserResolver.from(jwt).userId();
+    var appUserId = authenticatedUserResolver.from(oidcUser).userId();
     log.info("Create room {} by user <{}>", request, appUserId);
     var language = Language.valueOf(request.language().trim().toUpperCase());
     var room = roomService.createRoom(language, request.rounds(), appUserId);
@@ -76,9 +76,9 @@ public class RoomController {
   @PostMapping("/{roomId}/join")
   public ResponseEntity<RoomDto> joinRoom(
       @Parameter(description = "Room identifier", required = true) @PathVariable String roomId,
-      @AuthenticationPrincipal Jwt jwt
+      @AuthenticationPrincipal OidcUser oidcUser
   ) {
-    var appUserId = authenticatedUserResolver.from(jwt).userId();
+    var appUserId = authenticatedUserResolver.from(oidcUser).userId();
     log.info("Join room <{}> by user <{}>", roomId, appUserId);
     var room = roomService.joinRoom(roomId, appUserId);
     return ResponseEntity.ok(roomMapper.toDto(room, appUserId));
@@ -89,8 +89,8 @@ public class RoomController {
       @ApiResponse(responseCode = "200", description = "Rooms returned", content = @Content(array = @ArraySchema(schema = @Schema(implementation = RoomDto.class))))
   })
   @GetMapping
-  public ResponseEntity<List<RoomDto>> listRooms(@AuthenticationPrincipal Jwt jwt) {
-    var appUserId = authenticatedUserResolver.from(jwt).userId();
+  public ResponseEntity<List<RoomDto>> listRooms(@AuthenticationPrincipal OidcUser oidcUser) {
+    var appUserId = authenticatedUserResolver.from(oidcUser).userId();
     log.info("List rooms for user <{}>", appUserId);
 
     var rooms = roomService.listRoomsForPlayer(appUserId);
@@ -107,9 +107,9 @@ public class RoomController {
   @GetMapping("/{roomId}")
   public ResponseEntity<RoomDto> getRoom(
       @Parameter(description = "Room identifier", required = true) @PathVariable String roomId,
-      @AuthenticationPrincipal Jwt jwt
+      @AuthenticationPrincipal OidcUser oidcUser
   ) {
-    var appUserId = authenticatedUserResolver.from(jwt).userId();
+    var appUserId = authenticatedUserResolver.from(oidcUser).userId();
     log.info("Get room <{}>", roomId);
     var room = roomService.getRoom(roomId, appUserId);
     return ResponseEntity.ok(roomMapper.toDto(room, appUserId));
@@ -125,9 +125,9 @@ public class RoomController {
   public ResponseEntity<GuessResponse> submitGuess(
       @Parameter(description = "Room identifier", required = true) @PathVariable String roomId,
       @Valid @RequestBody SubmitGuessRequest request,
-      @AuthenticationPrincipal Jwt jwt
+      @AuthenticationPrincipal OidcUser oidcUser
   ) {
-    var appUserId = authenticatedUserResolver.from(jwt).userId();
+    var appUserId = authenticatedUserResolver.from(oidcUser).userId();
     log.info("Submit guess in room <{}> by user <{}>: {}", roomId, appUserId, request);
     var room = roundService.handleGuess(roomId, appUserId, request.word());
     var response = new GuessResponse(roomMapper.toDto(room, appUserId));
@@ -145,9 +145,9 @@ public class RoomController {
   public ResponseEntity<RoomDto> ready(
       @Parameter(description = "Room identifier", required = true) @PathVariable String roomId,
       @Valid @RequestBody ReadyRequest request,
-      @AuthenticationPrincipal Jwt jwt
+      @AuthenticationPrincipal OidcUser oidcUser
   ) {
-    var appUserId = authenticatedUserResolver.from(jwt).userId();
+    var appUserId = authenticatedUserResolver.from(oidcUser).userId();
     log.info("Player ready in room <{}> by user <{}>: {}", roomId, appUserId, request);
     var room = roundService.handleReady(roomId, appUserId, request.roundNumber());
     return ResponseEntity.ok(roomMapper.toDto(room, appUserId));

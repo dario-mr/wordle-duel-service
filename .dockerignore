@@ -3,3 +3,4 @@ target
 .github
 .idea
 *.iml
+.codegraph

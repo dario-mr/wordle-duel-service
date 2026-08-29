@@ -12,8 +12,6 @@ public class SecurityPropertiesBuilder {
     return new SecurityProperties(
         "",
         null,
-        null,
-        null,
         null
     );
   }

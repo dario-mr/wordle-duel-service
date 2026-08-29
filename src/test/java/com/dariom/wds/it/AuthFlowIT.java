@@ -4,20 +4,16 @@ import static com.dariom.wds.it.IntegrationTestHelper.CSRF_HEADER_NAME;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.http.HttpHeaders.SET_COOKIE;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import com.dariom.wds.config.security.SecurityProperties;
-import com.dariom.wds.persistence.entity.RefreshTokenEntity;
-import com.dariom.wds.persistence.repository.jpa.RefreshTokenJpaRepository;
-import com.dariom.wds.service.auth.RefreshTokenService;
-import com.dariom.wds.service.auth.TokenHashing;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Resource;
-import java.time.Instant;
 import java.util.Map;
-import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.web.servlet.MockMvc;
@@ -28,13 +24,11 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 class AuthFlowIT extends AbstractRedisTest {
 
+  private static final String ME_URL = "/api/v1/users/me";
   private static final String ROOMS_URL = "/api/v1/rooms";
 
   @Resource
   private ObjectMapper objectMapper;
-
-  @Resource
-  private SecurityProperties securityProperties;
 
   @Resource
   private MockMvc mockMvc;
@@ -42,116 +36,78 @@ class AuthFlowIT extends AbstractRedisTest {
   @Resource
   private IntegrationTestHelper itHelper;
 
-  @Resource
-  private RefreshTokenService refreshTokenService;
-
-  @Resource
-  private TokenHashing tokenHashing;
-
-  @Resource
-  private RefreshTokenJpaRepository refreshTokenJpaRepository;
+  @Value("${server.servlet.session.cookie.name}")
+  private String sessionCookieName;
 
   @Test
-  void authFlow_refreshAllowsApiCall_logoutRevokesAndPreventsRefresh() throws Exception {
-    // Creating a room without a Bearer token returns 401
-    mockMvc.perform(post(ROOMS_URL)
-            .contentType(APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(Map.of("language", "IT", "rounds", 5))))
+  void protectedEndpoint_withoutSession_returns401() throws Exception {
+    // Act / Assert
+    mockMvc.perform(get(ME_URL))
         .andExpect(status().isUnauthorized());
-
-    // Create a real user + role and seed a refresh token directly into the DB
-    var user = itHelper.createUser("11111111-1111-1111-1111-111111111111", "user@test.com",
-        "User");
-    var oldRawRefreshToken = refreshTokenService.createRefreshToken(user);
-
-    // Fetch a CSRF cookie (XSRF-TOKEN) so we can call the auth endpoints
-    var csrfCookie = itHelper.fetchCsrfCookie();
-    var csrfToken = csrfCookie.getValue();
-    var refreshCookieName = securityProperties.refresh().cookieName();
-
-    // Exchange refresh cookie (+ CSRF header) for a short-lived access token
-    var refreshRes = mockMvc.perform(post("/auth/refresh")
-            .cookie(csrfCookie)
-            .cookie(new jakarta.servlet.http.Cookie(refreshCookieName, oldRawRefreshToken))
-            .header(CSRF_HEADER_NAME, csrfToken))
-        .andExpect(status().isOk())
-        .andReturn();
-
-    // Capture the issued access token and the rotated refresh cookie
-    var refreshJson = objectMapper.readTree(refreshRes.getResponse().getContentAsString());
-    var accessToken = refreshJson.get("accessToken").asText();
-    assertThat(accessToken).isNotBlank();
-
-    var newRawRefreshToken = itHelper.extractCookieValue(
-        refreshRes.getResponse().getHeaders(SET_COOKIE),
-        refreshCookieName);
-    assertThat(newRawRefreshToken).isNotBlank();
-    assertThat(newRawRefreshToken).isNotEqualTo(oldRawRefreshToken);
-
-    // Creating a room with a valid access token succeeds
-    itHelper.createRoom("Bearer " + accessToken, Map.of("language", "IT", "rounds", 5))
-        .andExpect(status().isCreated());
-
-    // Logout should revoke the current refresh token and clear the refresh cookie
-    var logoutRes = mockMvc.perform(post("/auth/logout")
-            .cookie(csrfCookie)
-            .cookie(new jakarta.servlet.http.Cookie(refreshCookieName, newRawRefreshToken))
-            .header(CSRF_HEADER_NAME, csrfToken))
-        .andExpect(status().isNoContent())
-        .andReturn();
-
-    // Verify the refresh token is actually gone from the DB and the cookie is cleared
-    var tokenHash = tokenHashing.sha256Hex(newRawRefreshToken);
-    var tokenInDb = refreshTokenJpaRepository.findWithUserByTokenHash(tokenHash);
-    assertThat(tokenInDb).isEmpty();
-
-    var setCookies = logoutRes.getResponse().getHeaders(SET_COOKIE);
-    var refreshSetCookieHeader = itHelper.findSetCookieHeader(setCookies, refreshCookieName);
-    assertThat(refreshSetCookieHeader).contains("Max-Age=0");
-
-    // Attempting to refresh again with the revoked cookie fails
-    var refreshAfterLogoutRes = mockMvc.perform(post("/auth/refresh")
-            .cookie(csrfCookie)
-            .cookie(new jakarta.servlet.http.Cookie(refreshCookieName, newRawRefreshToken))
-            .header(CSRF_HEADER_NAME, csrfToken))
-        .andExpect(status().isUnauthorized())
-        .andReturn();
-
-    var refreshAfterLogoutJson = objectMapper
-        .readTree(refreshAfterLogoutRes.getResponse().getContentAsString());
-    assertThat(refreshAfterLogoutJson.get("code").asText()).isEqualTo("REFRESH_TOKEN_INVALID");
   }
 
   @Test
-  void authFlow_expiredRefreshToken_returns401AndDeletesFromDb() throws Exception {
-    // Create a real user + role and seed an already-expired refresh token directly into the DB
-    var user = itHelper.createUser("22222222-2222-2222-2222-222222222222",
-        "user-expired@test.com", "User");
-    var rawRefreshToken = "expired-raw";
-    var tokenHash = tokenHashing.sha256Hex(rawRefreshToken);
+  void protectedEndpoint_withSession_returnsCurrentUserAndRoles() throws Exception {
+    // Arrange
+    var user = itHelper.createUser("11111111-1111-1111-1111-111111111111", "user@test.com", "User");
 
-    var now = Instant.now();
-    refreshTokenJpaRepository.save(new RefreshTokenEntity(
-        UUID.randomUUID(), user, tokenHash, now.minusSeconds(7200), now.minusSeconds(3600)
-    ));
+    // Act / Assert
+    mockMvc.perform(get(ME_URL).with(itHelper.userAuthentication(user)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.id").value(user.getId().toString()))
+        .andExpect(jsonPath("$.roles[0]").value("USER"));
+  }
 
-    // Fetch a CSRF cookie so we can call the auth endpoints
+  @Test
+  void unsafeEndpoint_withoutCsrf_returns403() throws Exception {
+    // Arrange
+    var user = itHelper.createUser("22222222-2222-2222-2222-222222222222", "csrf@test.com", "CSRF");
+
+    // Act / Assert
+    mockMvc.perform(post(ROOMS_URL)
+            .with(itHelper.userAuthentication(user))
+            .contentType(APPLICATION_JSON)
+            .content(objectMapper.writeValueAsString(Map.of("language", "IT", "rounds", 5))))
+        .andExpect(status().isForbidden());
+  }
+
+  @Test
+  void unsafeEndpoint_withCsrf_succeeds() throws Exception {
+    // Arrange
+    var user = itHelper.createUser("33333333-3333-3333-3333-333333333333", "safe@test.com", "Safe");
+
+    // Act / Assert
+    itHelper.createRoom(itHelper.userAuthentication(user), Map.of("language", "IT", "rounds", 5))
+        .andExpect(status().isCreated());
+  }
+
+  @Test
+  void logout_invalidatesSessionAndClearsCookies() throws Exception {
+    // Arrange
+    var user = itHelper.createUser("44444444-4444-4444-4444-444444444444", "logout@test.com", "Logout");
+    var authenticated = mockMvc.perform(get(ME_URL).with(itHelper.userAuthentication(user)))
+        .andExpect(status().isOk())
+        .andReturn();
+    var sessionCookie = authenticated.getResponse().getCookie(sessionCookieName);
+    assertThat(sessionCookie).isNotNull();
+    mockMvc.perform(get(ME_URL).cookie(sessionCookie))
+        .andExpect(status().isOk());
     var csrfCookie = itHelper.fetchCsrfCookie();
-    var csrfToken = csrfCookie.getValue();
-    var refreshCookieName = securityProperties.refresh().cookieName();
 
-    // Refreshing with an expired refresh token fails and must delete the token from DB
-    var refreshRes = mockMvc.perform(post("/auth/refresh")
-            .cookie(csrfCookie)
-            .cookie(new jakarta.servlet.http.Cookie(refreshCookieName, rawRefreshToken))
-            .header(CSRF_HEADER_NAME, csrfToken))
-        .andExpect(status().isUnauthorized())
+    // Act
+    var logout = mockMvc.perform(post("/auth/logout")
+            .cookie(sessionCookie, csrfCookie)
+            .header(CSRF_HEADER_NAME, csrfCookie.getValue()))
+        .andExpect(status().isNoContent())
         .andReturn();
 
-    var refreshJson = objectMapper.readTree(refreshRes.getResponse().getContentAsString());
-    assertThat(refreshJson.get("code").asText()).isEqualTo("REFRESH_TOKEN_INVALID");
-
-    var tokenInDb = refreshTokenJpaRepository.findWithUserByTokenHash(tokenHash);
-    assertThat(tokenInDb).isEmpty();
+    // Assert
+    mockMvc.perform(get(ME_URL).cookie(sessionCookie))
+        .andExpect(status().isUnauthorized());
+    var setCookies = logout.getResponse().getHeaders(SET_COOKIE);
+    assertThat(setCookies).anyMatch(cookie -> cookie.startsWith(sessionCookieName + "=")
+        && cookie.contains("Max-Age=0"));
+    assertThat(setCookies).anyMatch(cookie -> cookie.startsWith("WD-XSRF-TOKEN=")
+        && cookie.contains("Max-Age=0"));
   }
 }

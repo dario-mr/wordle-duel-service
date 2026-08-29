@@ -13,7 +13,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -33,11 +33,13 @@ public class UserController {
       @ApiResponse(responseCode = "404", description = "User not found", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
   @GetMapping("/me")
-  public ResponseEntity<UserMeDto> me(@AuthenticationPrincipal Jwt jwt) {
-    var appUserId = authenticatedUserResolver.from(jwt).userId();
+  public ResponseEntity<UserMeDto> me(@AuthenticationPrincipal OidcUser oidcUser) {
+    var authenticatedUser = authenticatedUserResolver.from(oidcUser);
+    var appUserId = authenticatedUser.userId();
     var profile = userProfileService.getUserProfile(appUserId);
     return ResponseEntity.ok(new UserMeDto(
-        profile.id(), profile.fullName(), profile.displayName(), profile.pictureUrl()
+        profile.id(), profile.fullName(), profile.displayName(), profile.pictureUrl(),
+        authenticatedUser.roles()
     ));
   }
 }

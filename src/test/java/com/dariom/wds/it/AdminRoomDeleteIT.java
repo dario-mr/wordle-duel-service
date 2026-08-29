@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.web.servlet.MockMvc;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
@@ -44,29 +45,31 @@ class AdminRoomDeleteIT extends AbstractRedisTest {
   @Test
   void deleteRoomById_userRole_returnsForbidden() throws Exception {
     // Arrange
-    var userBearer = itHelper.userBearer();
+    var userAuthentication = itHelper.userAuthentication();
 
     // Act / Assert
     mockMvc.perform(delete("/admin/rooms/{roomId}", "room-1")
-            .header("Authorization", userBearer))
+            .with(userAuthentication)
+            .with(csrf()))
         .andExpect(status().isForbidden());
   }
 
   @Test
   void deleteRoomById_roomMissing_returnsNotFound() throws Exception {
     // Arrange
-    var adminBearer = itHelper.adminBearer();
+    var adminAuthentication = itHelper.adminAuthentication();
 
     // Act / Assert
     mockMvc.perform(delete("/admin/rooms/{roomId}", "missing-room")
-            .header("Authorization", adminBearer))
+            .with(adminAuthentication)
+            .with(csrf()))
         .andExpect(status().isNotFound());
   }
 
   @Test
   void deleteRoomById_adminRole_deletesRoomAndChildren() throws Exception {
     // Arrange
-    var adminBearer = itHelper.adminBearer();
+    var adminAuthentication = itHelper.adminAuthentication();
     var roomId = "room-cascade";
 
     var room = new RoomEntity();
@@ -108,7 +111,8 @@ class AdminRoomDeleteIT extends AbstractRedisTest {
 
     // Act
     mockMvc.perform(delete("/admin/rooms/{roomId}", roomId)
-            .header("Authorization", adminBearer))
+            .with(adminAuthentication)
+            .with(csrf()))
         .andExpect(status().isNoContent());
     entityManager.flush();
     entityManager.clear();

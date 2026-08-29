@@ -18,6 +18,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -34,15 +35,15 @@ class GuessSubmissionConcurrencyIT extends AbstractRedisTest {
   @Resource
   private ObjectMapper objectMapper;
 
-  private String player1Bearer;
-  private String player2Bearer;
+  private RequestPostProcessor player1Authentication;
+  private RequestPostProcessor player2Authentication;
 
   @BeforeEach
   void setUp() {
     var user1 = itHelper.createUser(PLAYER_1_ID, "player1@example.com", "John Smith");
     var user2 = itHelper.createUser(PLAYER_2_ID, "player2@example.com", "Bart Simpson");
-    player1Bearer = itHelper.bearer(user1);
-    player2Bearer = itHelper.bearer(user2);
+    player1Authentication = itHelper.userAuthentication(user1);
+    player2Authentication = itHelper.userAuthentication(user2);
   }
 
   @Test
@@ -57,12 +58,12 @@ class GuessSubmissionConcurrencyIT extends AbstractRedisTest {
       // Act — both players submit guesses simultaneously
       var future1 = CompletableFuture.supplyAsync(() -> {
         await(latch);
-        return submitGuess(roomId, player1Bearer);
+        return submitGuess(roomId, player1Authentication);
       }, executor);
 
       var future2 = CompletableFuture.supplyAsync(() -> {
         await(latch);
-        return submitGuess(roomId, player2Bearer);
+        return submitGuess(roomId, player2Authentication);
       }, executor);
 
       latch.countDown();
@@ -90,8 +91,8 @@ class GuessSubmissionConcurrencyIT extends AbstractRedisTest {
   void handleReady_concurrentByBothPlayers_startsExactlyOneNewRound() throws Exception {
     // Arrange — complete a round (both players guess and lose with max-attempts=1)
     var roomId = createRoomAndJoin();
-    itHelper.submitGuess(roomId, player1Bearer, WORD).andExpect(status().isOk());
-    itHelper.submitGuess(roomId, player2Bearer, WORD).andExpect(status().isOk());
+    itHelper.submitGuess(roomId, player1Authentication, WORD).andExpect(status().isOk());
+    itHelper.submitGuess(roomId, player2Authentication, WORD).andExpect(status().isOk());
 
     var latch = new CountDownLatch(1);
     var executor = Executors.newFixedThreadPool(2);
@@ -100,12 +101,12 @@ class GuessSubmissionConcurrencyIT extends AbstractRedisTest {
       // Act — both players call ready simultaneously
       var future1 = CompletableFuture.supplyAsync(() -> {
         await(latch);
-        return ready(roomId, player1Bearer, 1);
+        return ready(roomId, player1Authentication, 1);
       }, executor);
 
       var future2 = CompletableFuture.supplyAsync(() -> {
         await(latch);
-        return ready(roomId, player2Bearer, 1);
+        return ready(roomId, player2Authentication, 1);
       }, executor);
 
       latch.countDown();
@@ -128,36 +129,36 @@ class GuessSubmissionConcurrencyIT extends AbstractRedisTest {
   }
 
   private String createRoomAndJoin() throws Exception {
-    var createRes = itHelper.createRoom(player1Bearer, Map.of("language", LANGUAGE, "rounds", 5))
+    var createRes = itHelper.createRoom(player1Authentication, Map.of("language", LANGUAGE, "rounds", 5))
         .andExpect(status().isCreated())
         .andReturn();
 
     var roomId = objectMapper.readTree(createRes.getResponse().getContentAsString())
         .get("id").asText();
 
-    itHelper.joinRoom(roomId, player2Bearer).andExpect(status().isOk());
+    itHelper.joinRoom(roomId, player2Authentication).andExpect(status().isOk());
     return roomId;
   }
 
   private JsonNode getRoom(String roomId) throws Exception {
-    var result = itHelper.getRoom(roomId, player1Bearer)
+    var result = itHelper.getRoom(roomId, player1Authentication)
         .andExpect(status().isOk())
         .andReturn();
     return objectMapper.readTree(result.getResponse().getContentAsString());
   }
 
-  private MvcResult submitGuess(String roomId, String bearer) {
+  private MvcResult submitGuess(String roomId, RequestPostProcessor authentication) {
     try {
-      return itHelper.submitGuess(roomId, bearer, WORD)
+      return itHelper.submitGuess(roomId, authentication, WORD)
           .andReturn();
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
   }
 
-  private MvcResult ready(String roomId, String bearer, int roundNumber) {
+  private MvcResult ready(String roomId, RequestPostProcessor authentication, int roundNumber) {
     try {
-      return itHelper.ready(roomId, bearer, roundNumber)
+      return itHelper.ready(roomId, authentication, roundNumber)
           .andReturn();
     } catch (Exception e) {
       throw new RuntimeException(e);

@@ -1,10 +1,10 @@
-FROM container-registry.oracle.com/graalvm/native-image:25.0.2-ol9-20260120 AS build
+FROM container-registry.oracle.com/graalvm/native-image:25i3@sha256:18253bc0069911faa4326c2e37144210e0d51d84fbb06411cc1b0b39e4fb04a3 AS build
 RUN microdnf install -y maven findutils && microdnf clean all
 WORKDIR /app
 COPY . .
 RUN mvn -B -Pnative -DskipTests package
 
-FROM container-registry.oracle.com/os/oraclelinux:9-slim
+FROM container-registry.oracle.com/os/oraclelinux:10-slim
 RUN microdnf install -y zlib && microdnf clean all
 WORKDIR /app
 COPY --from=build /app/target/wordle-duel-service /app/wordle-duel-service

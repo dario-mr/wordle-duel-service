@@ -14,6 +14,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 
 @SpringBootTest(webEnvironment = RANDOM_PORT)
@@ -24,6 +25,9 @@ class RedisSessionIT extends AbstractRedisTest {
 
   @Resource
   private StringRedisTemplate stringRedisTemplate;
+
+  @Value("${server.servlet.session.cookie.name}")
+  private String sessionCookieName;
 
   private final HttpClient httpClient = HttpClient.newBuilder()
       .followRedirects(Redirect.NEVER)
@@ -48,8 +52,12 @@ class RedisSessionIT extends AbstractRedisTest {
     assertThat(response.statusCode()).isEqualTo(302);
 
     var setCookies = response.headers().allValues("set-cookie");
-    var sessionCookie = extractCookieValue(setCookies, "SESSION");
+    var sessionCookie = extractCookieValue(setCookies, sessionCookieName);
     assertThat(sessionCookie).isNotBlank();
+    assertThat(setCookies).anyMatch(cookie -> cookie.startsWith(sessionCookieName + "=")
+        && cookie.contains("HttpOnly")
+        && cookie.contains("SameSite=Lax")
+        && cookie.contains("Path=/"));
 
     var sessionKeys = waitForSessionKeys();
     assertThat(sessionKeys).isNotEmpty();

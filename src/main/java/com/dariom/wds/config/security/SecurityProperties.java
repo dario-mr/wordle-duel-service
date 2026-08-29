@@ -7,9 +7,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public record SecurityProperties(
     String whitelistAntPatterns,
     CsrfProperties csrf,
-    MatcherProperties matcher,
-    JwtProperties jwt,
-    RefreshProperties refresh
+    MatcherProperties matcher
 ) {
 
   public String[] whitelistPatternsArray() {
@@ -38,24 +36,4 @@ public record SecurityProperties(
 
   }
 
-  public record JwtProperties(
-      String issuer,
-      int ttlSeconds,
-      String audience,
-      long version,
-      String privateKeyPem,
-      String publicKeyPem
-  ) {
-
-  }
-
-  public record RefreshProperties(
-      int ttlDays,
-      String cookieName,
-      String cookieSameSite,
-      String cookiePath,
-      boolean cookieSecure
-  ) {
-
-  }
 }

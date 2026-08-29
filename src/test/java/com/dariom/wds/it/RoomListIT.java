@@ -42,34 +42,35 @@ class RoomListIT extends AbstractRedisTest {
     var user2 = itHelper.createUser(PLAYER_2_ID, "player2@example.com", "Bart Simpson");
     var user3 = itHelper.createUser(PLAYER_3_ID, "player3@example.com", "Lisa Simpson");
 
-    var player1Bearer = itHelper.bearer(user1);
-    var player2Bearer = itHelper.bearer(user2);
-    var player3Bearer = itHelper.bearer(user3);
+    var player1Authentication = itHelper.userAuthentication(user1);
+    var player2Authentication = itHelper.userAuthentication(user2);
+    var player3Authentication = itHelper.userAuthentication(user3);
 
     var createReq = Map.<String, Object>of("language", LANGUAGE, "rounds", 5);
 
     // user1 creates a room
-    var roomCreatedByP1 = createRoom(player1Bearer, createReq);
+    var roomCreatedByP1 = createRoom(player1Authentication, createReq);
     sleep(1);
 
     // user2 creates a room, user1 joins it
-    var roomCreatedByP2 = createRoom(player2Bearer, createReq);
-    itHelper.joinRoom(roomCreatedByP2, player1Bearer).andExpect(status().isOk());
+    var roomCreatedByP2 = createRoom(player2Authentication, createReq);
+    itHelper.joinRoom(roomCreatedByP2, player1Authentication).andExpect(status().isOk());
 
     // user3 creates a room (should not be visible to user1)
-    createRoom(player3Bearer, createReq);
+    createRoom(player3Authentication, createReq);
 
     // Act / Assert
     mockMvc.perform(get("/api/v1/rooms")
-            .header("Authorization", player1Bearer))
+            .with(player1Authentication))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$", hasSize(2)))
         .andExpect(jsonPath("$[*].id", contains(roomCreatedByP2, roomCreatedByP1)));
   }
 
-  private String createRoom(String bearer, Map<String, Object> createReq)
+  private String createRoom(org.springframework.test.web.servlet.request.RequestPostProcessor authentication,
+      Map<String, Object> createReq)
       throws Exception {
-    var createRes = itHelper.createRoom(bearer, createReq)
+    var createRes = itHelper.createRoom(authentication, createReq)
         .andExpect(status().isCreated())
         .andReturn();
 

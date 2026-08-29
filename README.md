@@ -22,8 +22,7 @@ The app reads configuration from environment variables and also supports a local
 
 1. Copy the provided example file: `cp .env.example .env`
 2. Set `PROFILE=dev` for local development.
-3. Set `WORDLE_GOOGLE_CLIENT_ID`, `WORDLE_GOOGLE_CLIENT_SECRET`,
-   `WORDLE_JWT_PRIVATE_KEY_PEM`, and `WORDLE_JWT_PUBLIC_KEY_PEM`.
+3. Set `WORDLE_GOOGLE_CLIENT_ID` and `WORDLE_GOOGLE_CLIENT_SECRET`.
 4. Start Redis (required for OAuth2 login session state and job synchronization):
 
    ```shell
@@ -52,8 +51,6 @@ Select the profile with the `PROFILE` env var (defaults to `prod`).
 | `DB_PASSWORD`                 | PostgreSQL password                           | `null`  |
 | `WORDLE_GOOGLE_CLIENT_ID`     | Google OAuth2 client id                       | `null`  |
 | `WORDLE_GOOGLE_CLIENT_SECRET` | Google OAuth2 client secret                   | `null`  |
-| `WORDLE_JWT_PRIVATE_KEY_PEM`  | RSA private key PEM content for JWT signing   | `null`  |
-| `WORDLE_JWT_PUBLIC_KEY_PEM`   | RSA public key PEM content for JWT validation | `null`  |
 | `SPRING_DATA_REDIS_HOST`      | Redis host                                    | `null`  |
 | `SPRING_DATA_REDIS_PORT`      | Redis port                                    | `null`  |
 
@@ -66,55 +63,23 @@ Notes:
 
 ## Authentication
 
-This service uses Google OAuth2 login to issue a long-lived refresh token (stored as an HttpOnly
-cookie) and short-lived access tokens (Bearer JWT signed with `RS256`).
-
-OAuth2 login uses a server-side session to persist the authorization request/state across the
-redirect. For horizontal scalability, sessions are stored in Redis; in local development you should
-run Redis (see Quick start).
+This service uses Google OAuth2 login and a Redis-backed Spring Security session. The session cookie
+is HttpOnly, Secure, SameSite=Lax, and named `__Host-wd_session` in production (`wd_session` in
+development). The session idle timeout is 30 minutes.
 
 - OAuth2 login entrypoint: `GET /oauth2/authorization/google`
-- Refresh access token: `POST /auth/refresh` (returns a JWT; requires CSRF)
+- Current user: `GET /api/v1/users/me`
 - Logout: `POST /auth/logout`
 
-Access token details:
+After login, the browser sends the session cookie automatically. State-changing requests also need
+the raw value from the `WD-XSRF-TOKEN` cookie in the `X-WD-XSRF-TOKEN` header.
 
-- `iss`: `wordle-duel-service` by default
-- `sub`: local app user UUID (`app_user.id`)
-- `aud`: `wordle-duel`
-- `ver`: `1`
-- `email`: current user email
-- `roles`: application roles such as `USER` / `ADMIN`
-
-The service validates both issuer and audience on incoming bearer tokens.
-
-### Generate Local JWT Keys
-
-Generate a local RSA keypair with `openssl`:
-
-```shell
-openssl genpkey -algorithm RSA -pkeyopt rsa_keygen_bits:2048 -out jwt-private.pem
-openssl rsa -pubout -in jwt-private.pem -out jwt-public.pem
-```
-
-If you store the keys in `.env`, use the PEM contents, not the file paths. Quoted single-line
-values with escaped newlines work well:
-
-```dotenv
-WORDLE_JWT_PRIVATE_KEY_PEM='-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n'
-WORDLE_JWT_PUBLIC_KEY_PEM='-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----\n'
-```
-
-### Obtain an access token via Swagger UI
+### Use Swagger UI
 
 1. Open Swagger UI: `http://localhost:8088/swagger-ui/index.html`
 2. Complete Google login in the same browser by visiting:
    `http://localhost:8088/oauth2/authorization/google`
-3. Back in Swagger UI, call `POST /auth/refresh` to get an `accessToken`.
-4. Click Swagger's "Authorize" button and paste the token as a `Bearer` token.
-
-(Non-browser clients must send `X-WD-XSRF-TOKEN` header with the value from the `WD-XSRF-TOKEN`
-cookie)
+3. Return to Swagger UI; the browser session is now authenticated.
 
 ## Redis usage
 
@@ -142,7 +107,7 @@ docker stop wordle-duel-service-redis
 
 ## API
 
-All endpoints under `/api/v1/**` require `Authorization: Bearer <accessToken>`.
+All endpoints under `/api/v1/**` require the authenticated session cookie.
 
 - `POST /api/v1/rooms` – create a room
 - `POST /api/v1/rooms/{roomId}/join` – join a room

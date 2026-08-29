@@ -36,12 +36,12 @@ class RoomAccessIT extends AbstractRedisTest {
     var user2 = itHelper.createUser(PLAYER_2_ID, "player2@example.com", "Bart Simpson");
     var user3 = itHelper.createUser(PLAYER_3_ID, "player3@example.com", "Lisa Simpson");
 
-    var player1Bearer = itHelper.bearer(user1);
-    var player2Bearer = itHelper.bearer(user2);
-    var player3Bearer = itHelper.bearer(user3);
+    var player1Authentication = itHelper.userAuthentication(user1);
+    var player2Authentication = itHelper.userAuthentication(user2);
+    var player3Authentication = itHelper.userAuthentication(user3);
 
     var createReq = Map.of("language", LANGUAGE, "rounds", 5);
-    var createRes = itHelper.createRoom(player1Bearer, createReq)
+    var createRes = itHelper.createRoom(player1Authentication, createReq)
         .andExpect(status().isCreated())
         .andExpect(header().exists("Location"))
         .andExpect(jsonPath("$.id").value(not(emptyOrNullString())))
@@ -53,10 +53,10 @@ class RoomAccessIT extends AbstractRedisTest {
     var createdJson = createRes.getResponse().getContentAsString();
     var roomId = objectMapper.readTree(createdJson).get("id").asText();
 
-    itHelper.joinRoom(roomId, player2Bearer).andExpect(status().isOk());
+    itHelper.joinRoom(roomId, player2Authentication).andExpect(status().isOk());
 
     // Act / Assert
-    itHelper.getRoom(roomId, player3Bearer)
+    itHelper.getRoom(roomId, player3Authentication)
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.code").value("ROOM_ACCESS_DENIED"))
         .andExpect(jsonPath("$.message").value(not(emptyOrNullString())));

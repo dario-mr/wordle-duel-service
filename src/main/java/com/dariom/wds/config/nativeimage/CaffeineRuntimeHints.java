@@ -1,5 +1,6 @@
 package com.dariom.wds.config.nativeimage;
 
+import static org.springframework.aot.hint.MemberCategory.DECLARED_FIELDS;
 import static org.springframework.aot.hint.MemberCategory.INVOKE_DECLARED_CONSTRUCTORS;
 import static org.springframework.aot.hint.MemberCategory.INVOKE_PUBLIC_CONSTRUCTORS;
 
@@ -20,7 +21,7 @@ public class CaffeineRuntimeHints implements RuntimeHintsRegistrar {
   public void registerHints(RuntimeHints hints, ClassLoader classLoader) {
     for (var type : CAFFEINE_TYPES) {
       hints.reflection().registerType(type,
-          INVOKE_PUBLIC_CONSTRUCTORS, INVOKE_DECLARED_CONSTRUCTORS);
+          INVOKE_PUBLIC_CONSTRUCTORS, INVOKE_DECLARED_CONSTRUCTORS, DECLARED_FIELDS);
     }
   }
 

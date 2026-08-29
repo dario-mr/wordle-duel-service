@@ -1,3 +1,10 @@
+server:
+  servlet:
+    session:
+      cookie:
+        name: wd_session
+        secure: false
+
 spring:
   datasource:
     url: jdbc:h2:mem:testdb;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;INIT=CREATE SCHEMA IF NOT EXISTS wordle\;SET SCHEMA wordle\;
@@ -9,19 +16,11 @@ spring:
 app:
   frontend:
     success-redirect: "http://localhost:3001/"
-  security:
-    refresh:
-      cookie-name: wd_refresh
-      cookie-secure: false
   websocket:
     allowed-origins:
       - "http://localhost:${server.port}"
       - "http://localhost:3001"
 
 room:
-  cleanup:
-    cron: "-"
-
-refresh-token:
   cleanup:
     cron: "-"

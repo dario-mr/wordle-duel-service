@@ -13,6 +13,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.web.servlet.MockMvc;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
@@ -37,7 +38,8 @@ class RoomValidationIT extends AbstractRedisTest {
     createReq.put("rounds", 5);
 
     mockMvc.perform(post(BASE_URL)
-            .header("Authorization", itHelper.userBearer())
+            .with(itHelper.userAuthentication())
+            .with(csrf())
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(createReq)))
         .andExpect(status().isBadRequest())
@@ -50,7 +52,8 @@ class RoomValidationIT extends AbstractRedisTest {
     var createReq = Map.of("language", "XX", "rounds", 5);
 
     mockMvc.perform(post(BASE_URL)
-            .header("Authorization", itHelper.userBearer())
+            .with(itHelper.userAuthentication())
+            .with(csrf())
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(createReq)))
         .andExpect(status().isBadRequest())
@@ -63,7 +66,8 @@ class RoomValidationIT extends AbstractRedisTest {
     var createReq = Map.of("language", "IT", "rounds", 7);
 
     mockMvc.perform(post(BASE_URL)
-            .header("Authorization", itHelper.userBearer())
+            .with(itHelper.userAuthentication())
+            .with(csrf())
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(createReq)))
         .andExpect(status().isBadRequest())
@@ -76,7 +80,8 @@ class RoomValidationIT extends AbstractRedisTest {
     var createReq = Map.of("word", "   ");
 
     mockMvc.perform(post(BASE_URL + "/{roomId}/guess", 1)
-            .header("Authorization", itHelper.userBearer())
+            .with(itHelper.userAuthentication())
+            .with(csrf())
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(createReq)))
         .andExpect(status().isBadRequest())
@@ -89,7 +94,8 @@ class RoomValidationIT extends AbstractRedisTest {
     var createReq = Map.of();
 
     mockMvc.perform(post(BASE_URL + "/{roomId}/ready", 1)
-            .header("Authorization", itHelper.userBearer())
+            .with(itHelper.userAuthentication())
+            .with(csrf())
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(createReq)))
         .andExpect(status().isBadRequest())
@@ -102,7 +108,8 @@ class RoomValidationIT extends AbstractRedisTest {
     var createReq = Map.of("roundNumber", "0");
 
     mockMvc.perform(post(BASE_URL + "/{roomId}/ready", 1)
-            .header("Authorization", itHelper.userBearer())
+            .with(itHelper.userAuthentication())
+            .with(csrf())
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(createReq)))
         .andExpect(status().isBadRequest())

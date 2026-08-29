@@ -1,9 +1,19 @@
 server:
   port: ${PORT:8088}
   forward-headers-strategy: framework # honor the original external request context (host, scheme, prefix)
+  servlet:
+    session:
+      cookie:
+        name: __Host-wd_session
+        http-only: true
+        secure: true
+        same-site: lax
+        path: /
+        max-age: 180d
 
 spring:
   application.name: wordle-duel-service
+  session.timeout: 180d
   profiles.active: ${PROFILE:prod}
   config.import: optional:file:.env[.properties] # enable scanning of .env file
   liquibase:
@@ -39,7 +49,7 @@ wordle:
 
 app:
   security:
-    whitelist-ant-patterns: /actuator/**,/oauth2/**,/login/**,/public/**,/h2-console/**,/swagger-ui/**,/v3/api-docs/**,/ws,/ws/**
+    whitelist-ant-patterns: /actuator/**,/oauth2/**,/login/**,/public/**,/h2-console/**,/swagger-ui/**,/v3/api-docs/**
     csrf:
       cookie-name: WD-XSRF-TOKEN
       header-name: X-WD-XSRF-TOKEN
@@ -47,20 +57,6 @@ app:
       api: /api/**
       admin: /admin/**
       auth: /auth/**
-    jwt:
-      issuer: ${spring.application.name}
-      ttl-seconds: 900
-      audience: wordle-duel
-      version: 1
-      private-key-pem: ${WORDLE_JWT_PRIVATE_KEY_PEM}
-      public-key-pem: ${WORDLE_JWT_PUBLIC_KEY_PEM}
-    refresh:
-      ttl-days: 180
-      cookie-name: __Host-wd_refresh
-      cookie-samesite: Lax
-      cookie-path: /
-      cookie-secure: true
-
 springdoc:
   swagger-ui.csrf.enabled: true
 
@@ -70,7 +66,3 @@ room:
   cleanup:
     cron: "-"
     retention-days: 60
-
-refresh-token:
-  cleanup:
-    cron: "-"

@@ -16,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.web.servlet.MockMvc;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
@@ -41,7 +42,8 @@ class TraceIdIT extends AbstractRedisTest {
 
     // Act / Assert
     mockMvc.perform(post(BASE_URL)
-            .header("Authorization", itHelper.userBearer())
+            .with(itHelper.userAuthentication())
+            .with(csrf())
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(requestBody)))
         .andExpect(status().isCreated())
@@ -57,7 +59,8 @@ class TraceIdIT extends AbstractRedisTest {
     // Act / Assert
     mockMvc.perform(post(BASE_URL)
             .header(TRACE_ID_HEADER, traceId)
-            .header("Authorization", itHelper.userBearer())
+            .with(itHelper.userAuthentication())
+            .with(csrf())
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(requestBody)))
         .andExpect(status().isCreated())
@@ -71,7 +74,8 @@ class TraceIdIT extends AbstractRedisTest {
 
     // Act / Assert
     mockMvc.perform(post(BASE_URL)
-            .header("Authorization", itHelper.userBearer())
+            .with(itHelper.userAuthentication())
+            .with(csrf())
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(requestBody)))
         .andExpect(status().isBadRequest())

@@ -32,24 +32,24 @@ class AdminUserListIT extends AbstractRedisTest {
   @Test
   void getAllUsers_userRole_returnsForbidden() throws Exception {
     // Arrange
-    var userBearer = itHelper.userBearer();
+    var userAuthentication = itHelper.userAuthentication();
 
     // Act / Assert
     mockMvc.perform(get("/admin/users")
-            .header("Authorization", userBearer))
+            .with(userAuthentication))
         .andExpect(status().isForbidden());
   }
 
   @Test
   void getAllUsers_adminRole_returnsPagedUsers() throws Exception {
     // Arrange
-    var adminBearer = itHelper.adminBearer();
+    var adminAuthentication = itHelper.adminAuthentication();
     itHelper.createUser("00000000-0000-0000-0000-000000000001", "alice@test.com", "Alice Smith");
     itHelper.createUser("00000000-0000-0000-0000-000000000002", "bob@test.com", "Bob Jones");
 
     // Act
     var result = mockMvc.perform(get("/admin/users")
-        .header("Authorization", adminBearer));
+        .with(adminAuthentication));
 
     // Assert
     result
@@ -67,7 +67,7 @@ class AdminUserListIT extends AbstractRedisTest {
   @Test
   void getAllUsers_customPagination_respectsParams() throws Exception {
     // Arrange
-    var adminBearer = itHelper.adminBearer();
+    var adminAuthentication = itHelper.adminAuthentication();
     itHelper.createUser("00000000-0000-0000-0000-000000000001", "alice@test.com", "Alice Smith");
     itHelper.createUser("00000000-0000-0000-0000-000000000002", "bob@test.com", "Bob Jones");
     itHelper.createUser("00000000-0000-0000-0000-000000000003", "carol@test.com", "Carol White");
@@ -76,7 +76,7 @@ class AdminUserListIT extends AbstractRedisTest {
     var result = mockMvc.perform(get("/admin/users")
         .param("page", "0")
         .param("size", "2")
-        .header("Authorization", adminBearer));
+        .with(adminAuthentication));
 
     // Assert
     result
@@ -90,7 +90,7 @@ class AdminUserListIT extends AbstractRedisTest {
   @Test
   void getAllUsers_withFilters_returnsMatchingUsers() throws Exception {
     // Arrange
-    var adminBearer = itHelper.adminBearer();
+    var adminAuthentication = itHelper.adminAuthentication();
     itHelper.createUser("00000000-0000-0000-0000-000000000001", "alice@test.com", "Alice Smith");
     itHelper.createUser("00000000-0000-0000-0000-000000000002", "bob@acme.com", "Bob Jones");
     itHelper.createUser("00000000-0000-0000-0000-000000000003", "anna@test.com", "Anna Miles");
@@ -99,7 +99,7 @@ class AdminUserListIT extends AbstractRedisTest {
     var result = mockMvc.perform(get("/admin/users")
         .param("fullName", "an")
         .param("email", "test.com")
-        .header("Authorization", adminBearer));
+        .with(adminAuthentication));
 
     // Assert
     result

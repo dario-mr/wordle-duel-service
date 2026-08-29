@@ -4,24 +4,20 @@ This project supports building and validating a GraalVM native executable with M
 
 ## Requirements
 
-- GraalVM JDK 25 with `native-image` installed and available on `PATH`
+- SDKMAN
 - Maven 3.9+
 
-If you want to use the GraalVM JDK just for this project, an option is to create an alias in
-`~/.zshenv`:
+Install and select GraalVM for the current shell:
 
 ```shell
-mvn25() {
-  export JAVA_HOME=~/Portable/java/graalvm-jdk-25.0.2
-  export PATH="$JAVA_HOME/bin:$PATH"
-  mvn "$@"
-}
+sdk install java 25.3.4+1.r25-graalce
+sdk use java 25.3.4+1.r25-graalce
 ```
 
 ## Build the Native Executable
 
 ```shell
-mvn25 -Pnative -DskipTests package
+mvn -Pnative -DskipTests package
 ```
 
 ## Run native app
@@ -39,19 +35,19 @@ agent to record metadata from a normal JVM run before rebuilding the native imag
 Start the app on the JVM with the tracing agent attached:
 
 ```shell
-set -a; source .env; set +a; mvn25 -Pnative-record -DskipTests -DskipNativeBuild=true package exec:exec@java-agent
+set -a; source .env; set +a; mvn -Pnative-record -DskipTests -DskipNativeBuild=true package exec:exec@java-agent
 ```
 
 Run the app flows, then stop it and persist the recorded metadata:
 
 ```shell
-mvn25 -Pnative-record resources:copy-resources@copy-native-agent-output
+mvn -Pnative-record resources:copy-resources@copy-native-agent-output
 ```
 
 Rebuild the native image after recording metadata:
 
 ```shell
-mvn25 -Pnative -DskipTests package
+mvn -Pnative -DskipTests package
 ```
 
 ## Recommended Development Loop

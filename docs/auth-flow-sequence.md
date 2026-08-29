@@ -4,7 +4,7 @@ High-level view of the current auth flow:
 
 - Google identity is used during login reconciliation.
 - The local app user id is the canonical identity inside the system.
-- Access tokens use the local app user id as `sub`.
+- The authenticated principal is stored in a Redis-backed Spring Security session.
 
 ```mermaid
 sequenceDiagram
@@ -16,9 +16,9 @@ sequenceDiagram
     Google -->> Service: External identity
     Service ->> UserRepo: Find or create local user
     UserRepo -->> Service: Local app user
-    Service -->> Browser: Refresh cookie + access token
-    Browser ->> Service: Send access token
-    Service ->> Service: Use JWT sub = local app user id
+    Service -->> Browser: Secure HttpOnly session cookie
+    Browser ->> Service: Send session cookie to REST/WebSocket
+    Service ->> Service: Load SecurityContext from Redis
 ```
 
 ## Identity Model
@@ -26,5 +26,5 @@ sequenceDiagram
 - External identity: Google `sub`
 - Login reconciliation data: Google `sub`, email
 - Internal canonical identity: `app_user.id`
-- JWT subject (`sub`): `app_user.id`
+- Local app user id: `app_user.id` in the OIDC principal
 - Email claim: profile data only
