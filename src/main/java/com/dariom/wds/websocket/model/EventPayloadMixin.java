@@ -14,6 +14,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
     @Type(value = RoundStartedPayload.class, name = "ROUND_STARTED"),
     @Type(value = RoundFinishedPayload.class, name = "ROUND_FINISHED"),
     @Type(value = ScoresUpdatedPayload.class, name = "SCORES_UPDATED"),
+    @Type(value = RematchStartedPayload.class, name = "REMATCH_STARTED"),
 })
 public interface EventPayloadMixin {
 

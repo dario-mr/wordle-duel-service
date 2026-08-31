@@ -30,6 +30,9 @@ public class RoomPlayerEntity {
   @Column(name = "score", nullable = false)
   private int score;
 
+  @Column(name = "rematch_requested", nullable = false)
+  private boolean rematchRequested;
+
   public RoomPlayerEntity() {
   }
 
@@ -61,4 +64,3 @@ public class RoomPlayerEntity {
     return id != null ? id.hashCode() : 0;
   }
 }
-

@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when;
 
 import com.dariom.wds.api.v1.dto.CreateRoomRequest;
 import com.dariom.wds.api.v1.dto.ReadyRequest;
+import com.dariom.wds.api.v1.dto.RematchResponseDto;
 import com.dariom.wds.api.v1.dto.SubmitGuessRequest;
 import com.dariom.wds.api.v1.mapper.RoomMapper;
 import com.dariom.wds.config.security.AuthenticatedUser;
@@ -23,6 +24,7 @@ import com.dariom.wds.domain.RoomStatus;
 import com.dariom.wds.service.room.RoomService;
 import com.dariom.wds.service.round.RoundService;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -106,6 +108,21 @@ class RoomControllerTest {
     assertThat(response.getBody()).isEqualTo(expectedDto);
 
     verify(roomService).joinRoom("room-1", "user-2");
+  }
+
+  @Test
+  void requestRematch_validRequest_returnsOkWithRematchId() {
+    // Arrange
+    when(roomService.requestRematch("room-1", "user-1"))
+        .thenReturn(Optional.of("room-2"));
+
+    // Act
+    var response = roomController.requestRematch("room-1", oidcUser);
+
+    // Assert
+    assertThat(response.getStatusCode().value()).isEqualTo(200);
+    assertThat(response.getBody()).isEqualTo(new RematchResponseDto("room-2"));
+    verify(roomService).requestRematch("room-1", "user-1");
   }
 
   @Test

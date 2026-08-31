@@ -2,10 +2,12 @@ package com.dariom.wds.service.room;
 
 import static com.dariom.wds.domain.Language.IT;
 import static com.dariom.wds.domain.RoomRounds.FIVE;
+import static com.dariom.wds.domain.RoomStatus.CLOSED;
 import static com.dariom.wds.domain.RoomStatus.IN_PROGRESS;
 import static com.dariom.wds.domain.RoomStatus.WAITING_FOR_PLAYERS;
 import static com.dariom.wds.domain.RoundStatus.PLAYING;
 import static com.dariom.wds.websocket.model.EventType.ROOM_CREATED;
+import static com.dariom.wds.websocket.model.EventType.REMATCH_STARTED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
@@ -26,12 +28,15 @@ import com.dariom.wds.exception.RoomAccessDeniedException;
 import com.dariom.wds.exception.RoomFullException;
 import com.dariom.wds.exception.RoomLockedException;
 import com.dariom.wds.exception.RoomNotFoundException;
+import com.dariom.wds.exception.RoomNotReadyException;
+import com.dariom.wds.exception.PlayerNotInRoomException;
 import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.repository.RoomRepository;
 import com.dariom.wds.service.DomainMapper;
 import com.dariom.wds.service.round.RoundService;
 import com.dariom.wds.service.user.UserProfileService;
 import com.dariom.wds.websocket.model.PlayerJoinedPayload;
+import com.dariom.wds.websocket.model.RematchStartedPayload;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
 import java.time.Duration;
@@ -229,6 +234,130 @@ class RoomServiceTest {
     assertThat(room.players()).singleElement().satisfies(p -> assertThat(p.score()).isEqualTo(5));
 
     verify(roundService, never()).startNewRound(anyString());
+  }
+
+  @Test
+  void requestRematch_firstPlayerVotes_recordsVoteWithoutCreatingRoom() {
+    // Arrange
+    var source = closedRoom("room-1");
+    when(roomRepository.findWithPlayersByIdForUpdate(anyString(), any())).thenReturn(source);
+    when(roomRepository.save(any(RoomEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+
+    // Act
+    var result = roomService.requestRematch("room-1", "p1");
+
+    // Assert
+    assertThat(result).isEmpty();
+    assertThat(rematchRequested(source, "p1")).isTrue();
+    assertThat(rematchRequested(source, "p2")).isFalse();
+    verify(roomRepository).save(source);
+    verify(roundService, never()).startNewRound(anyString());
+    verifyNoInteractions(eventPublisher);
+  }
+
+  @Test
+  void requestRematch_secondPlayerVotes_createsAndPublishesOneRematch() {
+    // Arrange
+    var source = closedRoom("room-1");
+    source.markRematchRequested("p1");
+    when(roomRepository.findWithPlayersByIdForUpdate(anyString(), any())).thenReturn(source);
+    when(roomRepository.save(any(RoomEntity.class))).thenAnswer(inv -> inv.getArgument(0));
+    when(roundService.startNewRound(anyString()))
+        .thenReturn(new Round(1, 6, Map.of(), Map.of(), PLAYING, null));
+
+    // Act
+    var result = roomService.requestRematch("room-1", "p2");
+
+    // Assert
+    var rematchRoomId = result.orElseThrow();
+    assertThat(rematchRoomId).isNotEqualTo("room-1");
+    assertThat(source.getRematchRoomId()).isEqualTo(rematchRoomId);
+    assertThat(source.allPlayersRequestedRematch()).isTrue();
+
+    var savedRooms = ArgumentCaptor.forClass(RoomEntity.class);
+    verify(roomRepository, times(2)).save(savedRooms.capture());
+    var rematchRoom = savedRooms.getAllValues().get(0);
+    assertThat(rematchRoom.getId()).isEqualTo(rematchRoomId);
+    assertThat(rematchRoom.getLanguage()).isEqualTo(IT);
+    assertThat(rematchRoom.getConfiguredRounds()).isEqualTo(FIVE);
+    assertThat(rematchRoom.getStatus()).isEqualTo(IN_PROGRESS);
+    assertThat(rematchRoom.getCurrentRoundNumber()).isNull();
+    assertThat(rematchRoom.getPlayerIds()).containsExactlyInAnyOrder("p1", "p2");
+    assertThat(rematchRoom.getScoresByPlayerId())
+        .containsExactlyInAnyOrderEntriesOf(Map.of("p1", 0, "p2", 0));
+    assertThat(savedRooms.getAllValues().get(1)).isSameAs(source);
+
+    verify(roundService).startNewRound(rematchRoomId);
+    verify(eventPublisher).publishEvent(new RoomEventToPublish("room-1", new RoomEvent(
+        REMATCH_STARTED,
+        new RematchStartedPayload(rematchRoomId)
+    )));
+  }
+
+  @Test
+  void requestRematch_afterCompletion_returnsExistingRematchWithoutCreatingAnother() {
+    // Arrange
+    var source = closedRoom("room-1");
+    source.setRematchRoomId("room-2");
+    when(roomRepository.findWithPlayersByIdForUpdate(anyString(), any())).thenReturn(source);
+
+    // Act
+    var result = roomService.requestRematch("room-1", "p1");
+
+    // Assert
+    assertThat(result).contains("room-2");
+    verify(roomRepository, never()).save(any(RoomEntity.class));
+    verifyNoInteractions(roundService, eventPublisher);
+  }
+
+  @Test
+  void requestRematch_nonPlayer_throwsPlayerNotInRoomException() {
+    // Arrange
+    var source = closedRoom("room-1");
+    when(roomRepository.findWithPlayersByIdForUpdate(anyString(), any())).thenReturn(source);
+
+    // Act
+    var thrown = catchThrowable(() -> roomService.requestRematch("room-1", "p3"));
+
+    // Assert
+    assertThat(thrown)
+        .isInstanceOf(PlayerNotInRoomException.class)
+        .hasMessage("Player <p3> is not in room <room-1>");
+    verify(roomRepository, never()).save(any(RoomEntity.class));
+    verifyNoInteractions(roundService, eventPublisher);
+  }
+
+  @Test
+  void requestRematch_nonClosedRoom_throwsRoomNotReadyException() {
+    // Arrange
+    var source = waitingRoom("room-1", "p1");
+    source.addPlayer("p2");
+    when(roomRepository.findWithPlayersByIdForUpdate(anyString(), any())).thenReturn(source);
+
+    // Act
+    var thrown = catchThrowable(() -> roomService.requestRematch("room-1", "p1"));
+
+    // Assert
+    assertThat(thrown)
+        .isInstanceOf(RoomNotReadyException.class)
+        .hasMessage("Room <room-1> is not ready: required status CLOSED, got WAITING_FOR_PLAYERS");
+    verify(roomRepository, never()).save(any(RoomEntity.class));
+    verifyNoInteractions(roundService, eventPublisher);
+  }
+
+  @Test
+  void requestRematch_roomLocked_throwsRoomLockedException() {
+    // Arrange
+    when(roomRepository.findWithPlayersByIdForUpdate(anyString(), any()))
+        .thenThrow(new PessimisticLockingFailureException("locked"));
+
+    // Act
+    var thrown = catchThrowable(() -> roomService.requestRematch("room-1", "p1"));
+
+    // Assert
+    assertThat(thrown)
+        .isInstanceOf(RoomLockedException.class)
+        .hasMessageContaining("room-1");
   }
 
   @Test
@@ -430,6 +559,24 @@ class RoomServiceTest {
     room.setPlayerScore(playerId, 0);
 
     return room;
+  }
+
+  private static RoomEntity closedRoom(String roomId) {
+    var room = waitingRoom(roomId, "p1");
+    room.setConfiguredRounds(FIVE);
+    room.addPlayer("p2");
+    room.setStatus(CLOSED);
+    room.setPlayerScore("p2", 3);
+    room.setPlayerScore("p1", 7);
+    return room;
+  }
+
+  private static boolean rematchRequested(RoomEntity room, String playerId) {
+    return room.getRoomPlayers().stream()
+        .filter(player -> player.getPlayerId().equals(playerId))
+        .findFirst()
+        .map(player -> player.isRematchRequested())
+        .orElse(false);
   }
 
 }

@@ -59,6 +59,9 @@ public class RoomEntity {
   @Column(name = "current_round_number")
   private Integer currentRoundNumber;
 
+  @Column(name = "rematch_room_id")
+  private String rematchRoomId;
+
   @Column(name = "created_at", updatable = false)
   private Instant createdAt;
 
@@ -103,6 +106,14 @@ public class RoomEntity {
 
     var normalizedScore = score != null ? score : 0;
     getOrCreateRoomPlayer(playerId, normalizedScore);
+  }
+
+  public void markRematchRequested(String playerId) {
+    findRoomPlayer(playerId).ifPresent(player -> player.setRematchRequested(true));
+  }
+
+  public boolean allPlayersRequestedRematch() {
+    return roomPlayers.stream().allMatch(RoomPlayerEntity::isRematchRequested);
   }
 
   public void incrementPlayerScore(String playerId, int delta) {

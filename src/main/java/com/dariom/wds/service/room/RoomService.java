@@ -1,8 +1,10 @@
 package com.dariom.wds.service.room;
 
+import static com.dariom.wds.domain.RoomStatus.CLOSED;
 import static com.dariom.wds.domain.RoomStatus.IN_PROGRESS;
 import static com.dariom.wds.domain.RoomStatus.WAITING_FOR_PLAYERS;
 import static com.dariom.wds.service.room.RoomValidator.validateRoom;
+import static com.dariom.wds.websocket.model.EventType.REMATCH_STARTED;
 import static com.dariom.wds.websocket.model.EventType.ROOM_CREATED;
 
 import com.dariom.wds.config.lock.RoomLockProperties;
@@ -10,14 +12,17 @@ import com.dariom.wds.domain.Language;
 import com.dariom.wds.domain.Room;
 import com.dariom.wds.domain.RoomRounds;
 import com.dariom.wds.domain.Round;
+import com.dariom.wds.exception.PlayerNotInRoomException;
 import com.dariom.wds.exception.RoomAccessDeniedException;
 import com.dariom.wds.exception.RoomLockedException;
+import com.dariom.wds.exception.RoomNotReadyException;
 import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.repository.RoomRepository;
 import com.dariom.wds.service.DomainMapper;
 import com.dariom.wds.service.round.RoundService;
 import com.dariom.wds.service.user.UserProfileService;
 import com.dariom.wds.websocket.model.PlayerJoinedPayload;
+import com.dariom.wds.websocket.model.RematchStartedPayload;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
 import jakarta.persistence.LockTimeoutException;
@@ -79,6 +84,16 @@ public class RoomService {
     }
   }
 
+  @Transactional
+  public Optional<String> requestRematch(String roomId, String playerId) {
+    try {
+      return requestRematchInTransaction(roomId, playerId);
+    } catch (PessimisticLockingFailureException | PessimisticLockException |
+             LockTimeoutException e) {
+      throw new RoomLockedException(roomId);
+    }
+  }
+
   @Transactional(readOnly = true)
   public Room getRoom(String roomId, String requestingPlayerId) {
     var room = roomRepository.findWithPlayersById(roomId);
@@ -113,7 +128,8 @@ public class RoomService {
   @Transactional
   public void deleteRoomById(String roomId) {
     try {
-      var room = roomRepository.findWithPlayersByIdForUpdate(roomId, lockProperties.acquireTimeout());
+      var room = roomRepository.findWithPlayersByIdForUpdate(roomId,
+          lockProperties.acquireTimeout());
       roomRepository.delete(room);
     } catch (PessimisticLockingFailureException | PessimisticLockException |
              LockTimeoutException e) {
@@ -135,6 +151,47 @@ public class RoomService {
     var displayNamePerPlayer = getDisplayNamePerPlayer(savedRoom);
 
     return domainMapper.toRoom(savedRoom, currentRound, displayNamePerPlayer);
+  }
+
+  private Optional<String> requestRematchInTransaction(String roomId, String playerId) {
+    var sourceRoom = roomRepository.findWithPlayersByIdForUpdate(roomId,
+        lockProperties.acquireTimeout());
+
+    if (!sourceRoom.getPlayerIds().contains(playerId)) {
+      throw new PlayerNotInRoomException(playerId, roomId);
+    }
+    if (sourceRoom.getStatus() != CLOSED) {
+      throw new RoomNotReadyException(roomId, sourceRoom.getStatus(), CLOSED);
+    }
+    if (sourceRoom.getRematchRoomId() != null) {
+      return Optional.of(sourceRoom.getRematchRoomId());
+    }
+
+    sourceRoom.markRematchRequested(playerId);
+    if (!sourceRoom.allPlayersRequestedRematch()) {
+      roomRepository.save(sourceRoom);
+      return Optional.empty();
+    }
+
+    var rematchRoom = new RoomEntity();
+    rematchRoom.setId(UUID.randomUUID().toString());
+    rematchRoom.setLanguage(sourceRoom.getLanguage());
+    rematchRoom.setConfiguredRounds(sourceRoom.getConfiguredRounds());
+    rematchRoom.setStatus(IN_PROGRESS);
+    sourceRoom.getPlayerIds().forEach(rematchRoom::addPlayer);
+    rematchRoom.setCurrentRoundNumber(null);
+
+    roomRepository.save(rematchRoom);
+    roundService.startNewRound(rematchRoom.getId());
+
+    sourceRoom.setRematchRoomId(rematchRoom.getId());
+    roomRepository.save(sourceRoom);
+    publishRoomEvent(roomId, new RoomEvent(
+        REMATCH_STARTED,
+        new RematchStartedPayload(rematchRoom.getId())
+    ));
+
+    return Optional.of(rematchRoom.getId());
   }
 
   private void addPlayerAndInitializeScore(RoomEntity room, String playerId) {

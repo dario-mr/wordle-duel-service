@@ -4,6 +4,7 @@ import com.dariom.wds.api.common.ErrorResponse;
 import com.dariom.wds.api.v1.dto.CreateRoomRequest;
 import com.dariom.wds.api.v1.dto.GuessResponse;
 import com.dariom.wds.api.v1.dto.ReadyRequest;
+import com.dariom.wds.api.v1.dto.RematchResponseDto;
 import com.dariom.wds.api.v1.dto.RoomDto;
 import com.dariom.wds.api.v1.dto.SubmitGuessRequest;
 import com.dariom.wds.api.v1.mapper.RoomMapper;
@@ -82,6 +83,24 @@ public class RoomController {
     log.info("Join room <{}> by user <{}>", roomId, appUserId);
     var room = roomService.joinRoom(roomId, appUserId);
     return ResponseEntity.ok(roomMapper.toDto(room, appUserId));
+  }
+
+  @Operation(summary = "Request rematch", description = "Requests a rematch with the other player.")
+  @ApiResponses({
+      @ApiResponse(responseCode = "200", description = "Rematch request accepted", content = @Content(schema = @Schema(implementation = RematchResponseDto.class))),
+      @ApiResponse(responseCode = "403", description = "Player is not in the room", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+      @ApiResponse(responseCode = "404", description = "Room not found", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+      @ApiResponse(responseCode = "409", description = "Room is not closed or is busy", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+  })
+  @PostMapping("/{roomId}/rematch")
+  public ResponseEntity<RematchResponseDto> requestRematch(
+      @Parameter(description = "Room identifier", required = true) @PathVariable String roomId,
+      @AuthenticationPrincipal OidcUser oidcUser
+  ) {
+    var appUserId = authenticatedUserResolver.from(oidcUser).userId();
+    log.info("Request rematch in room <{}> by user <{}>", roomId, appUserId);
+    var rematchRoomId = roomService.requestRematch(roomId, appUserId);
+    return ResponseEntity.ok(new RematchResponseDto(rematchRoomId.orElse(null)));
   }
 
   @Operation(summary = "List rooms", description = "Returns all rooms where the authenticated user is a player.")

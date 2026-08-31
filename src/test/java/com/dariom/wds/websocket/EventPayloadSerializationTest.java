@@ -9,6 +9,7 @@ import com.dariom.wds.websocket.model.EventType;
 import com.dariom.wds.websocket.model.PlayerJoinedPayload;
 import com.dariom.wds.websocket.model.PlayerReadyPayload;
 import com.dariom.wds.websocket.model.PlayerStatusUpdatedPayload;
+import com.dariom.wds.websocket.model.RematchStartedPayload;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
 import com.dariom.wds.websocket.model.RoundFinishedPayload;
@@ -40,7 +41,8 @@ class EventPayloadSerializationTest {
         roomEvent(EventType.SCORES_UPDATED, new ScoresUpdatedPayload(Map.of("p1", 10, "p2", 5))),
         roomEvent(EventType.PLAYER_STATUS_UPDATED,
             new PlayerStatusUpdatedPayload(RoundPlayerStatus.WON)),
-        roomEvent(EventType.ROOM_CREATED, new PlayerReadyPayload("player-1"))
+        roomEvent(EventType.ROOM_CREATED, new PlayerReadyPayload("player-1")),
+        roomEvent(EventType.REMATCH_STARTED, new RematchStartedPayload("room-2"))
     );
   }
 

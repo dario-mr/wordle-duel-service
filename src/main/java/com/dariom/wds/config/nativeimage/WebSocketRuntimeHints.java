@@ -8,6 +8,7 @@ import com.dariom.wds.domain.RoundPlayerStatus;
 import com.dariom.wds.websocket.model.PlayerJoinedPayload;
 import com.dariom.wds.websocket.model.PlayerReadyPayload;
 import com.dariom.wds.websocket.model.PlayerStatusUpdatedPayload;
+import com.dariom.wds.websocket.model.RematchStartedPayload;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
 import com.dariom.wds.websocket.model.RoundFinishedPayload;
@@ -28,6 +29,7 @@ public class WebSocketRuntimeHints implements RuntimeHintsRegistrar {
     registerRecord(hints, RoundStartedPayload.class);
     registerRecord(hints, RoundFinishedPayload.class);
     registerRecord(hints, ScoresUpdatedPayload.class);
+    registerRecord(hints, RematchStartedPayload.class);
     hints.reflection().registerType(RoundPlayerStatus.class,
         DECLARED_FIELDS, INVOKE_PUBLIC_METHODS);
   }

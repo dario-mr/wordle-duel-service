@@ -7,4 +7,5 @@ public enum EventType {
   ROOM_CLOSED,
   SCORES_UPDATED,
   PLAYER_STATUS_UPDATED,
+  REMATCH_STARTED,
 }

@@ -1,0 +1,22 @@
+databaseChangeLog:
+  - changeSet:
+      id: 010-room-rematch
+      author: dariom
+      changes:
+        - addColumn:
+            schemaName: wordle
+            tableName: room_players
+            columns:
+              - column:
+                  name: rematch_requested
+                  type: boolean
+                  defaultValueBoolean: false
+                  constraints:
+                    nullable: false
+        - addColumn:
+            schemaName: wordle
+            tableName: rooms
+            columns:
+              - column:
+                  name: rematch_room_id
+                  type: varchar(36)
