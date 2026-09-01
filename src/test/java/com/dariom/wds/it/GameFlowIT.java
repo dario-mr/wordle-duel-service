@@ -1,18 +1,12 @@
 package com.dariom.wds.it;
 
-import static org.hamcrest.Matchers.anEmptyMap;
-import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.emptyOrNullString;
-import static org.hamcrest.Matchers.hasLength;
 import static org.hamcrest.Matchers.hasSize;
-import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.not;
 import static org.hamcrest.Matchers.nullValue;
-import static org.hamcrest.Matchers.oneOf;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.dariom.wds.persistence.repository.jpa.RoundJpaRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Resource;
 import java.util.Map;
@@ -30,210 +24,139 @@ class GameFlowIT extends AbstractRedisTest {
   private static final String LANGUAGE = "IT";
   private static final String PLAYER_1_ID = "11111111-1111-1111-1111-111111111111";
   private static final String PLAYER_2_ID = "22222222-2222-2222-2222-222222222222";
-  private static final String WORD = "FUOCO";
-  private static final int MAX_ATTEMPTS = 1;
+  private static final String LOSING_GUESS = "FUOCO";
 
   @Resource
   private ObjectMapper objectMapper;
   @Resource
   private IntegrationTestHelper itHelper;
+  @Resource
+  private RoundJpaRepository roundJpaRepository;
 
   @Test
-  void roundFinishesWhenBothPlayersDone() throws Exception {
-    // create users in DB
+  void playersProgressIndependentlyAndFiniteRoomClosesAfterBothFinish() throws Exception {
     var user1 = itHelper.createUser(PLAYER_1_ID, "player1@example.com", "John Smith");
     var user2 = itHelper.createUser(PLAYER_2_ID, "player2@example.com", "Bart Simpson");
-
     var player1Authentication = itHelper.userAuthentication(user1);
     var player2Authentication = itHelper.userAuthentication(user2);
+    var roomId = createRoom(player1Authentication);
 
-    // player1 creates the room
-    var roomId = createRoom(player1Authentication, PLAYER_1_ID);
-
-    // player2 joins the room
-    var joinRoomRes = itHelper.joinRoom(roomId, player2Authentication).andExpect(status().isOk());
-    expectRoomInProgress(joinRoomRes, "$", roomId, 1, "PLAYING", "PLAYING", "PLAYING");
-    joinRoomRes.andExpect(jsonPath("$.currentRound.solution").doesNotExist());
-    joinRoomRes.andExpect(jsonPath("$.currentRound.guessesByPlayerId").value(anEmptyMap()));
-
-    // ready not allowed while round is still playing
-    itHelper.ready(roomId, player1Authentication, 1)
-        .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.code").value("ROUND_NOT_ENDED"))
-        .andExpect(jsonPath("$.message", not(emptyOrNullString())));
-
-    // player1 submits guess
-    var player1GuessRes = itHelper.submitGuess(roomId, player1Authentication, WORD)
-        .andExpect(status().isOk());
-    expectRoomInProgress(player1GuessRes, "$.room", roomId, 1, "PLAYING", "LOST", "PLAYING");
-    player1GuessRes.andExpect(
-        jsonPath("$.room.currentRound.solution").value(not(emptyOrNullString())));
-    player1GuessRes.andExpect(
-        jsonPath("$.room.currentRound.solution").value(hasLength(WORD.length())));
-    expectSingleGuess(player1GuessRes, "$.room", PLAYER_1_ID, WORD, 1);
-    expectNoGuesses(player1GuessRes, "$.room", PLAYER_2_ID);
-
-    // player2 still can't see solution
-    var roomForP2AfterP1GuessRes = itHelper.getRoom(roomId, player2Authentication)
-        .andExpect(status().isOk());
-    expectRoomInProgress(roomForP2AfterP1GuessRes, "$", roomId, 1, "PLAYING", "LOST", "PLAYING");
-    roomForP2AfterP1GuessRes.andExpect(jsonPath("$.currentRound.solution").doesNotExist());
-
-    // player2 submits guess
-    var player2GuessRes = itHelper.submitGuess(roomId, player2Authentication, WORD)
-        .andExpect(status().isOk());
-    expectRoomInProgress(player2GuessRes, "$.room", roomId, 1, "ENDED", "LOST", "LOST");
-    player2GuessRes.andExpect(
-        jsonPath("$.room.currentRound.solution").value(not(emptyOrNullString())));
-    player2GuessRes.andExpect(
-        jsonPath("$.room.currentRound.solution").value(hasLength(WORD.length())));
-    expectSingleGuess(player2GuessRes, "$.room", PLAYER_1_ID, WORD, 1);
-    expectSingleGuess(player2GuessRes, "$.room", PLAYER_2_ID, WORD, 1);
-
-    // round is finished (both players lost)
-    var roomRes = itHelper.getRoom(roomId, player1Authentication).andExpect(status().isOk());
-    expectRoomInProgress(roomRes, "$", roomId, 1, "ENDED", "LOST", "LOST");
-    roomRes.andExpect(jsonPath("$.currentRound.solution").value(not(emptyOrNullString())));
-    roomRes.andExpect(jsonPath("$.currentRound.solution").value(hasLength(WORD.length())));
-    expectGuessWordOnly(roomRes, "$", PLAYER_1_ID, WORD);
-    expectGuessWordOnly(roomRes, "$", PLAYER_2_ID, WORD);
-
-    // submitting another guess is illegal once round is finished
-    itHelper.submitGuess(roomId, player1Authentication, WORD)
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.code").value("ROUND_FINISHED"))
-        .andExpect(jsonPath("$.message", not(emptyOrNullString())));
-
-    // room still has the same finished round
-    var roomAfterIllegalGuessRes = itHelper.getRoom(roomId, player1Authentication)
-        .andExpect(status().isOk());
-    expectRoomInProgress(roomAfterIllegalGuessRes, "$", roomId, 1, "ENDED", "LOST", "LOST");
-    roomAfterIllegalGuessRes.andExpect(
-        jsonPath("$.currentRound.solution").value(not(emptyOrNullString())));
-
-    // player1 ready (idempotent)
-    var readyP1Res = itHelper.ready(roomId, player1Authentication, 1).andExpect(status().isOk());
-    expectRoomInProgress(readyP1Res, "$", roomId, 1, "ENDED", "READY", "LOST");
-    readyP1Res.andExpect(jsonPath("$.currentRound.solution").value(not(emptyOrNullString())));
-
-    itHelper.ready(roomId, player1Authentication, 1)
+    itHelper.joinRoom(roomId, player2Authentication)
         .andExpect(status().isOk())
-        .andExpect(jsonPath(
-            path("$", ".currentRound.statusByPlayerId['" + PLAYER_1_ID + "']")).value("READY"));
+        .andExpect(jsonPath("$.currentRound.roundNumber").value(1))
+        .andExpect(jsonPath("$.currentRound.guesses").isEmpty())
+        .andExpect(jsonPath("$.currentRound.playerStatus").value("PLAYING"))
+        .andExpect(jsonPath("$.currentRound.guessesByPlayerId").doesNotExist())
+        .andExpect(jsonPath("$.currentRound.statusByPlayerId").doesNotExist());
 
-    // wrong round number rejected
-    itHelper.ready(roomId, player2Authentication, 2)
-        .andExpect(status().isConflict())
-        .andExpect(jsonPath("$.code").value("ROUND_NOT_CURRENT"))
-        .andExpect(jsonPath("$.message", not(emptyOrNullString())));
+    var round1Word = targetWord(1, roomId);
+    var player1Round1 = itHelper.submitGuess(roomId, player1Authentication, round1Word)
+        .andExpect(status().isOk());
+    expectCompletedRound(player1Round1, "$.room", 1, "WON", 1, 0);
+    expectCurrentRound(itHelper.startNextRound(roomId, player1Authentication)
+        .andExpect(status().isOk()), "$", 2, "PLAYING", 1, 0);
 
-    // player2 ready triggers next round start
-    var readyP2Res = itHelper.ready(roomId, player2Authentication, 1).andExpect(status().isOk());
-    expectRoomInProgress(readyP2Res, "$", roomId, 2, "PLAYING", "PLAYING", "PLAYING");
-    readyP2Res.andExpect(jsonPath("$.currentRound.solution").doesNotExist());
-    readyP2Res.andExpect(jsonPath("$.currentRound.guessesByPlayerId").value(anEmptyMap()));
+    var player2BeforeGuess = itHelper.getRoom(roomId, player2Authentication)
+        .andExpect(status().isOk());
+    expectCurrentRound(player2BeforeGuess, "$", 1, "PLAYING", 1, 0);
+    player2BeforeGuess.andExpect(jsonPath("$.currentRound.guesses").isEmpty());
+
+    var player1Round2 = itHelper.submitGuess(roomId, player1Authentication, LOSING_GUESS)
+        .andExpect(status().isOk());
+    expectCompletedRound(player1Round2, "$.room", 2, "LOST", 1, 0);
+
+    var round2Word = targetWord(2, roomId);
+    player1Round2.andExpect(jsonPath("$.room.currentRound.solution").value(round2Word));
+    expectCurrentRound(itHelper.startNextRound(roomId, player1Authentication)
+        .andExpect(status().isOk()), "$", 3, "PLAYING", 1, 0);
+
+    var player2Round2 = itHelper.submitGuess(roomId, player2Authentication, round1Word)
+        .andExpect(status().isOk());
+    expectCompletedRound(player2Round2, "$.room", 1, "WON", 1, 1);
+    expectCurrentRound(itHelper.startNextRound(roomId, player2Authentication)
+        .andExpect(status().isOk()), "$", 2, "PLAYING", 1, 1);
+
+    expectCompletedRound(itHelper.submitGuess(roomId, player2Authentication, round2Word)
+        .andExpect(status().isOk()), "$.room", 2, "WON", 1, 2);
+    expectCurrentRound(itHelper.startNextRound(roomId, player2Authentication)
+        .andExpect(status().isOk()), "$", 3, "PLAYING", 1, 2);
+
+    for (var roundNumber = 3; roundNumber <= 5; roundNumber++) {
+      var word = targetWord(roundNumber, roomId);
+      itHelper.submitGuess(roomId, player1Authentication, word).andExpect(status().isOk());
+      if (roundNumber < 5) {
+        itHelper.startNextRound(roomId, player1Authentication).andExpect(status().isOk());
+      }
+    }
+
+    var roomAfterPlayer1 = itHelper.getRoom(roomId, player1Authentication)
+        .andExpect(status().isOk());
+    roomAfterPlayer1.andExpectAll(
+        jsonPath("$.status").value("IN_PROGRESS"),
+        jsonPath("$.currentRound.roundNumber").value(5),
+        jsonPath("$.currentRound.playerStatus").value("WON"),
+        jsonPath("$.players[0].score").value(4),
+        jsonPath("$.players[1].score").value(2));
+
+    for (var roundNumber = 3; roundNumber <= 5; roundNumber++) {
+      itHelper.submitGuess(roomId, player2Authentication, targetWord(roundNumber, roomId))
+          .andExpect(status().isOk());
+      if (roundNumber < 5) {
+        itHelper.startNextRound(roomId, player2Authentication).andExpect(status().isOk());
+      }
+    }
+
+    var roomAfterBothPlayers = itHelper.getRoom(roomId, player2Authentication)
+        .andExpect(status().isOk());
+    roomAfterBothPlayers.andExpectAll(
+        jsonPath("$.status").value("CLOSED"),
+        jsonPath("$.currentRound.roundNumber").value(5),
+        jsonPath("$.currentRound.playerStatus").value("WON"),
+        jsonPath("$.players[0].score").value(4),
+        jsonPath("$.players[1].score").value(5));
   }
 
   private String createRoom(
-      org.springframework.test.web.servlet.request.RequestPostProcessor authentication,
-      String expectedPlayerId)
+      org.springframework.test.web.servlet.request.RequestPostProcessor authentication)
       throws Exception {
-    var createReq = Map.<String, Object>of("language", LANGUAGE, "rounds", 5);
-
-    var createRes = itHelper.createRoom(authentication, createReq)
+    var createRes = itHelper.createRoom(authentication, Map.of("language", LANGUAGE, "rounds", 5))
         .andExpect(status().isCreated())
         .andExpect(header().exists("Location"))
-        .andExpect(jsonPath("$.id", not(emptyOrNullString())))
-        .andExpect(jsonPath("$.language").value(LANGUAGE))
-        .andExpect(jsonPath("$.status").value("WAITING_FOR_PLAYERS"))
-        .andExpect(jsonPath("$.players[*].id", contains(expectedPlayerId)))
-        .andExpect(jsonPath("$.players[0].score").value(0))
-        .andExpect(jsonPath("$.players", hasSize(1)))
         .andExpect(jsonPath("$.currentRound").value(nullValue()))
         .andReturn();
-
-    var createdJson = createRes.getResponse().getContentAsString();
-    return objectMapper.readTree(createdJson).get("id").asText();
+    return objectMapper.readTree(createRes.getResponse().getContentAsString()).get("id").asText();
   }
 
-  private void expectRoomInProgress(
-      ResultActions res,
-      String root,
-      String roomId,
-      int roundNumber,
-      String roundStatus,
-      String p1Status,
-      String p2Status) throws Exception {
-    res.andExpectAll(
-        jsonPath(path(root, ".id")).value(roomId),
-        jsonPath(path(root, ".language")).value(LANGUAGE),
-        jsonPath(path(root, ".status")).value("IN_PROGRESS"),
-        jsonPath(path(root, ".players[*].id"), contains(PLAYER_1_ID, PLAYER_2_ID)),
-        jsonPath(path(root, ".players[0].score")).value(0),
-        jsonPath(path(root, ".players[1].score")).value(0),
-        jsonPath(path(root, ".players[0].displayName")).value("John Smith"),
-        jsonPath(path(root, ".players[1].displayName")).value("Bart Simpson"),
-        jsonPath(path(root, ".currentRound.roundNumber")).value(roundNumber),
-        jsonPath(path(root, ".currentRound.maxAttempts")).value(MAX_ATTEMPTS),
-        jsonPath(path(root, ".currentRound.roundStatus")).value(roundStatus),
-        jsonPath(mapPath(root, ".currentRound.statusByPlayerId", PLAYER_1_ID)).value(p1Status),
-        jsonPath(mapPath(root, ".currentRound.statusByPlayerId", PLAYER_2_ID)).value(p2Status));
+  private String targetWord(int roundNumber, String roomId) {
+    return roundJpaRepository.findWithDetailsByRoomIdAndRoundNumber(roomId, roundNumber)
+        .orElseThrow()
+        .getTargetWord();
   }
 
-  private void expectSingleGuess(
-      ResultActions res,
-      String root,
-      String playerId,
-      String word,
-      int attemptNumber) throws Exception {
-    var guesses = mapPath(root, ".currentRound.guessesByPlayerId", playerId);
-
-    res.andExpectAll(
-        jsonPath(guesses, hasSize(1)),
-        jsonPath(guesses + "[0].word").value(word),
-        jsonPath(guesses + "[0].attemptNumber").value(attemptNumber),
-        jsonPath(guesses + "[0].letters", hasSize(word.length())));
-
-    expectGuessLetters(res, root, playerId, 0, word);
+  private static void expectCurrentRound(
+      ResultActions result, String root, int roundNumber, String playerStatus,
+      int player1Score, int player2Score) throws Exception {
+    result.andExpectAll(
+        jsonPath(root + ".currentRound.roundNumber").value(roundNumber),
+        jsonPath(root + ".currentRound.playerStatus").value(playerStatus),
+        jsonPath(root + ".currentRound.guesses", hasSize(0)),
+        jsonPath(root + ".currentRound.guessesByPlayerId").doesNotExist(),
+        jsonPath(root + ".currentRound.statusByPlayerId").doesNotExist(),
+        jsonPath(root + ".players[0].score").value(player1Score),
+        jsonPath(root + ".players[1].score").value(player2Score),
+        jsonPath(root + ".currentRound.solution").doesNotExist());
   }
 
-  private void expectGuessWordOnly(ResultActions res, String root, String playerId, String word)
-      throws Exception {
-    var guesses = mapPath(root, ".currentRound.guessesByPlayerId", playerId);
-
-    res.andExpectAll(
-        jsonPath(guesses, hasSize(1)),
-        jsonPath(guesses + "[0].word").value(word));
+  private static void expectCompletedRound(
+      ResultActions result, String root, int roundNumber, String playerStatus,
+      int player1Score, int player2Score) throws Exception {
+    result.andExpectAll(
+        jsonPath(root + ".currentRound.roundNumber").value(roundNumber),
+        jsonPath(root + ".currentRound.playerStatus").value(playerStatus),
+        jsonPath(root + ".currentRound.guesses", hasSize(1)),
+        jsonPath(root + ".currentRound.guessesByPlayerId").doesNotExist(),
+        jsonPath(root + ".currentRound.statusByPlayerId").doesNotExist(),
+        jsonPath(root + ".players[0].score").value(player1Score),
+        jsonPath(root + ".players[1].score").value(player2Score));
   }
-
-  private void expectNoGuesses(ResultActions res, String root, String playerId) throws Exception {
-    res.andExpect(
-        jsonPath(mapPath(root, ".currentRound.guessesByPlayerId", playerId)).doesNotExist());
-  }
-
-  private void expectGuessLetters(
-      ResultActions res,
-      String root,
-      String playerId,
-      int guessIndex,
-      String word) throws Exception {
-    var guesses = mapPath(root, ".currentRound.guessesByPlayerId", playerId);
-
-    for (var i = 0; i < word.length(); i++) {
-      res.andExpect(jsonPath(guesses + "[" + guessIndex + "].letters[" + i + "].letter")
-          .value(String.valueOf(word.charAt(i))));
-
-      res.andExpect(jsonPath(guesses + "[" + guessIndex + "].letters[" + i + "].status")
-          .value(is(oneOf("ABSENT", "PRESENT", "CORRECT"))));
-    }
-  }
-
-  private static String mapPath(String root, String mapField, String key) {
-    return root + mapField + "['" + key + "']";
-  }
-
-  private static String path(String root, String suffix) {
-    return root + suffix;
-  }
-
 }

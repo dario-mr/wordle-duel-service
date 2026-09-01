@@ -23,13 +23,34 @@ public interface RoundJpaRepository extends JpaRepository<RoundEntity, Long> {
       "guesses.letters"
   })
   @Query("""
+      select distinct r
+      from RoundEntity r
+      join r.room room
+      join room.roomPlayers player
+      where room.id in :roomIds
+        and player.id.playerId = :playerId
+        and player.currentRoundNumber is not null
+        and r.roundNumber = player.currentRoundNumber
+      """)
+  List<RoundEntity> findCurrentRoundsWithDetailsByRoomIdsAndPlayerId(
+      @Param("roomIds") List<String> roomIds, @Param("playerId") String playerId);
+
+  @EntityGraph(attributePaths = {
+      "statusByPlayerId",
+      "guesses",
+      "guesses.letters"
+  })
+  @Query("""
       select r
       from RoundEntity r
       join r.room room
-      where room.id in :roomIds
-        and room.currentRoundNumber is not null
-        and r.roundNumber = room.currentRoundNumber
+      join room.roomPlayers player
+      where room.id = :roomId
+        and player.id.playerId = :playerId
+        and player.currentRoundNumber is not null
+        and r.roundNumber = player.currentRoundNumber
       """)
-  List<RoundEntity> findCurrentRoundsWithDetailsByRoomIds(@Param("roomIds") List<String> roomIds);
+  Optional<RoundEntity> findCurrentRoundWithDetailsByRoomIdAndPlayerId(
+      @Param("roomId") String roomId, @Param("playerId") String playerId);
 
 }

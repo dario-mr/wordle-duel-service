@@ -2,18 +2,13 @@ package com.dariom.wds.websocket;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-import com.dariom.wds.domain.RoundPlayerStatus;
 import com.dariom.wds.websocket.model.EventPayload;
 import com.dariom.wds.websocket.model.EventPayloadMixin;
 import com.dariom.wds.websocket.model.EventType;
 import com.dariom.wds.websocket.model.PlayerJoinedPayload;
-import com.dariom.wds.websocket.model.PlayerReadyPayload;
-import com.dariom.wds.websocket.model.PlayerStatusUpdatedPayload;
 import com.dariom.wds.websocket.model.RematchStartedPayload;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
-import com.dariom.wds.websocket.model.RoundFinishedPayload;
-import com.dariom.wds.websocket.model.RoundStartedPayload;
 import com.dariom.wds.websocket.model.ScoresUpdatedPayload;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
@@ -34,14 +29,11 @@ class EventPayloadSerializationTest {
 
   static Stream<RoomEventToPublish> roomEvents() {
     return Stream.of(
-        roomEvent(EventType.ROUND_STARTED, new RoundStartedPayload(1, 6)),
-        roomEvent(EventType.ROUND_FINISHED, new RoundFinishedPayload(1)),
         roomEvent(EventType.ROOM_CREATED, new PlayerJoinedPayload("player-1", List.of("player-1"))),
+        roomEvent(EventType.PLAYER_JOINED,
+            new PlayerJoinedPayload("player-2", List.of("player-1", "player-2"))),
         roomEvent(EventType.ROOM_CLOSED, new ScoresUpdatedPayload(Map.of("p1", 10, "p2", 5))),
         roomEvent(EventType.SCORES_UPDATED, new ScoresUpdatedPayload(Map.of("p1", 10, "p2", 5))),
-        roomEvent(EventType.PLAYER_STATUS_UPDATED,
-            new PlayerStatusUpdatedPayload(RoundPlayerStatus.WON)),
-        roomEvent(EventType.ROOM_CREATED, new PlayerReadyPayload("player-1")),
         roomEvent(EventType.REMATCH_STARTED, new RematchStartedPayload("room-2"))
     );
   }

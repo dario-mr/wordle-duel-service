@@ -30,7 +30,6 @@ import com.dariom.wds.exception.RoomFullException;
 import com.dariom.wds.exception.RoomLockedException;
 import com.dariom.wds.exception.RoomNotFoundException;
 import com.dariom.wds.exception.RoomNotReadyException;
-import com.dariom.wds.exception.RoundException;
 import com.dariom.wds.exception.UserNotFoundException;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
@@ -106,13 +105,6 @@ public class ApiErrorHandler {
   public ResponseEntity<ErrorResponse> handleInvalidGuess(InvalidGuessException ex) {
     log.warn("Invalid guess: code={}, message={}", ex.getCode(), ex.getMessage());
     return ResponseEntity.status(BAD_REQUEST)
-        .body(new ErrorResponse(ex.getCode(), ex.getMessage()));
-  }
-
-  @ExceptionHandler(RoundException.class)
-  public ResponseEntity<ErrorResponse> handleRoundException(RoundException ex) {
-    log.warn("Invalid round: code={}, message={}", ex.getCode(), ex.getMessage());
-    return ResponseEntity.status(CONFLICT)
         .body(new ErrorResponse(ex.getCode(), ex.getMessage()));
   }
 

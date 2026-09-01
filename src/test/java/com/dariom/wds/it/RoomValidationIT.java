@@ -89,32 +89,4 @@ class RoomValidationIT extends AbstractRedisTest {
         .andExpect(jsonPath("$.message").value("word is required"));
   }
 
-  @Test
-  void ready_missingRoundNumber_badRequest() throws Exception {
-    var createReq = Map.of();
-
-    mockMvc.perform(post(BASE_URL + "/{roomId}/ready", 1)
-            .with(itHelper.userAuthentication())
-            .with(csrf())
-            .contentType(APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(createReq)))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.code").value("INVALID_ROUND_NUMBER"))
-        .andExpect(jsonPath("$.message").value("roundNumber is required"));
-  }
-
-  @Test
-  void ready_roundNumberIsZero_badRequest() throws Exception {
-    var createReq = Map.of("roundNumber", "0");
-
-    mockMvc.perform(post(BASE_URL + "/{roomId}/ready", 1)
-            .with(itHelper.userAuthentication())
-            .with(csrf())
-            .contentType(APPLICATION_JSON)
-            .content(objectMapper.writeValueAsString(createReq)))
-        .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.code").value("INVALID_ROUND_NUMBER"))
-        .andExpect(jsonPath("$.message").value("roundNumber must be greater than 1"));
-  }
-
 }

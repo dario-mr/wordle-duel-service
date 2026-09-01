@@ -10,7 +10,7 @@ import static org.mockito.Mockito.when;
 import com.dariom.wds.websocket.model.EventType;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
-import com.dariom.wds.websocket.model.RoundStartedPayload;
+import com.dariom.wds.websocket.model.ScoresUpdatedPayload;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,7 +35,7 @@ class RedisRoomEventSubscriberTest {
   @Test
   void onMessage_validMessage_sendsToStompTopic() throws Exception {
     // Arrange
-    var event = new RoomEvent(EventType.ROUND_STARTED, new RoundStartedPayload(1, 6));
+    var event = new RoomEvent(EventType.SCORES_UPDATED, new ScoresUpdatedPayload(java.util.Map.of()));
     var roomEvent = new RoomEventToPublish("room-1", event);
     var json = "{\"roomId\":\"room-1\"}".getBytes();
     var message = new DefaultMessage(RedisRoomEventPublisher.ROOM_EVENTS.getBytes(), json);
@@ -66,7 +66,7 @@ class RedisRoomEventSubscriberTest {
   @Test
   void onMessage_stompSendFails_doesNotPropagateException() throws Exception {
     // Arrange
-    var event = new RoomEvent(EventType.ROUND_STARTED, new RoundStartedPayload(1, 6));
+    var event = new RoomEvent(EventType.SCORES_UPDATED, new ScoresUpdatedPayload(java.util.Map.of()));
     var roomEvent = new RoomEventToPublish("room-1", event);
     var json = "{\"roomId\":\"room-1\"}".getBytes();
     var message = new DefaultMessage(RedisRoomEventPublisher.ROOM_EVENTS.getBytes(), json);

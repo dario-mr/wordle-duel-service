@@ -1,0 +1,115 @@
+databaseChangeLog:
+  - changeSet:
+      id: 011-unsynced-match
+      author: dariom
+      changes:
+        - addColumn:
+            schemaName: wordle
+            tableName: room_players
+            columns:
+              - column:
+                  name: current_round_number
+                  type: int
+
+        - sql:
+            sql: >
+              UPDATE wordle.round_player_status rps
+              SET status = CASE
+                WHEN EXISTS (
+                  SELECT 1
+                  FROM wordle.rounds r
+                  JOIN wordle.guesses g ON g.round_id = r.id
+                  WHERE r.id = rps.round_id
+                    AND g.player_id = rps.player_id
+                    AND g.word = r.target_word
+                ) THEN 'WON'
+                ELSE 'LOST'
+              END
+              WHERE rps.status = 'READY'
+
+        - sql:
+            sql: >
+              UPDATE wordle.room_players rp
+              SET current_round_number = CASE
+                WHEN EXISTS (
+                  SELECT 1
+                  FROM wordle.rooms room
+                  JOIN wordle.rounds r
+                    ON r.room_id = room.id
+                   AND r.round_number = room.current_round_number
+                  JOIN wordle.round_player_status rps
+                    ON rps.round_id = r.id
+                   AND rps.player_id = rp.player_id
+                  WHERE room.id = rp.room_id
+                    AND rps.status = 'PLAYING'
+                ) THEN (
+                  SELECT room.current_round_number
+                  FROM wordle.rooms room
+                  WHERE room.id = rp.room_id
+                )
+                WHEN EXISTS (
+                  SELECT 1
+                  FROM wordle.rooms room
+                  JOIN wordle.rounds r
+                    ON r.room_id = room.id
+                   AND r.round_number = room.current_round_number
+                  JOIN wordle.round_player_status rps
+                    ON rps.round_id = r.id
+                   AND rps.player_id = rp.player_id
+                  WHERE room.id = rp.room_id
+                    AND rps.status IN ('WON', 'LOST')
+                ) THEN CASE
+                  WHEN (
+                    SELECT room.rounds
+                    FROM wordle.rooms room
+                    WHERE room.id = rp.room_id
+                  ) IN ('5', '10')
+                  AND (
+                    SELECT room.current_round_number
+                    FROM wordle.rooms room
+                    WHERE room.id = rp.room_id
+                  ) >= CAST((
+                    SELECT room.rounds
+                    FROM wordle.rooms room
+                    WHERE room.id = rp.room_id
+                  ) AS INTEGER)
+                  THEN NULL
+                  ELSE (
+                    SELECT room.current_round_number
+                    FROM wordle.rooms room
+                    WHERE room.id = rp.room_id
+                  ) + 1
+                END
+                ELSE NULL
+              END
+              WHERE EXISTS (
+                SELECT 1
+                FROM wordle.rooms room
+                WHERE room.id = rp.room_id
+                  AND room.status = 'IN_PROGRESS'
+                  AND room.current_round_number IS NOT NULL
+              )
+
+        - sql:
+            sql: >
+              UPDATE wordle.rooms room
+              SET status = 'CLOSED'
+              WHERE room.status = 'IN_PROGRESS'
+                AND room.rounds IN ('5', '10')
+                AND NOT EXISTS (
+                  SELECT 1
+                  FROM wordle.room_players rp
+                  WHERE rp.room_id = room.id
+                    AND rp.current_round_number IS NOT NULL
+                )
+
+        - addUniqueConstraint:
+            schemaName: wordle
+            tableName: rounds
+            columnNames: room_id, round_number
+            constraintName: uq_rounds_room_round_number
+
+        - dropColumn:
+            schemaName: wordle
+            tableName: rooms
+            columnName: current_round_number

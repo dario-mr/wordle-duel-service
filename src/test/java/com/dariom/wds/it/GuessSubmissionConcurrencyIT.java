@@ -1,10 +1,12 @@
 package com.dariom.wds.it;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static com.dariom.wds.domain.RoundPlayerStatus.PLAYING;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.annotation.DirtiesContext.ClassMode.AFTER_CLASS;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.dariom.wds.persistence.repository.jpa.RoundJpaRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.Resource;
@@ -34,6 +36,8 @@ class GuessSubmissionConcurrencyIT extends AbstractRedisTest {
   private IntegrationTestHelper itHelper;
   @Resource
   private ObjectMapper objectMapper;
+  @Resource
+  private RoundJpaRepository roundJpaRepository;
 
   private RequestPostProcessor player1Authentication;
   private RequestPostProcessor player2Authentication;
@@ -47,119 +51,49 @@ class GuessSubmissionConcurrencyIT extends AbstractRedisTest {
   }
 
   @Test
-  void submitGuess_concurrentByBothPlayers_bothSucceed() throws Exception {
-    // Arrange
+  void submitGuess_concurrentByBothPlayers_completesOneRound() throws Exception {
     var roomId = createRoomAndJoin();
-
     var latch = new CountDownLatch(1);
     var executor = Executors.newFixedThreadPool(2);
 
     try {
-      // Act — both players submit guesses simultaneously
       var future1 = CompletableFuture.supplyAsync(() -> {
         await(latch);
         return submitGuess(roomId, player1Authentication);
       }, executor);
-
       var future2 = CompletableFuture.supplyAsync(() -> {
         await(latch);
         return submitGuess(roomId, player2Authentication);
       }, executor);
-
       latch.countDown();
 
-      var result1 = future1.get(10, SECONDS);
-      var result2 = future2.get(10, SECONDS);
-
-      // Assert — both should succeed
-      assertThat(result1.getResponse().getStatus()).isEqualTo(200);
-      assertThat(result2.getResponse().getStatus()).isEqualTo(200);
-
-      // Verify final room state has both guesses
-      var roomJson = getRoom(roomId);
-      var guessesByPlayerId = roomJson.get("currentRound").get("guessesByPlayerId");
-      assertThat(guessesByPlayerId.has(PLAYER_1_ID)).isTrue();
-      assertThat(guessesByPlayerId.has(PLAYER_2_ID)).isTrue();
-      assertThat(guessesByPlayerId.get(PLAYER_1_ID)).hasSize(1);
-      assertThat(guessesByPlayerId.get(PLAYER_2_ID)).hasSize(1);
+      assertThat(future1.get(10, SECONDS).getResponse().getStatus()).isEqualTo(200);
+      assertThat(future2.get(10, SECONDS).getResponse().getStatus()).isEqualTo(200);
     } finally {
       executor.shutdownNow();
     }
-  }
 
-  @Test
-  void handleReady_concurrentByBothPlayers_startsExactlyOneNewRound() throws Exception {
-    // Arrange — complete a round (both players guess and lose with max-attempts=1)
-    var roomId = createRoomAndJoin();
-    itHelper.submitGuess(roomId, player1Authentication, WORD).andExpect(status().isOk());
-    itHelper.submitGuess(roomId, player2Authentication, WORD).andExpect(status().isOk());
-
-    var latch = new CountDownLatch(1);
-    var executor = Executors.newFixedThreadPool(2);
-
-    try {
-      // Act — both players call ready simultaneously
-      var future1 = CompletableFuture.supplyAsync(() -> {
-        await(latch);
-        return ready(roomId, player1Authentication, 1);
-      }, executor);
-
-      var future2 = CompletableFuture.supplyAsync(() -> {
-        await(latch);
-        return ready(roomId, player2Authentication, 1);
-      }, executor);
-
-      latch.countDown();
-
-      var result1 = future1.get(10, SECONDS);
-      var result2 = future2.get(10, SECONDS);
-
-      // Assert — both should succeed
-      assertThat(result1.getResponse().getStatus()).isEqualTo(200);
-      assertThat(result2.getResponse().getStatus()).isEqualTo(200);
-
-      // Verify exactly one new round was started (round 2, not 3)
-      var roomJson = getRoom(roomId);
-      var currentRound = roomJson.get("currentRound");
-      assertThat(currentRound.get("roundNumber").asInt()).isEqualTo(2);
-      assertThat(currentRound.get("roundStatus").asText()).isEqualTo("PLAYING");
-    } finally {
-      executor.shutdownNow();
-    }
+    var round1 = roundJpaRepository.findWithDetailsByRoomIdAndRoundNumber(roomId, 1)
+        .orElseThrow();
+    assertThat(roundJpaRepository.count()).isEqualTo(1);
+    assertThat(round1.getPlayerStatus(PLAYER_1_ID)).isNotEqualTo(PLAYING);
+    assertThat(round1.getPlayerStatus(PLAYER_2_ID)).isNotEqualTo(PLAYING);
   }
 
   private String createRoomAndJoin() throws Exception {
-    var createRes = itHelper.createRoom(player1Authentication, Map.of("language", LANGUAGE, "rounds", 5))
+    var createRes = itHelper.createRoom(player1Authentication,
+            Map.of("language", LANGUAGE, "rounds", 5))
         .andExpect(status().isCreated())
         .andReturn();
-
     var roomId = objectMapper.readTree(createRes.getResponse().getContentAsString())
         .get("id").asText();
-
     itHelper.joinRoom(roomId, player2Authentication).andExpect(status().isOk());
     return roomId;
   }
 
-  private JsonNode getRoom(String roomId) throws Exception {
-    var result = itHelper.getRoom(roomId, player1Authentication)
-        .andExpect(status().isOk())
-        .andReturn();
-    return objectMapper.readTree(result.getResponse().getContentAsString());
-  }
-
   private MvcResult submitGuess(String roomId, RequestPostProcessor authentication) {
     try {
-      return itHelper.submitGuess(roomId, authentication, WORD)
-          .andReturn();
-    } catch (Exception e) {
-      throw new RuntimeException(e);
-    }
-  }
-
-  private MvcResult ready(String roomId, RequestPostProcessor authentication, int roundNumber) {
-    try {
-      return itHelper.ready(roomId, authentication, roundNumber)
-          .andReturn();
+      return itHelper.submitGuess(roomId, authentication, WORD).andReturn();
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

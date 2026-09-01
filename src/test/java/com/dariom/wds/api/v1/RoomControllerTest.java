@@ -11,7 +11,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.dariom.wds.api.v1.dto.CreateRoomRequest;
-import com.dariom.wds.api.v1.dto.ReadyRequest;
 import com.dariom.wds.api.v1.dto.RematchResponseDto;
 import com.dariom.wds.api.v1.dto.SubmitGuessRequest;
 import com.dariom.wds.api.v1.mapper.RoomMapper;
@@ -163,22 +162,16 @@ class RoomControllerTest {
   }
 
   @Test
-  void ready_validRequest_returnsOk() {
-    // Arrange
+  void startNextRound_validRequest_returnsOkWithRoom() {
     var domainRoom = room(IN_PROGRESS);
     var expectedDto = roomMapper.toDto(domainRoom, "user-1");
+    when(roundService.advanceToNextRound("room-1", "user-1")).thenReturn(domainRoom);
 
-    when(roundService.handleReady(anyString(), anyString(), any(Integer.class))).thenReturn(
-        domainRoom);
+    var response = roomController.startNextRound("room-1", oidcUser);
 
-    // Act
-    var response = roomController.ready("room-1", new ReadyRequest(1), oidcUser);
-
-    // Assert
     assertThat(response.getStatusCode().value()).isEqualTo(200);
     assertThat(response.getBody()).isEqualTo(expectedDto);
-
-    verify(roundService).handleReady("room-1", "user-1", 1);
+    verify(roundService).advanceToNextRound("room-1", "user-1");
   }
 
   private static Room room(RoomStatus roomStatus) {

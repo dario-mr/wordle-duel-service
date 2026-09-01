@@ -6,6 +6,7 @@ import static com.dariom.wds.domain.RoomStatus.CLOSED;
 import static com.dariom.wds.domain.RoomStatus.IN_PROGRESS;
 import static com.dariom.wds.domain.RoomStatus.WAITING_FOR_PLAYERS;
 import static com.dariom.wds.domain.RoundStatus.PLAYING;
+import static com.dariom.wds.websocket.model.EventType.PLAYER_JOINED;
 import static com.dariom.wds.websocket.model.EventType.ROOM_CREATED;
 import static com.dariom.wds.websocket.model.EventType.REMATCH_STARTED;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -197,8 +198,8 @@ class RoomServiceTest {
     when(roomRepository.findWithPlayersByIdForUpdate(anyString(), any())).thenReturn(entity);
     when(roomRepository.save(any(RoomEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
-    when(roundService.startNewRound("room-1")).thenReturn(
-        new Round(1, 6, Map.of(), Map.of(), PLAYING, null));
+    when(roundService.getCurrentRound("room-1", "p2")).thenReturn(
+        Optional.of(new Round(1, 6, List.of(), null, PLAYING, null)));
 
     // Act
     var room = roomService.joinRoom("room-1", "p2");
@@ -213,7 +214,14 @@ class RoomServiceTest {
     assertThat(room.currentRound()).isNotNull();
 
     verify(roundService).startNewRound("room-1");
-    verifyNoInteractions(eventPublisher);
+
+    var eventCaptor = ArgumentCaptor.forClass(RoomEventToPublish.class);
+    verify(eventPublisher).publishEvent(eventCaptor.capture());
+    var published = eventCaptor.getValue();
+    assertThat(published.roomId()).isEqualTo("room-1");
+    assertThat(published.event().type()).isEqualTo(PLAYER_JOINED);
+    assertThat(published.event().payload())
+        .isEqualTo(new PlayerJoinedPayload("p2", List.of("p1", "p2")));
   }
 
   @Test
@@ -262,9 +270,6 @@ class RoomServiceTest {
     source.markRematchRequested("p1");
     when(roomRepository.findWithPlayersByIdForUpdate(anyString(), any())).thenReturn(source);
     when(roomRepository.save(any(RoomEntity.class))).thenAnswer(inv -> inv.getArgument(0));
-    when(roundService.startNewRound(anyString()))
-        .thenReturn(new Round(1, 6, Map.of(), Map.of(), PLAYING, null));
-
     // Act
     var result = roomService.requestRematch("room-1", "p2");
 
@@ -281,7 +286,6 @@ class RoomServiceTest {
     assertThat(rematchRoom.getLanguage()).isEqualTo(IT);
     assertThat(rematchRoom.getConfiguredRounds()).isEqualTo(FIVE);
     assertThat(rematchRoom.getStatus()).isEqualTo(IN_PROGRESS);
-    assertThat(rematchRoom.getCurrentRoundNumber()).isNull();
     assertThat(rematchRoom.getPlayerIds()).containsExactlyInAnyOrder("p1", "p2");
     assertThat(rematchRoom.getScoresByPlayerId())
         .containsExactlyInAnyOrderEntriesOf(Map.of("p1", 0, "p2", 0));
@@ -380,7 +384,7 @@ class RoomServiceTest {
     assertThat(room.language()).isEqualTo(IT);
     assertThat(room.currentRound()).isNull();
 
-    verify(roundService).getCurrentRound("room-1", null);
+    verify(roundService).getCurrentRound("room-1", "player-1");
   }
 
   @Test
@@ -388,9 +392,9 @@ class RoomServiceTest {
     // Arrange
     var entity = waitingRoom("room-1", "p1");
     entity.setStatus(IN_PROGRESS);
-    entity.setCurrentRoundNumber(1);
+    entity.findRoomPlayer("p1").orElseThrow().setCurrentRoundNumber(1);
 
-    var currentRound = new Round(1, 6, Map.of(), Map.of(), PLAYING, null);
+    var currentRound = new Round(1, 6, List.of(), null, PLAYING, null);
 
     when(roomRepository.findWithPlayersById(anyString()))
         .thenReturn(entity);
@@ -404,7 +408,7 @@ class RoomServiceTest {
     assertThat(room.status()).isEqualTo(IN_PROGRESS);
     assertThat(room.currentRound()).isEqualTo(currentRound);
 
-    verify(roundService).getCurrentRound("room-1", 1);
+    verify(roundService).getCurrentRound("room-1", "player-1");
   }
 
   @Test
@@ -423,7 +427,7 @@ class RoomServiceTest {
     assertThat(room.id()).isEqualTo("room-1");
     assertThat(room.players()).extracting(Player::id).containsExactly("p1");
 
-    verify(roundService).getCurrentRound("room-1", null);
+    verify(roundService).getCurrentRound("room-1", "p2");
   }
 
   @Test
@@ -466,7 +470,7 @@ class RoomServiceTest {
     assertThat(room.id()).isEqualTo("room-1");
     assertThat(room.players()).extracting(Player::id).containsExactly("p1", "p2");
 
-    verify(roundService).getCurrentRound("room-1", null);
+    verify(roundService).getCurrentRound("room-1", "p1");
   }
 
   @Test
@@ -476,13 +480,13 @@ class RoomServiceTest {
 
     var inProgressRoom = waitingRoom("room-2", "p1");
     inProgressRoom.setStatus(IN_PROGRESS);
-    inProgressRoom.setCurrentRoundNumber(1);
+    inProgressRoom.findRoomPlayer("p1").orElseThrow().setCurrentRoundNumber(1);
 
-    var currentRound = new Round(1, 6, Map.of(), Map.of(), PLAYING, null);
+    var currentRound = new Round(1, 6, List.of(), null, PLAYING, null);
 
     when(roomRepository.findWithPlayersByPlayerId("p1"))
         .thenReturn(List.of(waitingRoom, inProgressRoom));
-    when(roundService.getCurrentRoundsByRoomIds(List.of("room-1", "room-2")))
+    when(roundService.getCurrentRoundsByRoomIds(List.of("room-1", "room-2"), "p1"))
         .thenReturn(Map.of("room-2", currentRound));
     when(userProfileService.getDisplayNamePerPlayer(any())).thenReturn(Map.of());
 
@@ -498,7 +502,7 @@ class RoomServiceTest {
     assertThat(rooms.get(1).currentRound()).isEqualTo(currentRound);
 
     verify(roomRepository).findWithPlayersByPlayerId("p1");
-    verify(roundService).getCurrentRoundsByRoomIds(List.of("room-1", "room-2"));
+    verify(roundService).getCurrentRoundsByRoomIds(List.of("room-1", "room-2"), "p1");
     verify(userProfileService, times(2)).getDisplayNamePerPlayer(Set.of("p1"));
     verifyNoMoreInteractions(roomRepository, roundService, userProfileService);
   }
@@ -553,8 +557,6 @@ class RoomServiceTest {
     room.setId(roomId);
     room.setLanguage(IT);
     room.setStatus(WAITING_FOR_PLAYERS);
-    room.setCurrentRoundNumber(null);
-
     room.addPlayer(playerId);
     room.setPlayerScore(playerId, 0);
 

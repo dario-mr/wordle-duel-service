@@ -4,6 +4,7 @@ import static com.dariom.wds.domain.RoomStatus.CLOSED;
 import static com.dariom.wds.domain.RoomStatus.IN_PROGRESS;
 import static com.dariom.wds.domain.RoomStatus.WAITING_FOR_PLAYERS;
 import static com.dariom.wds.service.room.RoomValidator.validateRoom;
+import static com.dariom.wds.websocket.model.EventType.PLAYER_JOINED;
 import static com.dariom.wds.websocket.model.EventType.REMATCH_STARTED;
 import static com.dariom.wds.websocket.model.EventType.ROOM_CREATED;
 
@@ -11,7 +12,6 @@ import com.dariom.wds.config.lock.RoomLockProperties;
 import com.dariom.wds.domain.Language;
 import com.dariom.wds.domain.Room;
 import com.dariom.wds.domain.RoomRounds;
-import com.dariom.wds.domain.Round;
 import com.dariom.wds.exception.PlayerNotInRoomException;
 import com.dariom.wds.exception.RoomAccessDeniedException;
 import com.dariom.wds.exception.RoomLockedException;
@@ -61,7 +61,6 @@ public class RoomService {
     room.setStatus(WAITING_FOR_PLAYERS);
     room.addPlayer(creatorPlayerId);
     room.setPlayerScore(creatorPlayerId, INITIAL_SCORE);
-    room.setCurrentRoundNumber(null);
 
     var saved = roomRepository.save(room);
     var displayNamePerPlayer = getDisplayNamePerPlayer(saved);
@@ -99,7 +98,7 @@ public class RoomService {
     var room = roomRepository.findWithPlayersById(roomId);
     ensurePlayerCanInspectRoom(room, requestingPlayerId);
 
-    var currentRound = roundService.getCurrentRound(room.getId(), room.getCurrentRoundNumber())
+    var currentRound = roundService.getCurrentRound(room.getId(), requestingPlayerId)
         .orElse(null);
     var displayNamePerPlayer = getDisplayNamePerPlayer(room);
     return domainMapper.toRoom(room, currentRound, displayNamePerPlayer);
@@ -109,7 +108,7 @@ public class RoomService {
   public List<Room> listRoomsForPlayer(String playerId) {
     var rooms = roomRepository.findWithPlayersByPlayerId(playerId);
     var roomIds = rooms.stream().map(RoomEntity::getId).toList();
-    var currentRoundPerRoomId = roundService.getCurrentRoundsByRoomIds(roomIds);
+    var currentRoundPerRoomId = roundService.getCurrentRoundsByRoomIds(roomIds, playerId);
 
     return rooms.stream()
         .map(room -> {
@@ -140,13 +139,19 @@ public class RoomService {
   private Room joinRoomInTransaction(String roomId, String joiningPlayerId) {
     var room = roomRepository.findWithPlayersByIdForUpdate(roomId, lockProperties.acquireTimeout());
     validateRoom(joiningPlayerId, domainMapper.toRoom(room, null, null), MAX_PLAYERS);
+    var roomWasWaiting = room.getStatus() == WAITING_FOR_PLAYERS;
+    var playerWasAlreadyInRoom = room.findRoomPlayer(joiningPlayerId).isPresent();
 
     addPlayerAndInitializeScore(room, joiningPlayerId);
-    var startedRound = maybeStartRound(room);
+    maybeStartRound(room);
     var savedRoom = roomRepository.save(room);
-    var currentRound = startedRound
-        .or(() -> roundService.getCurrentRound(
-            savedRoom.getId(), savedRoom.getCurrentRoundNumber()))
+    if (roomWasWaiting && !playerWasAlreadyInRoom && savedRoom.getStatus() == IN_PROGRESS) {
+      publishRoomEvent(savedRoom.getId(), new RoomEvent(
+          PLAYER_JOINED,
+          new PlayerJoinedPayload(joiningPlayerId, savedRoom.getSortedPlayerIds())
+      ));
+    }
+    var currentRound = roundService.getCurrentRound(savedRoom.getId(), joiningPlayerId)
         .orElse(null);
     var displayNamePerPlayer = getDisplayNamePerPlayer(savedRoom);
 
@@ -179,7 +184,6 @@ public class RoomService {
     rematchRoom.setConfiguredRounds(sourceRoom.getConfiguredRounds());
     rematchRoom.setStatus(IN_PROGRESS);
     sourceRoom.getPlayerIds().forEach(rematchRoom::addPlayer);
-    rematchRoom.setCurrentRoundNumber(null);
 
     roomRepository.save(rematchRoom);
     roundService.startNewRound(rematchRoom.getId());
@@ -200,18 +204,18 @@ public class RoomService {
     room.setPlayerScoreIfNotSet(playerId, INITIAL_SCORE);
   }
 
-  private Optional<Round> maybeStartRound(RoomEntity room) {
+  private void maybeStartRound(RoomEntity room) {
     if (room.getPlayerIds().size() != MAX_PLAYERS) {
-      return Optional.empty();
+      return;
     }
 
     room.setStatus(IN_PROGRESS);
 
-    if (room.getCurrentRoundNumber() != null) {
-      return Optional.empty();
+    if (room.getRoomPlayers().stream().anyMatch(player -> player.getCurrentRoundNumber() != null)) {
+      return;
     }
 
-    return Optional.of(roundService.startNewRound(room.getId()));
+    roundService.startNewRound(room.getId());
   }
 
   private void publishRoomEvent(String roomId, RoomEvent roomEvent) {

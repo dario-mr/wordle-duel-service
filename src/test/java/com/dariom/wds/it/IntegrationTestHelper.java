@@ -93,10 +93,9 @@ class IntegrationTestHelper {
     return postJson(authentication, BASE_URL + "/{roomId}/guess", Map.of("word", word), roomId);
   }
 
-  ResultActions ready(String roomId, RequestPostProcessor authentication, int roundNumber)
+  ResultActions startNextRound(String roomId, RequestPostProcessor authentication)
       throws Exception {
-    return postJson(authentication, BASE_URL + "/{roomId}/ready", Map.of("roundNumber", roundNumber),
-        roomId);
+    return postJson(authentication, BASE_URL + "/{roomId}/next", Map.of(), roomId);
   }
 
   ResultActions getRoom(String roomId, RequestPostProcessor authentication) throws Exception {

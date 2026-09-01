@@ -105,7 +105,7 @@ class DomainMapperTest {
   }
 
   @Test
-  void toRound_unsortedGuesses_returnsGroupedGuessesSortedByAttemptNumber() {
+  void toRound_unsortedGuesses_returnsRequesterGuessesSortedByAttemptNumber() {
     // Arrange
     var roundEntity = new RoundEntity();
     roundEntity.setRoundNumber(1);
@@ -123,17 +123,17 @@ class DomainMapperTest {
     roundEntity.addGuess(guess1);
 
     // Act
-    var round = mapper.toRound(roundEntity);
+    var round = mapper.toRound(roundEntity, "p1");
 
     // Assert
-    assertThat(round.guessesByPlayerId()).containsKey("p1");
-    assertThat(round.guessesByPlayerId().get("p1"))
+    assertThat(round.guesses())
         .extracting(Guess::attemptNumber)
         .containsExactly(1, 2);
 
-    assertThat(round.guessesByPlayerId().get("p1").getFirst().letters())
+    assertThat(round.guesses().getFirst().letters())
         .extracting(lr -> "%s:%s".formatted(lr.letter(), lr.status()))
         .containsExactly("P:ABSENT");
+    assertThat(round.playerStatus()).isEqualTo(PLAYING);
   }
 
   @Test
@@ -147,7 +147,7 @@ class DomainMapperTest {
     roundEntity.setTargetWord("PIZZA");
 
     // Act
-    var round = mapper.toRound(roundEntity);
+    var round = mapper.toRound(roundEntity, "p1");
 
     // Assert
     assertThat(round.solution()).isEqualTo("PIZZA");

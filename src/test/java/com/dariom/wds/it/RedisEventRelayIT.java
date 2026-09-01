@@ -7,7 +7,7 @@ import com.dariom.wds.websocket.RedisRoomEventPublisher;
 import com.dariom.wds.websocket.model.EventType;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
-import com.dariom.wds.websocket.model.RoundStartedPayload;
+import com.dariom.wds.websocket.model.ScoresUpdatedPayload;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -42,7 +42,7 @@ class RedisEventRelayIT extends AbstractRedisTest {
     container.afterPropertiesSet();
     container.start();
 
-    var event = new RoomEvent(EventType.ROUND_STARTED, new RoundStartedPayload(1, 6));
+    var event = new RoomEvent(EventType.SCORES_UPDATED, new ScoresUpdatedPayload(java.util.Map.of()));
     var roomEvent = new RoomEventToPublish("room-42", event);
 
     // Act
@@ -52,7 +52,7 @@ class RedisEventRelayIT extends AbstractRedisTest {
     assertThat(latch.await(5, TimeUnit.SECONDS)).isTrue();
     assertThat(received).hasSize(1);
     assertThat(received.getFirst()).contains("room-42");
-    assertThat(received.getFirst()).contains("ROUND_STARTED");
+    assertThat(received.getFirst()).contains("SCORES_UPDATED");
 
     container.stop();
   }

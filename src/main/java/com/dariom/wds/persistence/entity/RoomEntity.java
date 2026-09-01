@@ -56,9 +56,6 @@ public class RoomEntity {
   @OneToMany(mappedBy = "room", cascade = ALL, orphanRemoval = true, fetch = LAZY)
   private List<RoundEntity> rounds = new ArrayList<>();
 
-  @Column(name = "current_round_number")
-  private Integer currentRoundNumber;
-
   @Column(name = "rematch_room_id")
   private String rematchRoomId;
 
@@ -136,7 +133,7 @@ public class RoomEntity {
     return created;
   }
 
-  private Optional<RoomPlayerEntity> findRoomPlayer(String playerId) {
+  public Optional<RoomPlayerEntity> findRoomPlayer(String playerId) {
     for (var player : roomPlayers) {
       if (Objects.equals(player.getPlayerId(), playerId)) {
         return Optional.of(player);

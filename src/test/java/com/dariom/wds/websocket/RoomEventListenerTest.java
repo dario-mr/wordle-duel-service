@@ -5,7 +5,7 @@ import static org.mockito.Mockito.verify;
 import com.dariom.wds.websocket.model.EventType;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
-import com.dariom.wds.websocket.model.RoundStartedPayload;
+import com.dariom.wds.websocket.model.ScoresUpdatedPayload;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -25,8 +25,8 @@ class RoomEventListenerTest {
   void on_validEvent_publishesToRedis() {
     // Arrange
     var event = new RoomEvent(
-        EventType.ROUND_STARTED,
-        new RoundStartedPayload(1, 6)
+        EventType.SCORES_UPDATED,
+        new ScoresUpdatedPayload(java.util.Map.of())
     );
     var toPublish = new RoomEventToPublish("room-1", event);
 

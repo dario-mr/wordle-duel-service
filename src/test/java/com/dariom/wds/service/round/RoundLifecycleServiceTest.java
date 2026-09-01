@@ -1,45 +1,38 @@
 package com.dariom.wds.service.round;
 
-import static com.dariom.wds.api.common.ErrorCode.ROUND_FINISHED;
 import static com.dariom.wds.domain.Language.IT;
+import static com.dariom.wds.domain.RoomRounds.FIVE;
+import static com.dariom.wds.domain.RoomStatus.CLOSED;
+import static com.dariom.wds.domain.RoomStatus.IN_PROGRESS;
 import static com.dariom.wds.domain.RoundPlayerStatus.LOST;
 import static com.dariom.wds.domain.RoundPlayerStatus.PLAYING;
 import static com.dariom.wds.domain.RoundPlayerStatus.WON;
-import static com.dariom.wds.domain.RoomRounds.FIVE;
-import static com.dariom.wds.domain.RoomStatus.CLOSED;
 import static com.dariom.wds.domain.RoundStatus.ENDED;
-import static com.dariom.wds.websocket.model.EventType.ROUND_STARTED;
-import static java.time.ZoneOffset.UTC;
+import static com.dariom.wds.websocket.model.EventType.ROOM_CLOSED;
+import static com.dariom.wds.websocket.model.EventType.SCORES_UPDATED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import com.dariom.wds.api.common.ErrorCode;
 import com.dariom.wds.config.WordleProperties;
+import com.dariom.wds.domain.RoundPlayerStatus;
 import com.dariom.wds.domain.RoundStatus;
 import com.dariom.wds.exception.DictionaryEmptyException;
 import com.dariom.wds.exception.InvalidGuessException;
-import com.dariom.wds.exception.RoomNotReadyException;
 import com.dariom.wds.persistence.entity.GuessEntity;
 import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.entity.RoundEntity;
 import com.dariom.wds.persistence.repository.DictionaryRepository;
 import com.dariom.wds.persistence.repository.jpa.RoundJpaRepository;
-import com.dariom.wds.websocket.model.EventType;
-import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
-import com.dariom.wds.websocket.model.RoundFinishedPayload;
-import com.dariom.wds.websocket.model.RoundStartedPayload;
-import com.dariom.wds.websocket.model.ScoresUpdatedPayload;
 import java.time.Clock;
 import java.time.Instant;
-import java.util.List;
+import java.time.ZoneOffset;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -54,6 +47,7 @@ import org.springframework.context.ApplicationEventPublisher;
 @ExtendWith(MockitoExtension.class)
 class RoundLifecycleServiceTest {
 
+  private static final String ROOM_ID = "room-1";
   private static final String PLAYER_1 = "p1";
   private static final String PLAYER_2 = "p2";
 
@@ -65,7 +59,8 @@ class RoundLifecycleServiceTest {
   private ApplicationEventPublisher eventPublisher;
 
   private final WordleProperties properties = new WordleProperties(6, 5);
-  private final Clock clock = Clock.fixed(Instant.parse("2025-01-01T12:00:00Z"), UTC);
+  private final Clock clock = Clock.fixed(Instant.parse("2025-01-01T12:00:00Z"),
+      ZoneOffset.UTC);
 
   private RoundLifecycleService service;
 
@@ -73,274 +68,164 @@ class RoundLifecycleServiceTest {
   void setUp() {
     service = new RoundLifecycleService(dictionaryRepository, roundJpaRepository, properties,
         eventPublisher, clock);
-
   }
 
   @Test
-  void startNewRoundEntity_notTwoPlayers_throwsRoomNotReadyException() {
-    // Arrange
-    var room = new RoomEntity();
-    room.setId("room-1");
-    room.setLanguage(IT);
-    room.addPlayer(PLAYER_1);
+  void startNewRoundEntity_twoPlayers_setsBothPointersAndCreatesSharedRound() {
+    var room = room(IN_PROGRESS, null);
+    when(dictionaryRepository.getAnswerWords(IT)).thenReturn(Set.of("PIZZA"));
 
-    // Act
-    var thrown = catchThrowable(() -> service.startNewRoundEntity(room));
-
-    // Assert
-    assertThat(thrown)
-        .isInstanceOf(RoomNotReadyException.class)
-        .hasMessageContaining("room-1")
-        .hasMessageContaining("1");
-  }
-
-  @Test
-  void startNewRoundEntity_twoPlayers_initializesRoundAndPublishesEvent() {
-    // Arrange
-    var room = new RoomEntity();
-    room.setId("room-1");
-    room.setLanguage(IT);
-    room.addPlayer(PLAYER_2);
-    room.addPlayer(PLAYER_1);
-
-    when(dictionaryRepository.getAnswerWords(any())).thenReturn(Set.of("PIZZA"));
-
-    // Act
     var round = service.startNewRoundEntity(room);
-
-    // Assert
-    assertThat(room.getCurrentRoundNumber()).isEqualTo(1);
 
     assertThat(round.getRoundNumber()).isEqualTo(1);
     assertThat(round.getTargetWord()).isEqualTo("PIZZA");
-    assertThat(round.getMaxAttempts()).isEqualTo(6);
-    assertThat(round.getStartedAt()).isEqualTo(clock.instant());
-
     assertThat(round.getPlayerStatus(PLAYER_1)).isEqualTo(PLAYING);
     assertThat(round.getPlayerStatus(PLAYER_2)).isEqualTo(PLAYING);
-
-    var eventCaptor = ArgumentCaptor.forClass(RoomEventToPublish.class);
-    verify(eventPublisher).publishEvent(eventCaptor.capture());
-
-    var published = eventCaptor.getValue();
-    assertThat(published.roomId()).isEqualTo("room-1");
-
-    RoomEvent roomEvent = published.event();
-    assertThat(roomEvent.type()).isEqualTo(ROUND_STARTED);
-    assertThat(roomEvent.payload()).isInstanceOf(RoundStartedPayload.class);
-
-    var payload = (RoundStartedPayload) roomEvent.payload();
-    assertThat(payload.roundNumber()).isEqualTo(1);
-    assertThat(payload.maxAttempts()).isEqualTo(6);
-  }
-
-  @Test
-  void startNewRoundEntity_twoPlayers_dictionaryEmpty_throwsDictionaryEmptyException() {
-    // Arrange
-    var room = new RoomEntity();
-    room.setId("room-1");
-    room.setLanguage(IT);
-    room.addPlayer(PLAYER_1);
-    room.addPlayer(PLAYER_2);
-
-    when(dictionaryRepository.getAnswerWords(any())).thenReturn(Set.of());
-
-    // Act
-    var thrown = catchThrowable(() -> service.startNewRoundEntity(room));
-
-    // Assert
-    assertThat(thrown)
-        .isInstanceOf(DictionaryEmptyException.class)
-        .hasMessageContaining("IT");
-    assertThat(room.getCurrentRoundNumber()).isNull();
-
-    verify(dictionaryRepository).getAnswerWords(IT);
+    assertThat(room.findRoomPlayer(PLAYER_1).orElseThrow().getCurrentRoundNumber())
+        .isEqualTo(1);
+    assertThat(room.findRoomPlayer(PLAYER_2).orElseThrow().getCurrentRoundNumber())
+        .isEqualTo(1);
     verifyNoInteractions(eventPublisher);
   }
 
   @Test
-  void ensureActiveRound_currentRoundNumberIsNull_startsNewRound() {
-    // Arrange
-    var room = new RoomEntity();
-    room.setId("room-1");
-    room.setLanguage(IT);
-    room.addPlayer(PLAYER_1);
-    room.addPlayer(PLAYER_2);
+  void ensurePlayerRound_missingRound_createsRoundForRequesterOnly() {
+    var room = room(IN_PROGRESS, 2);
+    when(roundJpaRepository.findWithDetailsByRoomIdAndRoundNumber(ROOM_ID, 2))
+        .thenReturn(Optional.empty());
+    when(dictionaryRepository.getAnswerWords(IT)).thenReturn(Set.of("PIZZA"));
 
-    when(dictionaryRepository.getAnswerWords(any())).thenReturn(Set.of("PIZZA"));
+    var round = service.ensurePlayerRound(room, PLAYER_1);
 
-    // Act
-    var round = service.ensureActiveRound(room);
-
-    // Assert
-    assertThat(round).isNotNull();
-    assertThat(round.getRoundNumber()).isEqualTo(1);
+    assertThat(round.getTargetWord()).isEqualTo("PIZZA");
+    assertThat(round.getPlayerStatus(PLAYER_1)).isEqualTo(PLAYING);
+    assertThat(round.getPlayerStatus(PLAYER_2)).isNull();
+    assertThat(room.getRounds()).containsExactly(round);
   }
 
   @Test
-  void ensureActiveRound_existingRoundUnfinished_returnsExistingRound() {
-    // Arrange
-    var spied = spy(service);
+  void ensurePlayerRound_finishedPlayer_throwsPlayerDone() {
+    var room = room(IN_PROGRESS, null);
 
-    var room = new RoomEntity();
-    room.setId("room-1");
-    room.setLanguage(IT);
-    room.setCurrentRoundNumber(1);
+    var thrown = catchThrowable(() -> service.ensurePlayerRound(room, PLAYER_1));
 
-    var existingRound = new RoundEntity();
-    existingRound.setRoundStatus(RoundStatus.PLAYING);
-
-    when(roundJpaRepository.findWithDetailsByRoomIdAndRoundNumber(anyString(), anyInt()))
-        .thenReturn(Optional.of(existingRound));
-
-    // Act
-    var actual = spied.ensureActiveRound(room);
-
-    // Assert
-    assertThat(actual).isSameAs(existingRound);
-    verify(spied, never()).startNewRoundEntity(any(RoomEntity.class));
-    verify(roundJpaRepository).findWithDetailsByRoomIdAndRoundNumber("room-1", 1);
-  }
-
-  @Test
-  void ensureActiveRound_existingRoundFinished_throwsInvalidGuessException() {
-    // Arrange
-    var spied = spy(service);
-
-    var room = new RoomEntity();
-    room.setId("room-1");
-    room.setLanguage(IT);
-    room.setCurrentRoundNumber(1);
-
-    var finishedRound = new RoundEntity();
-    finishedRound.setRoundStatus(ENDED);
-
-    when(roundJpaRepository.findWithDetailsByRoomIdAndRoundNumber(anyString(), anyInt()))
-        .thenReturn(Optional.of(finishedRound));
-
-    // Act
-    var thrown = catchThrowable(() -> spied.ensureActiveRound(room));
-
-    // Assert
     assertThat(thrown)
-        .isInstanceOfSatisfying(
-            InvalidGuessException.class,
-            ex -> assertThat(ex.getCode()).isEqualTo(ROUND_FINISHED)
-        );
-
-    verify(spied, never()).startNewRoundEntity(any(RoomEntity.class));
-    verify(roundJpaRepository).findWithDetailsByRoomIdAndRoundNumber("room-1", 1);
+        .isInstanceOfSatisfying(InvalidGuessException.class,
+            ex -> assertThat(ex.getCode()).isEqualTo(ErrorCode.PLAYER_DONE));
   }
 
   @Test
-  void finishRound_playerWon_finishRoundAndIncrementPlayerScore() {
-    // Arrange
-    var round = new RoundEntity();
-    round.setRoundStatus(RoundStatus.PLAYING);
-    round.setRoundNumber(1);
+  void completePlayerRound_winnerKeepsCompletedRoundScoresAndPublishesScoreUpdate() {
+    var room = room(IN_PROGRESS, 1);
+    room.setConfiguredRounds(FIVE);
+    var round = round(1, Map.of(PLAYER_1, WON, PLAYER_2, PLAYING));
     round.setMaxAttempts(6);
-    round.setPlayerStatus(PLAYER_1, WON);
-    round.setPlayerStatus(PLAYER_2, LOST);
-    round.setGuesses(List.of(
+    round.setGuesses(java.util.List.of(guess(PLAYER_1, 1), guess(PLAYER_1, 2)));
+    service.completePlayerRound(round, room, PLAYER_1, WON);
+
+    assertThat(room.getScoresByPlayerId().get(PLAYER_1)).isEqualTo(5);
+    assertThat(room.findRoomPlayer(PLAYER_1).orElseThrow().getCurrentRoundNumber())
+        .isEqualTo(1);
+    assertThat(room.findRoomPlayer(PLAYER_2).orElseThrow().getCurrentRoundNumber())
+        .isEqualTo(1);
+
+    var eventCaptor = ArgumentCaptor.forClass(RoomEventToPublish.class);
+    verify(eventPublisher).publishEvent(eventCaptor.capture());
+    assertThat(eventCaptor.getValue().event().type()).isEqualTo(SCORES_UPDATED);
+  }
+
+  @Test
+  void completePlayerRound_bothFinalPlayersFinished_closesRoomAndPublishesFinalScore() {
+    var room = room(IN_PROGRESS, 5);
+    room.setConfiguredRounds(FIVE);
+    var round = round(5, Map.of(PLAYER_1, WON, PLAYER_2, PLAYING));
+    round.setMaxAttempts(6);
+    round.setGuesses(java.util.List.of(
         guess(PLAYER_1, 1),
-        guess(PLAYER_1, 2)
+        guess(PLAYER_2, 1)
     ));
 
-    var room = new RoomEntity();
-    room.setId("room-1");
-    room.addPlayer(PLAYER_1);
-    room.addPlayer(PLAYER_2);
+    service.completePlayerRound(round, room, PLAYER_1, WON);
+    assertThat(room.getStatus()).isEqualTo(IN_PROGRESS);
 
-    // Act
-    service.finishRound(round, room);
-
-    // Assert
-    assertThat(round.getRoundStatus()).isEqualTo(ENDED);
-    assertThat(round.getFinishedAt()).isNotNull();
-    assertThat(room.getScoresByPlayerId().get(PLAYER_1)).isEqualTo(5);
-    assertThat(room.getScoresByPlayerId().get(PLAYER_2)).isEqualTo(0);
-
-    verify(eventPublisher).publishEvent(
-        new RoomEventToPublish("room-1", new RoomEvent(
-            EventType.ROUND_FINISHED,
-            new RoundFinishedPayload(1)
-        )));
-  }
-
-  @Test
-  void finishRound_finalFiniteRound_closesRoomAndPublishesRoomClosed() {
-    // Arrange
-    var round = new RoundEntity();
-    round.setRoundStatus(RoundStatus.PLAYING);
-    round.setRoundNumber(5);
-    round.setMaxAttempts(6);
-    round.setPlayerStatus(PLAYER_1, WON);
-    round.setPlayerStatus(PLAYER_2, LOST);
-    round.setGuesses(List.of(guess(PLAYER_1, 1)));
-
-    var room = new RoomEntity();
-    room.setId("room-1");
-    room.setConfiguredRounds(FIVE);
-    room.setCurrentRoundNumber(5);
-    room.addPlayer(PLAYER_1);
-    room.addPlayer(PLAYER_2);
-
-    // Act
-    service.finishRound(round, room);
-
-    // Assert
-    assertThat(room.getStatus()).isEqualTo(CLOSED);
-    assertThat(room.getCurrentRoundNumber()).isEqualTo(5);
-    verify(eventPublisher).publishEvent(new RoomEventToPublish("room-1", new RoomEvent(
-        EventType.ROOM_CLOSED,
-        new ScoresUpdatedPayload(Map.of(PLAYER_1, 6, PLAYER_2, 0))
-    )));
-  }
-
-  @Test
-  void isRoundFinished_playerIsPlaying_returnFalse() {
-    // Arrange
-    var room = new RoomEntity();
-    room.setId("room-1");
-    room.addPlayer(PLAYER_1);
-    room.addPlayer(PLAYER_2);
-
-    var round = new RoundEntity();
-    round.setPlayerStatus(PLAYER_1, PLAYING);
-    round.setPlayerStatus(PLAYER_2, LOST);
-
-    // Act
-    var finished = service.isRoundFinished(room, round);
-
-    // Assert
-    assertThat(finished).isFalse();
-  }
-
-  @Test
-  void isRoundFinished_NoPlayerIsPlaying_returnTrue() {
-    // Arrange
-    var room = new RoomEntity();
-    room.setId("room-1");
-    room.addPlayer(PLAYER_1);
-    room.addPlayer(PLAYER_2);
-
-    var round = new RoundEntity();
-    round.setPlayerStatus(PLAYER_1, WON);
     round.setPlayerStatus(PLAYER_2, WON);
+    service.completePlayerRound(round, room, PLAYER_2, WON);
+    assertThat(room.getStatus()).isEqualTo(CLOSED);
+    assertThat(round.getRoundStatus()).isEqualTo(ENDED);
 
-    // Act
-    var finished = service.isRoundFinished(room, round);
+    var events = ArgumentCaptor.forClass(RoomEventToPublish.class);
+    verify(eventPublisher, org.mockito.Mockito.times(3)).publishEvent(events.capture());
+    assertThat(events.getAllValues()).extracting(event -> event.event().type())
+        .containsExactly(SCORES_UPDATED, SCORES_UPDATED, ROOM_CLOSED);
+  }
 
-    // Assert
-    assertThat(finished).isTrue();
+  @Test
+  void advancePlayerRound_finishedPlayerMovesOnlyRequesterToNextRound() {
+    var room = room(IN_PROGRESS, 1);
+    room.setConfiguredRounds(FIVE);
+    var completedRound = round(1, Map.of(PLAYER_1, WON, PLAYER_2, PLAYING));
+    var nextRound = round(2, Map.of());
+    when(roundJpaRepository.findWithDetailsByRoomIdAndRoundNumber(ROOM_ID, 1))
+        .thenReturn(Optional.of(completedRound));
+    when(roundJpaRepository.findWithDetailsByRoomIdAndRoundNumber(ROOM_ID, 2))
+        .thenReturn(Optional.of(nextRound));
+
+    var result = service.advancePlayerRound(room, PLAYER_1);
+
+    assertThat(result).isEqualTo(nextRound);
+    assertThat(room.findRoomPlayer(PLAYER_1).orElseThrow().getCurrentRoundNumber())
+        .isEqualTo(2);
+    assertThat(room.findRoomPlayer(PLAYER_2).orElseThrow().getCurrentRoundNumber())
+        .isEqualTo(1);
+    assertThat(nextRound.getPlayerStatus(PLAYER_1)).isEqualTo(PLAYING);
+  }
+
+  @Test
+  void isRoundFinished_missingOpponentStatus_returnsFalse() {
+    var room = room(IN_PROGRESS, 1);
+    var round = round(1, Map.of(PLAYER_1, LOST));
+
+    assertThat(service.isRoundFinished(room, round)).isFalse();
+  }
+
+  @Test
+  void startNewRoundEntity_emptyDictionary_throwsWithoutPublishingEvent() {
+    var room = room(IN_PROGRESS, null);
+    when(dictionaryRepository.getAnswerWords(any())).thenReturn(Set.of());
+
+    var thrown = catchThrowable(() -> service.startNewRoundEntity(room));
+
+    assertThat(thrown).isInstanceOf(DictionaryEmptyException.class);
+    assertThat(room.getRounds()).isEmpty();
+    verifyNoInteractions(eventPublisher);
+  }
+
+  private static RoomEntity room(com.dariom.wds.domain.RoomStatus status,
+      Integer currentRoundNumber) {
+    var room = new RoomEntity();
+    room.setId(ROOM_ID);
+    room.setLanguage(IT);
+    room.setStatus(status);
+    room.addPlayer(PLAYER_1);
+    room.addPlayer(PLAYER_2);
+    room.findRoomPlayer(PLAYER_1).orElseThrow().setCurrentRoundNumber(currentRoundNumber);
+    room.findRoomPlayer(PLAYER_2).orElseThrow().setCurrentRoundNumber(currentRoundNumber);
+    return room;
+  }
+
+  private static RoundEntity round(int roundNumber,
+      Map<String, RoundPlayerStatus> statuses) {
+    var round = new RoundEntity();
+    round.setRoundNumber(roundNumber);
+    round.setRoundStatus(RoundStatus.PLAYING);
+    statuses.forEach(round::setPlayerStatus);
+    return round;
   }
 
   private static GuessEntity guess(String playerId, int attemptNumber) {
     var guess = new GuessEntity();
     guess.setPlayerId(playerId);
     guess.setAttemptNumber(attemptNumber);
-
     return guess;
   }
-
 }

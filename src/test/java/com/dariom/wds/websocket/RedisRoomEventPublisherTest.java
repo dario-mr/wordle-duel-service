@@ -10,7 +10,7 @@ import static org.mockito.Mockito.when;
 import com.dariom.wds.websocket.model.EventType;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
-import com.dariom.wds.websocket.model.RoundStartedPayload;
+import com.dariom.wds.websocket.model.ScoresUpdatedPayload;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -35,7 +35,7 @@ class RedisRoomEventPublisherTest {
   @Test
   void publish_validEvent_sendsToRedisChannel() throws Exception {
     // Arrange
-    var event = new RoomEvent(EventType.ROUND_STARTED, new RoundStartedPayload(1, 6));
+    var event = new RoomEvent(EventType.SCORES_UPDATED, new ScoresUpdatedPayload(java.util.Map.of()));
     var toPublish = new RoomEventToPublish("room-1", event);
     when(objectMapper.writeValueAsString(any())).thenReturn("{\"json\":true}");
 
@@ -49,7 +49,7 @@ class RedisRoomEventPublisherTest {
   @Test
   void publish_serializationFails_doesNotPropagateException() throws Exception {
     // Arrange
-    var event = new RoomEvent(EventType.ROUND_STARTED, new RoundStartedPayload(1, 6));
+    var event = new RoomEvent(EventType.SCORES_UPDATED, new ScoresUpdatedPayload(java.util.Map.of()));
     var toPublish = new RoomEventToPublish("room-1", event);
     when(objectMapper.writeValueAsString(any()))
         .thenThrow(new JsonProcessingException("serialize error") {
@@ -65,7 +65,7 @@ class RedisRoomEventPublisherTest {
   @Test
   void publish_redisFails_doesNotPropagateException() throws Exception {
     // Arrange
-    var event = new RoomEvent(EventType.ROUND_STARTED, new RoundStartedPayload(1, 6));
+    var event = new RoomEvent(EventType.SCORES_UPDATED, new ScoresUpdatedPayload(java.util.Map.of()));
     var toPublish = new RoomEventToPublish("room-1", event);
     when(objectMapper.writeValueAsString(any())).thenReturn("{\"json\":true}");
     doThrow(new RuntimeException("redis down"))

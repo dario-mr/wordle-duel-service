@@ -54,7 +54,6 @@ class RoomRepositoryLockIT extends AbstractPostgresTest {
     room.setId(roomId);
     room.setLanguage(IT);
     room.setStatus(WAITING_FOR_PLAYERS);
-    room.setCurrentRoundNumber(null);
     room.addPlayer("p1");
     room.setPlayerScore("p1", 0);
 

@@ -87,44 +87,4 @@ class ApiValidationTest {
     verify(violationBuilder).addConstraintViolation();
   }
 
-  @Test
-  void isValidRoundNumber_nullRoundNumber_returnsFalse() {
-    // Arrange
-    var validator = new ValidRoundNumber.Validator();
-
-    // Act
-    var result = validator.isValid(null, context);
-
-    // Assert
-    assertThat(result).isFalse();
-  }
-
-  @Test
-  void isValidRoundNumber_nonPositiveRoundNumber_returnsFalseAndOverridesMessage() {
-    // Arrange
-    var validator = new ValidRoundNumber.Validator();
-    when(context.buildConstraintViolationWithTemplate("roundNumber must be greater than 1"))
-        .thenReturn(violationBuilder);
-
-    // Act
-    var result = validator.isValid(0, context);
-
-    // Assert
-    assertThat(result).isFalse();
-    verify(context).disableDefaultConstraintViolation();
-    verify(context).buildConstraintViolationWithTemplate("roundNumber must be greater than 1");
-    verify(violationBuilder).addConstraintViolation();
-  }
-
-  @Test
-  void isValidRoundNumber_positiveRoundNumber_returnsTrue() {
-    // Arrange
-    var validator = new ValidRoundNumber.Validator();
-
-    // Act
-    var result = validator.isValid(1, context);
-
-    // Assert
-    assertThat(result).isTrue();
-  }
 }

@@ -17,7 +17,6 @@ import com.dariom.wds.domain.Round;
 import com.dariom.wds.domain.RoundPlayerStatus;
 import com.dariom.wds.domain.RoundStatus;
 import java.util.List;
-import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class RoomMapperTest {
@@ -31,8 +30,8 @@ class RoomMapperTest {
     var guess1 = new Guess("PASTA", List.of(new LetterResult('P', CORRECT)), 1);
 
     var round = new Round(1, 6,
-        Map.of("p1", List.of(guess2, guess1)),
-        Map.of("p1", RoundPlayerStatus.PLAYING),
+        List.of(guess2, guess1),
+        RoundPlayerStatus.PLAYING,
         RoundStatus.PLAYING,
         null
     );
@@ -46,8 +45,7 @@ class RoomMapperTest {
     // Assert
     assertThat(dto.currentRound()).isNotNull();
     assertThat(dto.rounds()).isEqualTo(FIVE);
-    assertThat(dto.currentRound().guessesByPlayerId()).containsKey("p1");
-    assertThat(dto.currentRound().guessesByPlayerId().get("p1"))
+    assertThat(dto.currentRound().guesses())
         .extracting(GuessDto::attemptNumber)
         .containsExactly(1, 2);
     assertThat(dto.players())
@@ -59,8 +57,8 @@ class RoomMapperTest {
   void toDto_roundPlayingAndRequesterNotLost_hidesSolution() {
     // Arrange
     var round = new Round(1, 6,
-        Map.of("p1", List.of()),
-        Map.of("p1", RoundPlayerStatus.PLAYING),
+        List.of(),
+        RoundPlayerStatus.PLAYING,
         RoundStatus.PLAYING,
         "PIZZA"
     );
@@ -79,8 +77,8 @@ class RoomMapperTest {
   void toDto_roundPlayingAndRequesterLost_revealsSolution() {
     // Arrange
     var round = new Round(1, 6,
-        Map.of("p1", List.of()),
-        Map.of("p1", RoundPlayerStatus.LOST),
+        List.of(),
+        RoundPlayerStatus.LOST,
         RoundStatus.PLAYING,
         "PIZZA"
     );
@@ -99,8 +97,8 @@ class RoomMapperTest {
   void toDto_roundEnded_revealsSolutionToAnyRequester() {
     // Arrange
     var round = new Round(1, 6,
-        Map.of("p1", List.of()),
-        Map.of("p1", RoundPlayerStatus.WON),
+        List.of(),
+        RoundPlayerStatus.WON,
         RoundStatus.ENDED,
         "PIZZA"
     );

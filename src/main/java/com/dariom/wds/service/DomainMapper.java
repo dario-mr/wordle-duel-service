@@ -3,9 +3,6 @@ package com.dariom.wds.service;
 import static java.util.Collections.emptyList;
 import static java.util.Comparator.comparing;
 import static java.util.Comparator.comparingInt;
-import static java.util.stream.Collectors.groupingBy;
-import static java.util.stream.Collectors.mapping;
-import static java.util.stream.Collectors.toList;
 
 import com.dariom.wds.domain.Guess;
 import com.dariom.wds.domain.LetterResult;
@@ -20,6 +17,7 @@ import com.dariom.wds.persistence.entity.RoomPlayerEntity;
 import com.dariom.wds.persistence.entity.RoundEntity;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import org.springframework.stereotype.Component;
 
@@ -49,23 +47,22 @@ public class DomainMapper {
     );
   }
 
-  public Round toRound(RoundEntity round) {
+  public Round toRound(RoundEntity round, String playerId) {
     if (round == null) {
       return null;
     }
 
-    var guessesByPlayerId = round.getGuesses().stream()
+    var guesses = round.getGuesses().stream()
+        .filter(guess -> Objects.equals(guess.getPlayerId(), playerId))
         .sorted(comparingInt(GuessEntity::getAttemptNumber))
-        .collect(groupingBy(
-            GuessEntity::getPlayerId,
-            mapping(this::toGuess, toList())
-        ));
+        .map(this::toGuess)
+        .toList();
 
     return new Round(
         round.getRoundNumber(),
         round.getMaxAttempts(),
-        guessesByPlayerId,
-        Map.copyOf(round.getStatusByPlayerId()),
+        guesses,
+        round.getPlayerStatus(playerId),
         round.getRoundStatus(),
         round.getTargetWord()
     );

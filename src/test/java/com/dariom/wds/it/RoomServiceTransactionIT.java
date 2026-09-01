@@ -4,7 +4,6 @@ import static com.dariom.wds.domain.Language.IT;
 import static com.dariom.wds.domain.RoomStatus.WAITING_FOR_PLAYERS;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 
@@ -44,10 +43,10 @@ class RoomServiceTransactionIT extends AbstractRedisTest {
     room.addPlayer(PLAYER_1);
     room.setPlayerScore(PLAYER_1, 0);
     // Prevent joinRoom from starting a new round (so we can fail after save).
-    room.setCurrentRoundNumber(1);
+    room.findRoomPlayer(PLAYER_1).orElseThrow().setCurrentRoundNumber(1);
     roomJpaRepository.save(room);
 
-    when(roundService.getCurrentRound(eq(ROOM_ID), anyInt()))
+    when(roundService.getCurrentRound(eq(ROOM_ID), eq(PLAYER_2)))
         .thenThrow(new RuntimeException("boom"));
 
     // Act
@@ -60,7 +59,8 @@ class RoomServiceTransactionIT extends AbstractRedisTest {
         .orElseThrow();
 
     assertThat(reloadedRoom.getStatus()).isEqualTo(WAITING_FOR_PLAYERS);
-    assertThat(reloadedRoom.getCurrentRoundNumber()).isEqualTo(1);
+    assertThat(reloadedRoom.findRoomPlayer(PLAYER_1).orElseThrow().getCurrentRoundNumber())
+        .isEqualTo(1);
     assertThat(reloadedRoom.getPlayerIds()).containsExactlyInAnyOrder(PLAYER_1);
     assertThat(reloadedRoom.getScoresByPlayerId())
         .containsExactlyInAnyOrderEntriesOf(Map.of(PLAYER_1, 0));

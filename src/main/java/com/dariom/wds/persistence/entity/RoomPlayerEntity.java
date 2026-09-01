@@ -30,6 +30,9 @@ public class RoomPlayerEntity {
   @Column(name = "score", nullable = false)
   private int score;
 
+  @Column(name = "current_round_number")
+  private Integer currentRoundNumber;
+
   @Column(name = "rematch_requested", nullable = false)
   private boolean rematchRequested;
 

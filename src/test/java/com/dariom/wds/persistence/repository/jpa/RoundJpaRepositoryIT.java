@@ -48,7 +48,7 @@ class RoundJpaRepositoryIT {
     round.setPlayerStatus("p2", RoundPlayerStatus.PLAYING);
 
     room.addRound(round);
-    room.setCurrentRoundNumber(1);
+    room.findRoomPlayer("p1").orElseThrow().setCurrentRoundNumber(1);
 
     var guess = new GuessEntity();
     guess.setRound(round);
@@ -91,7 +91,7 @@ class RoundJpaRepositoryIT {
     round1.setMaxAttempts(6);
     round1.setRoundStatus(RoundStatus.PLAYING);
     room1.addRound(round1);
-    room1.setCurrentRoundNumber(1);
+    room1.findRoomPlayer("p1").orElseThrow().setCurrentRoundNumber(1);
 
     var guess1 = new GuessEntity();
     guess1.setRound(round1);
@@ -124,7 +124,7 @@ class RoundJpaRepositoryIT {
 
     room2.addRound(oldRound);
     room2.addRound(currentRound);
-    room2.setCurrentRoundNumber(2);
+    room2.findRoomPlayer("p1").orElseThrow().setCurrentRoundNumber(2);
 
     var guess2 = new GuessEntity();
     guess2.setRound(currentRound);
@@ -154,8 +154,8 @@ class RoundJpaRepositoryIT {
     roomJpaRepository.save(roomNoCurrent);
 
     // Act
-    var found = roundJpaRepository.findCurrentRoundsWithDetailsByRoomIds(
-        List.of("room-1", "room-2", "room-no-current"));
+    var found = roundJpaRepository.findCurrentRoundsWithDetailsByRoomIdsAndPlayerId(
+        List.of("room-1", "room-2", "room-no-current"), "p1");
 
     // Assert
     assertThat(found)

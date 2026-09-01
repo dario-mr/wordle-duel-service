@@ -3,7 +3,6 @@ package com.dariom.wds.api.v1;
 import com.dariom.wds.api.common.ErrorResponse;
 import com.dariom.wds.api.v1.dto.CreateRoomRequest;
 import com.dariom.wds.api.v1.dto.GuessResponse;
-import com.dariom.wds.api.v1.dto.ReadyRequest;
 import com.dariom.wds.api.v1.dto.RematchResponseDto;
 import com.dariom.wds.api.v1.dto.RoomDto;
 import com.dariom.wds.api.v1.dto.SubmitGuessRequest;
@@ -153,22 +152,20 @@ public class RoomController {
     return ResponseEntity.ok(response);
   }
 
-  @Operation(summary = "Ready for next round", description = "Marks a player as ready for the next round. When both players are ready, the next round starts.")
+  @Operation(summary = "Start next round", description = "Advances only the authenticated player after they finish their current round.")
   @ApiResponses({
-      @ApiResponse(responseCode = "200", description = "Ready accepted", content = @Content(schema = @Schema(implementation = RoomDto.class))),
-      @ApiResponse(responseCode = "400", description = "Invalid request", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-      @ApiResponse(responseCode = "404", description = "Room not found", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-      @ApiResponse(responseCode = "409", description = "Conflict", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+      @ApiResponse(responseCode = "200", description = "Player advanced", content = @Content(schema = @Schema(implementation = RoomDto.class))),
+      @ApiResponse(responseCode = "400", description = "Player has not finished the round", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+      @ApiResponse(responseCode = "404", description = "Room not found", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  @PostMapping("/{roomId}/ready")
-  public ResponseEntity<RoomDto> ready(
+  @PostMapping("/{roomId}/next")
+  public ResponseEntity<RoomDto> startNextRound(
       @Parameter(description = "Room identifier", required = true) @PathVariable String roomId,
-      @Valid @RequestBody ReadyRequest request,
       @AuthenticationPrincipal OidcUser oidcUser
   ) {
     var appUserId = authenticatedUserResolver.from(oidcUser).userId();
-    log.info("Player ready in room <{}> by user <{}>: {}", roomId, appUserId, request);
-    var room = roundService.handleReady(roomId, appUserId, request.roundNumber());
+    log.info("Start next round in room <{}> by user <{}>", roomId, appUserId);
+    var room = roundService.advanceToNextRound(roomId, appUserId);
     return ResponseEntity.ok(roomMapper.toDto(room, appUserId));
   }
 
