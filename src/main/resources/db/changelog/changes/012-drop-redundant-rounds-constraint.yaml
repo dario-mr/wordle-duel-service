@@ -1,0 +1,9 @@
+databaseChangeLog:
+  - changeSet:
+      id: 012-drop-redundant-rounds-constraint
+      author: dariom
+      changes:
+        - dropUniqueConstraint:
+            schemaName: wordle
+            tableName: rounds
+            constraintName: uq_rounds_room_round_number
