@@ -6,10 +6,10 @@ spring:
 
 app:
   frontend:
-    success-redirect: "https://dariolab.com/wordle-duel/"
+    success-redirect: "https://wordle-duel.dariolab.com/"
   websocket:
     allowed-origins:
-      - "https://dariolab.com"
+      - "https://wordle-duel.dariolab.com"
 
 room:
   cleanup:
