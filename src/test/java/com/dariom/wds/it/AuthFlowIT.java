@@ -6,6 +6,7 @@ import static org.springframework.http.HttpHeaders.SET_COOKIE;
 import static org.springframework.http.MediaType.APPLICATION_JSON;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -43,7 +44,10 @@ class AuthFlowIT extends AbstractRedisTest {
   void protectedEndpoint_withoutSession_returns401() throws Exception {
     // Act / Assert
     mockMvc.perform(get(ME_URL))
-        .andExpect(status().isUnauthorized());
+        .andExpect(status().isUnauthorized())
+        .andExpect(content().contentTypeCompatibleWith(APPLICATION_JSON))
+        .andExpect(jsonPath("$.code").value("UNAUTHENTICATED"))
+        .andExpect(jsonPath("$.message").doesNotExist());
   }
 
   @Test
@@ -68,7 +72,10 @@ class AuthFlowIT extends AbstractRedisTest {
             .with(itHelper.userAuthentication(user))
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(Map.of("language", "IT", "rounds", 5))))
-        .andExpect(status().isForbidden());
+        .andExpect(status().isForbidden())
+        .andExpect(content().contentTypeCompatibleWith(APPLICATION_JSON))
+        .andExpect(jsonPath("$.code").value("FORBIDDEN"))
+        .andExpect(jsonPath("$.message").doesNotExist());
   }
 
   @Test

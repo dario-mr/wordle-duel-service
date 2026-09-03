@@ -17,6 +17,6 @@ public class BaseErrorHandler {
   public ResponseEntity<ErrorResponse> handleException(Exception ex, HttpServletRequest req) {
     log.error("Unhandled error: {} {}", req.getMethod(), req.getRequestURI(), ex);
     return ResponseEntity.status(INTERNAL_SERVER_ERROR)
-        .body(new ErrorResponse(UNKNOWN_ERROR, "Unexpected error"));
+        .body(new ErrorResponse(UNKNOWN_ERROR));
   }
 }

@@ -49,70 +49,70 @@ public class ApiErrorHandler {
   public ResponseEntity<ErrorResponse> handleRoomAccessDenied(RoomAccessDeniedException ex) {
     log.warn(ex.getMessage());
     return ResponseEntity.status(FORBIDDEN)
-        .body(new ErrorResponse(ROOM_ACCESS_DENIED, ex.getMessage()));
+        .body(new ErrorResponse(ROOM_ACCESS_DENIED));
   }
 
   @ExceptionHandler(UserNotFoundException.class)
   public ResponseEntity<ErrorResponse> handleUserNotFound(UserNotFoundException ex) {
     log.warn(ex.getMessage());
     return ResponseEntity.status(NOT_FOUND)
-        .body(new ErrorResponse(USER_NOT_FOUND, ex.getMessage()));
+        .body(new ErrorResponse(USER_NOT_FOUND));
   }
 
   @ExceptionHandler(RoomNotFoundException.class)
   public ResponseEntity<ErrorResponse> handleRoomNotFound(RoomNotFoundException ex) {
     log.warn(ex.getMessage());
     return ResponseEntity.status(NOT_FOUND)
-        .body(new ErrorResponse(ROOM_NOT_FOUND, ex.getMessage()));
+        .body(new ErrorResponse(ROOM_NOT_FOUND));
   }
 
   @ExceptionHandler(RoomFullException.class)
   public ResponseEntity<ErrorResponse> handleRoomFull(RoomFullException ex) {
     log.warn(ex.getMessage());
     return ResponseEntity.status(CONFLICT)
-        .body(new ErrorResponse(ROOM_FULL, ex.getMessage()));
+        .body(new ErrorResponse(ROOM_FULL));
   }
 
   @ExceptionHandler(RoomClosedException.class)
   public ResponseEntity<ErrorResponse> handleRoomClosed(RoomClosedException ex) {
     log.warn(ex.getMessage());
     return ResponseEntity.status(CONFLICT)
-        .body(new ErrorResponse(ROOM_CLOSED, ex.getMessage()));
+        .body(new ErrorResponse(ROOM_CLOSED));
   }
 
   @ExceptionHandler(RoomNotReadyException.class)
   public ResponseEntity<ErrorResponse> handleRoomNotReady(RoomNotReadyException ex) {
     log.warn(ex.getMessage());
     return ResponseEntity.status(CONFLICT)
-        .body(new ErrorResponse(ROOM_NOT_READY, ex.getMessage()));
+        .body(new ErrorResponse(ROOM_NOT_READY));
   }
 
   @ExceptionHandler(RoomLockedException.class)
   public ResponseEntity<ErrorResponse> handleRoomLocked(RoomLockedException ex) {
     log.warn(ex.getMessage());
     return ResponseEntity.status(CONFLICT)
-        .body(new ErrorResponse(ROOM_BUSY, ex.getMessage()));
+        .body(new ErrorResponse(ROOM_BUSY));
   }
 
   @ExceptionHandler(PlayerNotInRoomException.class)
   public ResponseEntity<ErrorResponse> handlePlayerNotInRoom(PlayerNotInRoomException ex) {
     log.warn(ex.getMessage());
     return ResponseEntity.status(FORBIDDEN)
-        .body(new ErrorResponse(PLAYER_NOT_IN_ROOM, ex.getMessage()));
+        .body(new ErrorResponse(PLAYER_NOT_IN_ROOM));
   }
 
   @ExceptionHandler(InvalidGuessException.class)
   public ResponseEntity<ErrorResponse> handleInvalidGuess(InvalidGuessException ex) {
     log.warn("Invalid guess: code={}, message={}", ex.getCode(), ex.getMessage());
     return ResponseEntity.status(BAD_REQUEST)
-        .body(new ErrorResponse(ex.getCode(), ex.getMessage()));
+        .body(new ErrorResponse(ex.getCode()));
   }
 
   @ExceptionHandler(DictionaryEmptyException.class)
   public ResponseEntity<ErrorResponse> handleDictionaryEmpty(DictionaryEmptyException ex) {
     log.error(ex.getMessage());
     return ResponseEntity.status(INTERNAL_SERVER_ERROR)
-        .body(new ErrorResponse(DICTIONARY_EMPTY, ex.getMessage()));
+        .body(new ErrorResponse(DICTIONARY_EMPTY));
   }
 
   @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -122,7 +122,7 @@ public class ApiErrorHandler {
     if (fieldError == null) {
       log.warn("Request validation failed: no fieldError");
       return ResponseEntity.status(BAD_REQUEST)
-          .body(new ErrorResponse(GENERIC_BAD_REQUEST, "Invalid request"));
+          .body(new ErrorResponse(GENERIC_BAD_REQUEST));
     }
 
     var message = defaultIfBlank(fieldError.getDefaultMessage(), "Invalid request");
@@ -138,14 +138,14 @@ public class ApiErrorHandler {
     };
 
     return ResponseEntity.status(BAD_REQUEST)
-        .body(new ErrorResponse(errorCode, message));
+        .body(new ErrorResponse(errorCode));
   }
 
   @ExceptionHandler(HttpMessageNotReadableException.class)
   public ResponseEntity<ErrorResponse> handleMessageNotReadable(HttpMessageNotReadableException ex) {
     log.warn("Request body is not readable: {}", ex.getMostSpecificCause().getMessage());
     return ResponseEntity.status(BAD_REQUEST)
-        .body(new ErrorResponse(GENERIC_BAD_REQUEST, "Invalid request"));
+        .body(new ErrorResponse(GENERIC_BAD_REQUEST));
   }
 
 }

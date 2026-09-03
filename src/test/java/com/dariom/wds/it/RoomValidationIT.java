@@ -1,6 +1,7 @@
 package com.dariom.wds.it;
 
 import static org.springframework.http.MediaType.APPLICATION_JSON;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -13,7 +14,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.web.servlet.MockMvc;
-import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import org.springframework.transaction.annotation.Transactional;
 
 @SpringBootTest
@@ -43,8 +43,7 @@ class RoomValidationIT extends AbstractRedisTest {
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(createReq)))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.code").value("INVALID_LANGUAGE"))
-        .andExpect(jsonPath("$.message").value("language is required"));
+        .andExpect(jsonPath("$.code").value("INVALID_LANGUAGE"));
   }
 
   @Test
@@ -57,8 +56,7 @@ class RoomValidationIT extends AbstractRedisTest {
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(createReq)))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.code").value("INVALID_LANGUAGE"))
-        .andExpect(jsonPath("$.message").value("language is invalid"));
+        .andExpect(jsonPath("$.code").value("INVALID_LANGUAGE"));
   }
 
   @Test
@@ -71,8 +69,7 @@ class RoomValidationIT extends AbstractRedisTest {
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(createReq)))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.code").value("GENERIC_BAD_REQUEST"))
-        .andExpect(jsonPath("$.message").value("Invalid request"));
+        .andExpect(jsonPath("$.code").value("GENERIC_BAD_REQUEST"));
   }
 
   @Test
@@ -85,8 +82,7 @@ class RoomValidationIT extends AbstractRedisTest {
             .contentType(APPLICATION_JSON)
             .content(objectMapper.writeValueAsString(createReq)))
         .andExpect(status().isBadRequest())
-        .andExpect(jsonPath("$.code").value("INVALID_WORD"))
-        .andExpect(jsonPath("$.message").value("word is required"));
+        .andExpect(jsonPath("$.code").value("INVALID_WORD"));
   }
 
 }

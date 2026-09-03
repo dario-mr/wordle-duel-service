@@ -33,7 +33,6 @@ class ApiErrorHandlerTest {
     assertThat(response.getStatusCode().value()).isEqualTo(403);
     assertThat(response.getBody()).isNotNull();
     assertThat(response.getBody().code()).isEqualTo(ROOM_ACCESS_DENIED);
-    assertThat(response.getBody().message()).isEqualTo("Player <p3> cannot inspect room <room-1>");
   }
 
   @Test
@@ -51,7 +50,6 @@ class ApiErrorHandlerTest {
     assertThat(response.getStatusCode().value()).isEqualTo(400);
     assertThat(response.getBody()).isNotNull();
     assertThat(response.getBody().code()).isEqualTo(INVALID_LANGUAGE);
-    assertThat(response.getBody().message()).isEqualTo("language is invalid");
   }
 
   @Test
@@ -69,7 +67,6 @@ class ApiErrorHandlerTest {
     assertThat(response.getStatusCode().value()).isEqualTo(400);
     assertThat(response.getBody()).isNotNull();
     assertThat(response.getBody().code()).isEqualTo(INVALID_ROUND_NUMBER);
-    assertThat(response.getBody().message()).isEqualTo("roundNumber is invalid");
   }
 
   @Test

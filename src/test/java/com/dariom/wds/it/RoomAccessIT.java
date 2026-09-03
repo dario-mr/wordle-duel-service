@@ -59,6 +59,6 @@ class RoomAccessIT extends AbstractRedisTest {
     itHelper.getRoom(roomId, player3Authentication)
         .andExpect(status().isForbidden())
         .andExpect(jsonPath("$.code").value("ROOM_ACCESS_DENIED"))
-        .andExpect(jsonPath("$.message").value(not(emptyOrNullString())));
+        .andExpect(jsonPath("$.message").doesNotExist());
   }
 }

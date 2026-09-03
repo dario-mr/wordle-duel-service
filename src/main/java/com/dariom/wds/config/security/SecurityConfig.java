@@ -1,23 +1,28 @@
 package com.dariom.wds.config.security;
 
+import static com.dariom.wds.api.common.ErrorCode.UNAUTHENTICATED;
 import static com.dariom.wds.domain.Role.ADMIN;
 import static org.springframework.http.HttpStatus.NO_CONTENT;
 import static org.springframework.http.HttpStatus.UNAUTHORIZED;
+import static org.springframework.http.MediaType.APPLICATION_JSON_VALUE;
 import static org.springframework.security.config.http.SessionCreationPolicy.IF_REQUIRED;
 import static org.springframework.security.web.csrf.CookieCsrfTokenRepository.withHttpOnlyFalse;
 
+import com.dariom.wds.api.common.ErrorCode;
 import com.dariom.wds.service.auth.OAuthUserService;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer.FrameOptionsConfig;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
-import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.logout.HttpStatusReturningLogoutSuccessHandler;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
@@ -78,7 +83,10 @@ public class SecurityConfig {
             .anyRequest().denyAll()
         )
         .exceptionHandling(ex -> ex
-            .authenticationEntryPoint(new HttpStatusEntryPoint(UNAUTHORIZED))
+            .authenticationEntryPoint((request, response, exception) ->
+                writeErrorResponse(response, UNAUTHORIZED.value(), UNAUTHENTICATED))
+            .accessDeniedHandler((request, response, exception) ->
+                writeErrorResponse(response, HttpStatus.FORBIDDEN.value(), ErrorCode.FORBIDDEN))
         );
 
     return http.build();
@@ -120,7 +128,10 @@ public class SecurityConfig {
             .frameOptions(FrameOptionsConfig::sameOrigin)
         )
         .exceptionHandling(ex -> ex
-            .authenticationEntryPoint(new HttpStatusEntryPoint(UNAUTHORIZED))
+            .authenticationEntryPoint((request, response, exception) ->
+                writeErrorResponse(response, UNAUTHORIZED.value(), UNAUTHENTICATED))
+            .accessDeniedHandler((request, response, exception) ->
+                writeErrorResponse(response, HttpStatus.FORBIDDEN.value(), ErrorCode.FORBIDDEN))
         );
 
     return http.build();
@@ -160,6 +171,13 @@ public class SecurityConfig {
         PathPatternRequestMatcher.withDefaults().matcher(matcher.api()),
         PathPatternRequestMatcher.withDefaults().matcher(matcher.admin())
     );
+  }
+
+  private static void writeErrorResponse(HttpServletResponse response, int status, ErrorCode code)
+      throws IOException {
+    response.setStatus(status);
+    response.setContentType(APPLICATION_JSON_VALUE);
+    response.getWriter().write("{\"code\":\"%s\"}".formatted(code));
   }
 
   private SecurityProperties.CsrfProperties requireCsrfProperties() {
