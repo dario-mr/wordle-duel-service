@@ -9,10 +9,12 @@ import com.dariom.wds.websocket.model.PlayerJoinedPayload;
 import com.dariom.wds.websocket.model.RematchStartedPayload;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
+import com.dariom.wds.websocket.model.RoomMessagePayload;
 import com.dariom.wds.websocket.model.ScoresUpdatedPayload;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Map;
+import java.time.Instant;
 import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -22,7 +24,7 @@ class EventPayloadSerializationTest {
   private final ObjectMapper objectMapper = createObjectMapper();
 
   private static ObjectMapper createObjectMapper() {
-    var mapper = new ObjectMapper();
+    var mapper = new ObjectMapper().findAndRegisterModules();
     mapper.addMixIn(EventPayload.class, EventPayloadMixin.class);
     return mapper;
   }
@@ -34,7 +36,10 @@ class EventPayloadSerializationTest {
             new PlayerJoinedPayload("player-2", List.of("player-1", "player-2"))),
         roomEvent(EventType.ROOM_CLOSED, new ScoresUpdatedPayload(Map.of("p1", 10, "p2", 5))),
         roomEvent(EventType.SCORES_UPDATED, new ScoresUpdatedPayload(Map.of("p1", 10, "p2", 5))),
-        roomEvent(EventType.REMATCH_STARTED, new RematchStartedPayload("room-2"))
+        roomEvent(EventType.REMATCH_STARTED, new RematchStartedPayload("room-2")),
+        roomEvent(EventType.ROOM_MESSAGE_SENT,
+            new RoomMessagePayload(1L, "player-1", com.dariom.wds.domain.RoomMessagePreset.GOOD_LUCK,
+                Instant.parse("2026-09-03T12:00:00Z")))
     );
   }
 

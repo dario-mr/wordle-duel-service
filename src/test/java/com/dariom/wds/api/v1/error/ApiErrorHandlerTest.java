@@ -1,5 +1,6 @@
 package com.dariom.wds.api.v1.error;
 
+import static com.dariom.wds.api.common.ErrorCode.CHAT_MESSAGE_LIMIT_REACHED;
 import static com.dariom.wds.api.common.ErrorCode.GENERIC_BAD_REQUEST;
 import static com.dariom.wds.api.common.ErrorCode.INVALID_LANGUAGE;
 import static com.dariom.wds.api.common.ErrorCode.INVALID_ROUND_NUMBER;
@@ -8,6 +9,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.dariom.wds.api.v1.dto.CreateRoomRequest;
 import com.dariom.wds.exception.RoomAccessDeniedException;
+import com.dariom.wds.exception.RoomMessageLimitReachedException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.lang.reflect.Method;
 import org.junit.jupiter.api.Test;
@@ -33,6 +35,20 @@ class ApiErrorHandlerTest {
     assertThat(response.getStatusCode().value()).isEqualTo(403);
     assertThat(response.getBody()).isNotNull();
     assertThat(response.getBody().code()).isEqualTo(ROOM_ACCESS_DENIED);
+  }
+
+  @Test
+  void handleRoomMessageLimitReached_returnsConflictAndErrorCode() {
+    // Arrange
+    var ex = new RoomMessageLimitReachedException("p1", "room-1");
+
+    // Act
+    var response = handler.handleRoomMessageLimitReached(ex);
+
+    // Assert
+    assertThat(response.getStatusCode().value()).isEqualTo(409);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().code()).isEqualTo(CHAT_MESSAGE_LIMIT_REACHED);
   }
 
   @Test

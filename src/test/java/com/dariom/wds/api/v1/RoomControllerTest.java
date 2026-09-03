@@ -1,6 +1,7 @@
 package com.dariom.wds.api.v1;
 
 import static com.dariom.wds.domain.Language.IT;
+import static com.dariom.wds.domain.RoomMessagePreset.GOOD_LUCK;
 import static com.dariom.wds.domain.RoomStatus.IN_PROGRESS;
 import static com.dariom.wds.domain.RoomStatus.WAITING_FOR_PLAYERS;
 import static com.dariom.wds.domain.RoomRounds.FIVE;
@@ -12,6 +13,8 @@ import static org.mockito.Mockito.when;
 
 import com.dariom.wds.api.v1.dto.CreateRoomRequest;
 import com.dariom.wds.api.v1.dto.RematchResponseDto;
+import com.dariom.wds.api.v1.dto.RoomMessageDto;
+import com.dariom.wds.api.v1.dto.SendRoomMessageRequest;
 import com.dariom.wds.api.v1.dto.SubmitGuessRequest;
 import com.dariom.wds.api.v1.mapper.RoomMapper;
 import com.dariom.wds.config.security.AuthenticatedUser;
@@ -21,9 +24,11 @@ import com.dariom.wds.domain.Player;
 import com.dariom.wds.domain.Room;
 import com.dariom.wds.domain.RoomStatus;
 import com.dariom.wds.service.room.RoomService;
+import com.dariom.wds.service.room.RoomMessageService;
 import com.dariom.wds.service.round.RoundService;
 import java.util.List;
 import java.util.Optional;
+import java.time.Instant;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,6 +46,8 @@ class RoomControllerTest {
   @Mock
   private RoomService roomService;
   @Mock
+  private RoomMessageService roomMessageService;
+  @Mock
   private RoundService roundService;
   @Mock
   private AuthenticatedUserResolver authenticatedUserResolver;
@@ -53,7 +60,7 @@ class RoomControllerTest {
 
   @BeforeEach
   void setUp() {
-    roomController = new RoomController(roomService, roundService, roomMapper,
+    roomController = new RoomController(roomService, roomMessageService, roundService, roomMapper,
         authenticatedUserResolver);
     when(authenticatedUserResolver.from(any(OidcUser.class)))
         .thenReturn(new AuthenticatedUser("user-1", "", java.util.Set.of("USER")));
@@ -172,6 +179,23 @@ class RoomControllerTest {
     assertThat(response.getStatusCode().value()).isEqualTo(200);
     assertThat(response.getBody()).isEqualTo(expectedDto);
     verify(roundService).advanceToNextRound("room-1", "user-1");
+  }
+
+  @Test
+  void sendMessage_validRequest_returnsPersistedMessage() {
+    // Arrange
+    var message = new RoomMessageDto(1L, "user-1", GOOD_LUCK,
+        Instant.parse("2026-09-03T12:00:00Z"));
+    when(roomMessageService.sendMessage("room-1", "user-1", GOOD_LUCK)).thenReturn(message);
+
+    // Act
+    var response = roomController.sendMessage("room-1", new SendRoomMessageRequest(GOOD_LUCK),
+        oidcUser);
+
+    // Assert
+    assertThat(response.getStatusCode().value()).isEqualTo(200);
+    assertThat(response.getBody()).isEqualTo(message);
+    verify(roomMessageService).sendMessage("room-1", "user-1", GOOD_LUCK);
   }
 
   private static Room room(RoomStatus roomStatus) {

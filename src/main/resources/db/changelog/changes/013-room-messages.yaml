@@ -1,0 +1,56 @@
+databaseChangeLog:
+  - changeSet:
+      id: 013-room-messages
+      author: dariom
+      changes:
+        - createTable:
+            schemaName: wordle
+            tableName: room_messages
+            columns:
+              - column:
+                  name: id
+                  type: bigint
+                  autoIncrement: true
+                  constraints:
+                    primaryKey: true
+                    nullable: false
+              - column:
+                  name: room_id
+                  type: varchar(36)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: sender_player_id
+                  type: varchar(255)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: preset
+                  type: varchar(32)
+                  constraints:
+                    nullable: false
+              - column:
+                  name: created_at
+                  type: timestamp
+                  constraints:
+                    nullable: false
+        - addForeignKeyConstraint:
+            baseTableSchemaName: wordle
+            baseTableName: room_messages
+            baseColumnNames: room_id
+            constraintName: fk_room_messages_room
+            referencedTableSchemaName: wordle
+            referencedTableName: rooms
+            referencedColumnNames: id
+            onDelete: CASCADE
+        - createIndex:
+            schemaName: wordle
+            tableName: room_messages
+            indexName: idx_room_messages_room_created
+            columns:
+              - column:
+                  name: room_id
+              - column:
+                  name: created_at
+              - column:
+                  name: id

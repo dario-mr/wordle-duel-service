@@ -5,11 +5,14 @@ import com.dariom.wds.api.v1.dto.CreateRoomRequest;
 import com.dariom.wds.api.v1.dto.GuessResponse;
 import com.dariom.wds.api.v1.dto.RematchResponseDto;
 import com.dariom.wds.api.v1.dto.RoomDto;
+import com.dariom.wds.api.v1.dto.RoomMessageDto;
+import com.dariom.wds.api.v1.dto.SendRoomMessageRequest;
 import com.dariom.wds.api.v1.dto.SubmitGuessRequest;
 import com.dariom.wds.api.v1.mapper.RoomMapper;
 import com.dariom.wds.config.security.AuthenticatedUserResolver;
 import com.dariom.wds.domain.Language;
 import com.dariom.wds.service.room.RoomService;
+import com.dariom.wds.service.room.RoomMessageService;
 import com.dariom.wds.service.round.RoundService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -43,6 +46,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 public class RoomController {
 
   private final RoomService roomService;
+  private final RoomMessageService roomMessageService;
   private final RoundService roundService;
   private final RoomMapper roomMapper;
   private final AuthenticatedUserResolver authenticatedUserResolver;
@@ -167,6 +171,25 @@ public class RoomController {
     log.info("Start next round in room <{}> by user <{}>", roomId, appUserId);
     var room = roundService.advanceToNextRound(roomId, appUserId);
     return ResponseEntity.ok(roomMapper.toDto(room, appUserId));
+  }
+
+  @GetMapping("/{roomId}/messages")
+  public ResponseEntity<List<RoomMessageDto>> listMessages(
+      @PathVariable String roomId,
+      @AuthenticationPrincipal OidcUser oidcUser
+  ) {
+    var appUserId = authenticatedUserResolver.from(oidcUser).userId();
+    return ResponseEntity.ok(roomMessageService.listMessages(roomId, appUserId));
+  }
+
+  @PostMapping("/{roomId}/messages")
+  public ResponseEntity<RoomMessageDto> sendMessage(
+      @PathVariable String roomId,
+      @Valid @RequestBody SendRoomMessageRequest request,
+      @AuthenticationPrincipal OidcUser oidcUser
+  ) {
+    var appUserId = authenticatedUserResolver.from(oidcUser).userId();
+    return ResponseEntity.ok(roomMessageService.sendMessage(roomId, appUserId, request.preset()));
   }
 
   private static URI getRoomUri(String roomId) {

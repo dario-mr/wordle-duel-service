@@ -1,5 +1,6 @@
 package com.dariom.wds.api.v1.error;
 
+import static com.dariom.wds.api.common.ErrorCode.CHAT_MESSAGE_LIMIT_REACHED;
 import static com.dariom.wds.api.common.ErrorCode.DICTIONARY_EMPTY;
 import static com.dariom.wds.api.common.ErrorCode.GENERIC_BAD_REQUEST;
 import static com.dariom.wds.api.common.ErrorCode.INVALID_LANGUAGE;
@@ -28,6 +29,7 @@ import com.dariom.wds.exception.RoomAccessDeniedException;
 import com.dariom.wds.exception.RoomClosedException;
 import com.dariom.wds.exception.RoomFullException;
 import com.dariom.wds.exception.RoomLockedException;
+import com.dariom.wds.exception.RoomMessageLimitReachedException;
 import com.dariom.wds.exception.RoomNotFoundException;
 import com.dariom.wds.exception.RoomNotReadyException;
 import com.dariom.wds.exception.UserNotFoundException;
@@ -94,6 +96,14 @@ public class ApiErrorHandler {
         .body(new ErrorResponse(ROOM_BUSY));
   }
 
+  @ExceptionHandler(RoomMessageLimitReachedException.class)
+  public ResponseEntity<ErrorResponse> handleRoomMessageLimitReached(
+      RoomMessageLimitReachedException ex) {
+    log.warn(ex.getMessage());
+    return ResponseEntity.status(CONFLICT)
+        .body(new ErrorResponse(CHAT_MESSAGE_LIMIT_REACHED));
+  }
+
   @ExceptionHandler(PlayerNotInRoomException.class)
   public ResponseEntity<ErrorResponse> handlePlayerNotInRoom(PlayerNotInRoomException ex) {
     log.warn(ex.getMessage());
@@ -142,7 +152,8 @@ public class ApiErrorHandler {
   }
 
   @ExceptionHandler(HttpMessageNotReadableException.class)
-  public ResponseEntity<ErrorResponse> handleMessageNotReadable(HttpMessageNotReadableException ex) {
+  public ResponseEntity<ErrorResponse> handleMessageNotReadable(
+      HttpMessageNotReadableException ex) {
     log.warn("Request body is not readable: {}", ex.getMostSpecificCause().getMessage());
     return ResponseEntity.status(BAD_REQUEST)
         .body(new ErrorResponse(GENERIC_BAD_REQUEST));

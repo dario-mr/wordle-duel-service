@@ -11,6 +11,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
     @Type(value = PlayerJoinedPayload.class, name = "PLAYER_JOINED"),
     @Type(value = ScoresUpdatedPayload.class, name = "SCORES_UPDATED"),
     @Type(value = RematchStartedPayload.class, name = "REMATCH_STARTED"),
+    @Type(value = RoomMessagePayload.class, name = "ROOM_MESSAGE_SENT"),
 })
 public interface EventPayloadMixin {
 
