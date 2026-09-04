@@ -5,6 +5,7 @@ public enum RoomMessagePreset {
   WOW,
   LOL,
   SWEAT_SMILE,
+  ANGRY_FACE,
   GOOD_GAME,
   REMATCH,
 }
