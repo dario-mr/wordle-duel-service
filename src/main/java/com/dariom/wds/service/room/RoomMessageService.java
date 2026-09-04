@@ -3,6 +3,7 @@ package com.dariom.wds.service.room;
 import static com.dariom.wds.websocket.model.EventType.ROOM_MESSAGE_SENT;
 
 import com.dariom.wds.api.v1.dto.RoomMessageDto;
+import com.dariom.wds.api.v1.dto.RoomMessagesDto;
 import com.dariom.wds.config.lock.RoomLockProperties;
 import com.dariom.wds.domain.RoomMessagePreset;
 import com.dariom.wds.exception.PlayerNotInRoomException;
@@ -11,6 +12,7 @@ import com.dariom.wds.exception.RoomMessageLimitReachedException;
 import com.dariom.wds.exception.RoomNotReadyException;
 import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.entity.RoomMessageEntity;
+import com.dariom.wds.persistence.entity.RoomPlayerEntity;
 import com.dariom.wds.persistence.repository.RoomRepository;
 import com.dariom.wds.persistence.repository.jpa.RoomMessageJpaRepository;
 import com.dariom.wds.websocket.model.RoomEvent;
@@ -39,12 +41,28 @@ public class RoomMessageService {
   private final ApplicationEventPublisher eventPublisher;
 
   @Transactional(readOnly = true)
-  public List<RoomMessageDto> listMessages(String roomId, String playerId) {
+  public RoomMessagesDto listMessages(String roomId, String playerId) {
     var room = roomRepository.findWithPlayersById(roomId);
     requireChatReady(room, roomId, playerId);
-    return roomMessageJpaRepository.findByRoomIdOrderByCreatedAtAscIdAsc(roomId).stream()
-        .map(RoomMessageService::toDto)
-        .toList();
+    return toMessagesDto(roomMessageJpaRepository.findByRoomIdOrderByCreatedAtAscIdAsc(roomId),
+        room.findRoomPlayer(playerId).orElseThrow());
+  }
+
+  @Transactional
+  public RoomMessagesDto markMessagesRead(String roomId, String playerId) {
+    try {
+      var room = roomRepository.findWithPlayersByIdForUpdate(roomId, lockProperties.acquireTimeout());
+      requireChatReady(room, roomId, playerId);
+      var messages = roomMessageJpaRepository.findByRoomIdOrderByCreatedAtAscIdAsc(roomId);
+      var player = room.findRoomPlayer(playerId).orElseThrow();
+      if (!messages.isEmpty()) {
+        player.setLastReadMessageId(messages.getLast().getId());
+      }
+      return toMessagesDto(messages, player);
+    } catch (PessimisticLockingFailureException | PessimisticLockException |
+             LockTimeoutException e) {
+      throw new RoomLockedException(roomId);
+    }
   }
 
   @Transactional
@@ -101,5 +119,14 @@ public class RoomMessageService {
         message.getPreset(),
         message.getCreatedAt()
     );
+  }
+
+  private static RoomMessagesDto toMessagesDto(List<RoomMessageEntity> messages,
+      RoomPlayerEntity player) {
+    var unreadCount = messages.stream()
+        .filter(message -> !player.getPlayerId().equals(message.getSenderPlayerId()))
+        .filter(message -> message.getId() > player.getLastReadMessageId())
+        .count();
+    return new RoomMessagesDto(messages.stream().map(RoomMessageService::toDto).toList(), unreadCount);
   }
 }

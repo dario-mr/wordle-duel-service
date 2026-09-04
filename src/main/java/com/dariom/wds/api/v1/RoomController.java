@@ -6,6 +6,7 @@ import com.dariom.wds.api.v1.dto.GuessResponse;
 import com.dariom.wds.api.v1.dto.RematchResponseDto;
 import com.dariom.wds.api.v1.dto.RoomDto;
 import com.dariom.wds.api.v1.dto.RoomMessageDto;
+import com.dariom.wds.api.v1.dto.RoomMessagesDto;
 import com.dariom.wds.api.v1.dto.SendRoomMessageRequest;
 import com.dariom.wds.api.v1.dto.SubmitGuessRequest;
 import com.dariom.wds.api.v1.mapper.RoomMapper;
@@ -174,12 +175,21 @@ public class RoomController {
   }
 
   @GetMapping("/{roomId}/messages")
-  public ResponseEntity<List<RoomMessageDto>> listMessages(
+  public ResponseEntity<RoomMessagesDto> listMessages(
       @PathVariable String roomId,
       @AuthenticationPrincipal OidcUser oidcUser
   ) {
     var appUserId = authenticatedUserResolver.from(oidcUser).userId();
     return ResponseEntity.ok(roomMessageService.listMessages(roomId, appUserId));
+  }
+
+  @PostMapping("/{roomId}/messages/read")
+  public ResponseEntity<RoomMessagesDto> markMessagesRead(
+      @PathVariable String roomId,
+      @AuthenticationPrincipal OidcUser oidcUser
+  ) {
+    var appUserId = authenticatedUserResolver.from(oidcUser).userId();
+    return ResponseEntity.ok(roomMessageService.markMessagesRead(roomId, appUserId));
   }
 
   @PostMapping("/{roomId}/messages")

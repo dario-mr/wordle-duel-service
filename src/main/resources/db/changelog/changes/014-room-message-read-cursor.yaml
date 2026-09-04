@@ -1,0 +1,15 @@
+databaseChangeLog:
+  - changeSet:
+      id: 014-room-message-read-cursor
+      author: dariom
+      changes:
+        - addColumn:
+            schemaName: wordle
+            tableName: room_players
+            columns:
+              - column:
+                  name: last_read_message_id
+                  type: bigint
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false

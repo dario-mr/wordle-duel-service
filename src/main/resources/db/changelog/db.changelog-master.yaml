@@ -25,3 +25,5 @@ databaseChangeLog:
       file: db/changelog/changes/012-drop-redundant-rounds-constraint.yaml
   - include:
       file: db/changelog/changes/013-room-messages.yaml
+  - include:
+      file: db/changelog/changes/014-room-message-read-cursor.yaml

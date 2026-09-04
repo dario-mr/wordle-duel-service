@@ -36,6 +36,9 @@ public class RoomPlayerEntity {
   @Column(name = "rematch_requested", nullable = false)
   private boolean rematchRequested;
 
+  @Column(name = "last_read_message_id", nullable = false)
+  private long lastReadMessageId;
+
   public RoomPlayerEntity() {
   }
 

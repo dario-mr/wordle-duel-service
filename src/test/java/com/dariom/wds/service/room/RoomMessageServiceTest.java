@@ -136,6 +136,50 @@ class RoomMessageServiceTest {
         .isInstanceOf(PlayerNotInRoomException.class);
   }
 
+  @Test
+  void listMessages_countsOnlyUnreadOpponentMessages() {
+    // Arrange
+    var room = room("room-1", "player-1", "player-2");
+    room.findRoomPlayer("player-1").orElseThrow().setLastReadMessageId(2L);
+    var messages = List.of(
+        message(1L, "player-2"),
+        message(2L, "player-1"),
+        message(3L, "player-2"),
+        message(4L, "player-1")
+    );
+    when(roomRepository.findWithPlayersById("room-1")).thenReturn(room);
+    when(roomMessageJpaRepository.findByRoomIdOrderByCreatedAtAscIdAsc("room-1"))
+        .thenReturn(messages);
+
+    // Act
+    var result = roomMessageService.listMessages("room-1", "player-1");
+
+    // Assert
+    assertThat(result.messages()).extracting(message -> message.id())
+        .containsExactly(1L, 2L, 3L, 4L);
+    assertThat(result.unreadCount()).isEqualTo(1);
+  }
+
+  @Test
+  void markMessagesRead_advancesOnlyRequestingPlayersCursor() {
+    // Arrange
+    var room = room("room-1", "player-1", "player-2");
+    var messages = List.of(message(1L, "player-2"), message(2L, "player-1"),
+        message(3L, "player-2"));
+    when(roomRepository.findWithPlayersByIdForUpdate("room-1", lockProperties.acquireTimeout()))
+        .thenReturn(room);
+    when(roomMessageJpaRepository.findByRoomIdOrderByCreatedAtAscIdAsc("room-1"))
+        .thenReturn(messages);
+
+    // Act
+    var result = roomMessageService.markMessagesRead("room-1", "player-1");
+
+    // Assert
+    assertThat(room.findRoomPlayer("player-1").orElseThrow().getLastReadMessageId()).isEqualTo(3L);
+    assertThat(room.findRoomPlayer("player-2").orElseThrow().getLastReadMessageId()).isZero();
+    assertThat(result.unreadCount()).isZero();
+  }
+
   private static RoomEntity room(String roomId, String... playerIds) {
     var room = new RoomEntity();
     room.setId(roomId);
@@ -148,6 +192,12 @@ class RoomMessageServiceTest {
   private static RoomMessageEntity message(String playerId) {
     var message = new RoomMessageEntity();
     message.setSenderPlayerId(playerId);
+    return message;
+  }
+
+  private static RoomMessageEntity message(long id, String playerId) {
+    var message = message(playerId);
+    message.setId(id);
     return message;
   }
 }

@@ -14,6 +14,7 @@ import static org.mockito.Mockito.when;
 import com.dariom.wds.api.v1.dto.CreateRoomRequest;
 import com.dariom.wds.api.v1.dto.RematchResponseDto;
 import com.dariom.wds.api.v1.dto.RoomMessageDto;
+import com.dariom.wds.api.v1.dto.RoomMessagesDto;
 import com.dariom.wds.api.v1.dto.SendRoomMessageRequest;
 import com.dariom.wds.api.v1.dto.SubmitGuessRequest;
 import com.dariom.wds.api.v1.mapper.RoomMapper;
@@ -196,6 +197,28 @@ class RoomControllerTest {
     assertThat(response.getStatusCode().value()).isEqualTo(200);
     assertThat(response.getBody()).isEqualTo(message);
     verify(roomMessageService).sendMessage("room-1", "user-1", GOOD_LUCK);
+  }
+
+  @Test
+  void listMessages_validRequest_returnsMessagesAndUnreadCount() {
+    var messages = new RoomMessagesDto(List.of(), 2L);
+    when(roomMessageService.listMessages("room-1", "user-1")).thenReturn(messages);
+
+    var response = roomController.listMessages("room-1", oidcUser);
+
+    assertThat(response.getBody()).isEqualTo(messages);
+    verify(roomMessageService).listMessages("room-1", "user-1");
+  }
+
+  @Test
+  void markMessagesRead_validRequest_returnsUpdatedMessages() {
+    var messages = new RoomMessagesDto(List.of(), 0L);
+    when(roomMessageService.markMessagesRead("room-1", "user-1")).thenReturn(messages);
+
+    var response = roomController.markMessagesRead("room-1", oidcUser);
+
+    assertThat(response.getBody()).isEqualTo(messages);
+    verify(roomMessageService).markMessagesRead("room-1", "user-1");
   }
 
   private static Room room(RoomStatus roomStatus) {
