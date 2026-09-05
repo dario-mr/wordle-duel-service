@@ -90,7 +90,6 @@ class RoundLifecycleService {
 
     if (finalRound && isRoundFinished(room, round)) {
       room.incrementWinnerWins();
-      room.clearMatchScores();
       room.setStatus(RoomStatus.MATCH_FINISHED);
       publishRoomEvent(room.getId(), new RoomEvent(
           MATCH_FINISHED,

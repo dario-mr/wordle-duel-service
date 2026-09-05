@@ -115,8 +115,8 @@ class GameFlowIT extends AbstractRedisTest {
         jsonPath("$.status").value("MATCH_FINISHED"),
         jsonPath("$.currentRound.roundNumber").value(5),
         jsonPath("$.currentRound.playerStatus").value("WON"),
-        jsonPath("$.players[0].matchScore").value(nullValue()),
-        jsonPath("$.players[1].matchScore").value(nullValue()),
+        jsonPath("$.players[0].matchScore").value(4),
+        jsonPath("$.players[1].matchScore").value(5),
         jsonPath("$.players[0].wins").value(0),
         jsonPath("$.players[1].wins").value(1));
 

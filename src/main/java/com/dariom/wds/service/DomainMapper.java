@@ -1,6 +1,6 @@
 package com.dariom.wds.service;
 
-import static com.dariom.wds.domain.RoomStatus.IN_PROGRESS;
+import static com.dariom.wds.domain.RoomStatus.WAITING_FOR_PLAYERS;
 import static java.util.Collections.emptyList;
 import static java.util.Comparator.comparing;
 import static java.util.Comparator.comparingInt;
@@ -82,8 +82,7 @@ public class DomainMapper {
         .map(p -> new Player(
             p.getPlayerId(),
             p.getWins(),
-            roomStatus == IN_PROGRESS
-                ? p.getMatchScore() : null,
+            roomStatus == WAITING_FOR_PLAYERS ? null : p.getMatchScore(),
             displayNamePerPlayer == null ? null : displayNamePerPlayer.get(p.getPlayerId())
         ))
         .toList();

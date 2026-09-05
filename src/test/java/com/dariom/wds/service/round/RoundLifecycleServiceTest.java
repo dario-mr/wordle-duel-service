@@ -135,7 +135,7 @@ class RoundLifecycleServiceTest {
   }
 
   @Test
-  void completePlayerRound_strictFinalWinner_incrementsWinsAndClearsMatchScores() {
+  void completePlayerRound_strictFinalWinner_incrementsWinsAndKeepsMatchScores() {
     var room = room(IN_PROGRESS, 5);
     room.setConfiguredRounds(FIVE);
     var round = round(5, Map.of(PLAYER_1, WON, PLAYER_2, PLAYING));
@@ -157,7 +157,7 @@ class RoundLifecycleServiceTest {
     assertThat(room.getStatus()).isEqualTo(MATCH_FINISHED);
     assertThat(round.getRoundStatus()).isEqualTo(ENDED);
     assertThat(room.getMatchScoresByPlayerId())
-        .containsExactlyInAnyOrderEntriesOf(Map.of(PLAYER_1, 0, PLAYER_2, 0));
+        .containsExactlyInAnyOrderEntriesOf(Map.of(PLAYER_1, 6, PLAYER_2, 2));
     assertThat(room.getRoomPlayers()).extracting(player -> player.getWins())
         .containsExactlyInAnyOrder(1, 0);
 
@@ -168,7 +168,7 @@ class RoundLifecycleServiceTest {
   }
 
   @Test
-  void completePlayerRound_finalTie_clearsMatchScoresWithoutIncrementingWins() {
+  void completePlayerRound_finalTie_keepsMatchScoresWithoutIncrementingWins() {
     var room = room(IN_PROGRESS, 5);
     room.setConfiguredRounds(FIVE);
     var round = round(5, Map.of(PLAYER_1, WON, PLAYER_2, PLAYING));
@@ -185,7 +185,7 @@ class RoundLifecycleServiceTest {
     assertThat(room.getStatus()).isEqualTo(MATCH_FINISHED);
     assertThat(room.getRoomPlayers()).allMatch(player -> player.getWins() == 0);
     assertThat(room.getMatchScoresByPlayerId())
-        .containsExactlyInAnyOrderEntriesOf(Map.of(PLAYER_1, 0, PLAYER_2, 0));
+        .containsExactlyInAnyOrderEntriesOf(Map.of(PLAYER_1, 6, PLAYER_2, 6));
   }
 
   @Test

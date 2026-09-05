@@ -4,6 +4,7 @@ import static com.dariom.wds.domain.Language.IT;
 import static com.dariom.wds.domain.LetterStatus.ABSENT;
 import static com.dariom.wds.domain.LetterStatus.CORRECT;
 import static com.dariom.wds.domain.RoomStatus.IN_PROGRESS;
+import static com.dariom.wds.domain.RoomStatus.MATCH_FINISHED;
 import static com.dariom.wds.domain.RoomStatus.WAITING_FOR_PLAYERS;
 import static com.dariom.wds.domain.RoundPlayerStatus.PLAYING;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -102,6 +103,30 @@ class DomainMapperTest {
         .containsExactly(
             tuple("a", 0, null, null),
             tuple("b", 0, null, null)
+        );
+  }
+
+  @Test
+  void toRoom_finishedRoom_returnsFinalMatchScores() {
+    // Arrange
+    var entity = new RoomEntity();
+    entity.setId("room-1");
+    entity.setLanguage(IT);
+    entity.setStatus(MATCH_FINISHED);
+    entity.addPlayer("b");
+    entity.addPlayer("a");
+    entity.setPlayerMatchScore("b", 1);
+    entity.setPlayerMatchScore("a", 2);
+
+    // Act
+    var room = mapper.toRoom(entity, null, null);
+
+    // Assert
+    assertThat(room.players())
+        .extracting(Player::id, Player::matchScore)
+        .containsExactly(
+            tuple("a", 2),
+            tuple("b", 1)
         );
   }
 
