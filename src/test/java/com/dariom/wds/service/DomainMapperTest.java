@@ -3,6 +3,7 @@ package com.dariom.wds.service;
 import static com.dariom.wds.domain.Language.IT;
 import static com.dariom.wds.domain.LetterStatus.ABSENT;
 import static com.dariom.wds.domain.LetterStatus.CORRECT;
+import static com.dariom.wds.domain.RoomStatus.IN_PROGRESS;
 import static com.dariom.wds.domain.RoomStatus.WAITING_FOR_PLAYERS;
 import static com.dariom.wds.domain.RoundPlayerStatus.PLAYING;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -51,13 +52,13 @@ class DomainMapperTest {
     var entity = new RoomEntity();
     entity.setId("room-1");
     entity.setLanguage(IT);
-    entity.setStatus(WAITING_FOR_PLAYERS);
+    entity.setStatus(IN_PROGRESS);
 
     entity.addPlayer("b");
     entity.addPlayer("a");
 
-    entity.setPlayerScore("b", 1);
-    entity.setPlayerScore("a", 2);
+    entity.setPlayerMatchScore("b", 1);
+    entity.setPlayerMatchScore("a", 2);
 
     var displayNamePerPlayer = Map.of("a", "John", "b", "Bart");
 
@@ -67,14 +68,14 @@ class DomainMapperTest {
     // Assert
     assertThat(room.id()).isEqualTo("room-1");
     assertThat(room.language()).isEqualTo(IT);
-    assertThat(room.status()).isEqualTo(WAITING_FOR_PLAYERS);
+    assertThat(room.status()).isEqualTo(IN_PROGRESS);
     assertThat(room.currentRound()).isNull();
     assertThat(room.players().size()).isEqualTo(2);
     assertThat(room.players())
-        .extracting(Player::id, Player::score, Player::displayName)
+        .extracting(Player::id, Player::wins, Player::matchScore, Player::displayName)
         .containsExactly(
-            tuple("a", 2, "John"),
-            tuple("b", 1, "Bart")
+            tuple("a", 0, 2, "John"),
+            tuple("b", 0, 1, "Bart")
         );
   }
 
@@ -89,18 +90,18 @@ class DomainMapperTest {
     entity.addPlayer("b");
     entity.addPlayer("a");
 
-    entity.setPlayerScore("b", 1);
-    entity.setPlayerScore("a", 2);
+    entity.setPlayerMatchScore("b", 1);
+    entity.setPlayerMatchScore("a", 2);
 
     // Act
     var room = mapper.toRoom(entity, null, null);
 
     // Assert
     assertThat(room.players())
-        .extracting(Player::id, Player::score, Player::displayName)
+        .extracting(Player::id, Player::wins, Player::matchScore, Player::displayName)
         .containsExactly(
-            tuple("a", 2, null),
-            tuple("b", 1, null)
+            tuple("a", 0, null, null),
+            tuple("b", 0, null, null)
         );
   }
 

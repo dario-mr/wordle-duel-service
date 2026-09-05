@@ -27,3 +27,5 @@ databaseChangeLog:
       file: db/changelog/changes/013-room-messages.yaml
   - include:
       file: db/changelog/changes/014-room-message-read-cursor.yaml
+  - include:
+      file: db/changelog/changes/015-game-lifecycle-redesign.yaml

@@ -27,8 +27,11 @@ public class RoomPlayerEntity {
   @JoinColumn(name = "room_id", nullable = false)
   private RoomEntity room;
 
-  @Column(name = "score", nullable = false)
-  private int score;
+  @Column(name = "match_score", nullable = false)
+  private int matchScore;
+
+  @Column(name = "wins", nullable = false)
+  private int wins;
 
   @Column(name = "current_round_number")
   private Integer currentRoundNumber;
@@ -42,11 +45,11 @@ public class RoomPlayerEntity {
   public RoomPlayerEntity() {
   }
 
-  public RoomPlayerEntity(RoomEntity room, String playerId, int score) {
+  public RoomPlayerEntity(RoomEntity room, String playerId, int matchScore) {
     this.room = Objects.requireNonNull(room, "room");
     var roomId = Objects.requireNonNull(room.getId(), "room.id");
     this.id = new RoomPlayerIdEmbeddable(roomId, Objects.requireNonNull(playerId, "playerId"));
-    this.score = score;
+    this.matchScore = matchScore;
   }
 
   public String getPlayerId() {

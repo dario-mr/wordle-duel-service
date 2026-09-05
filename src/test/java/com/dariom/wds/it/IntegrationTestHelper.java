@@ -98,6 +98,11 @@ class IntegrationTestHelper {
     return postJson(authentication, BASE_URL + "/{roomId}/next", Map.of(), roomId);
   }
 
+  ResultActions requestRematch(String roomId, RequestPostProcessor authentication)
+      throws Exception {
+    return postJson(authentication, BASE_URL + "/{roomId}/rematch", Map.of(), roomId);
+  }
+
   ResultActions getRoom(String roomId, RequestPostProcessor authentication) throws Exception {
     return mockMvc.perform(get(BASE_URL + "/{roomId}", roomId)
         .with(authentication));

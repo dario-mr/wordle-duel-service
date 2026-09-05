@@ -34,8 +34,8 @@ class RoundJpaRepositoryIT {
 
     room.addPlayer("p1");
     room.addPlayer("p2");
-    room.setPlayerScore("p1", 0);
-    room.setPlayerScore("p2", 0);
+    room.setPlayerMatchScore("p1", 0);
+    room.setPlayerMatchScore("p2", 0);
 
     var round = new RoundEntity();
     round.setRoom(room);
@@ -82,7 +82,7 @@ class RoundJpaRepositoryIT {
     room1.setLanguage(IT);
     room1.setStatus(IN_PROGRESS);
     room1.addPlayer("p1");
-    room1.setPlayerScore("p1", 0);
+    room1.setPlayerMatchScore("p1", 0);
 
     var round1 = new RoundEntity();
     round1.setRoom(room1);
@@ -106,7 +106,7 @@ class RoundJpaRepositoryIT {
     room2.setLanguage(IT);
     room2.setStatus(IN_PROGRESS);
     room2.addPlayer("p1");
-    room2.setPlayerScore("p1", 0);
+    room2.setPlayerMatchScore("p1", 0);
 
     var oldRound = new RoundEntity();
     oldRound.setRoom(room2);
@@ -139,7 +139,7 @@ class RoundJpaRepositoryIT {
     roomNoCurrent.setLanguage(IT);
     roomNoCurrent.setStatus(IN_PROGRESS);
     roomNoCurrent.addPlayer("p1");
-    roomNoCurrent.setPlayerScore("p1", 0);
+    roomNoCurrent.setPlayerMatchScore("p1", 0);
 
     var roomNoCurrentRound = new RoundEntity();
     roomNoCurrentRound.setRoom(roomNoCurrent);

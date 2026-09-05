@@ -121,14 +121,14 @@ class RoomControllerTest {
   void requestRematch_validRequest_returnsOkWithRematchId() {
     // Arrange
     when(roomService.requestRematch("room-1", "user-1"))
-        .thenReturn(Optional.of("room-2"));
+        .thenReturn(true);
 
     // Act
     var response = roomController.requestRematch("room-1", oidcUser);
 
     // Assert
     assertThat(response.getStatusCode().value()).isEqualTo(200);
-    assertThat(response.getBody()).isEqualTo(new RematchResponseDto("room-2"));
+    assertThat(response.getBody()).isEqualTo(new RematchResponseDto(true));
     verify(roomService).requestRematch("room-1", "user-1");
   }
 
@@ -227,7 +227,7 @@ class RoomControllerTest {
         IT,
         FIVE,
         roomStatus,
-        List.of(new Player("p1", 0, "John")),
+        List.of(new Player("p1", 0, 0, "John")),
         null
     );
   }

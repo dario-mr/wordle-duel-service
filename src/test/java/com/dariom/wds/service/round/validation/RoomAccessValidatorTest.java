@@ -4,7 +4,7 @@ import static com.dariom.wds.domain.Language.IT;
 import static com.dariom.wds.domain.RoomStatus.IN_PROGRESS;
 import static com.dariom.wds.domain.RoomStatus.WAITING_FOR_PLAYERS;
 import static com.dariom.wds.domain.RoomRounds.FIVE;
-import static com.dariom.wds.domain.RoomStatus.CLOSED;
+import static com.dariom.wds.domain.RoomStatus.MATCH_FINISHED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 
@@ -76,7 +76,7 @@ class RoomAccessValidatorTest {
   @Test
   void validateRoomStatus_roomClosed_throwsRoomNotReadyException() {
     // Arrange
-    var room = room(CLOSED, "p1");
+    var room = room(MATCH_FINISHED, "p1");
 
     // Act
     var thrown = catchThrowable(() -> RoomAccessValidator.validateRoomStatus(
@@ -90,7 +90,7 @@ class RoomAccessValidatorTest {
     assertThat(thrown)
         .isInstanceOf(RoomNotReadyException.class)
         .hasMessage(
-            "Room <room-1> is not ready: required status IN_PROGRESS, got CLOSED");
+            "Room <room-1> is not ready: required status IN_PROGRESS, got MATCH_FINISHED");
   }
 
   private static Room room(RoomStatus status, String... playerIds) {
@@ -99,7 +99,7 @@ class RoomAccessValidatorTest {
         IT,
         FIVE,
         status,
-        Arrays.stream(playerIds).map(pid -> new Player(pid, 0, "John" + pid)).toList(),
+        Arrays.stream(playerIds).map(pid -> new Player(pid, 0, null, "John" + pid)).toList(),
         null
     );
   }

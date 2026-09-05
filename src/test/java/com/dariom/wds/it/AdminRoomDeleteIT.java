@@ -77,7 +77,7 @@ class AdminRoomDeleteIT extends AbstractRedisTest {
     room.setLanguage(IT);
     room.setStatus(WAITING_FOR_PLAYERS);
     room.addPlayer("p1");
-    room.setPlayerScore("p1", 0);
+    room.setPlayerMatchScore("p1", 0);
 
     var round = new RoundEntity();
     round.setRoom(room);

@@ -2,7 +2,8 @@ package com.dariom.wds.domain;
 
 public record Player(
     String id,
-    int score,
+    int wins,
+    Integer matchScore,
     String displayName
 ) {
 

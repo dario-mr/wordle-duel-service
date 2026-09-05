@@ -36,7 +36,7 @@ public class RoomMapper {
     }
 
     return players.stream()
-        .map(p -> new PlayerDto(p.id(), p.score(), p.displayName()))
+        .map(p -> new PlayerDto(p.id(), p.wins(), p.matchScore(), p.displayName()))
         .toList();
   }
 

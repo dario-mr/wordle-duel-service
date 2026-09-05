@@ -2,13 +2,12 @@ package com.dariom.wds.service.round;
 
 import static com.dariom.wds.domain.Language.IT;
 import static com.dariom.wds.domain.RoomRounds.FIVE;
-import static com.dariom.wds.domain.RoomStatus.CLOSED;
 import static com.dariom.wds.domain.RoomStatus.IN_PROGRESS;
+import static com.dariom.wds.domain.RoomStatus.MATCH_FINISHED;
 import static com.dariom.wds.domain.RoundPlayerStatus.LOST;
 import static com.dariom.wds.domain.RoundPlayerStatus.PLAYING;
 import static com.dariom.wds.domain.RoundPlayerStatus.WON;
 import static com.dariom.wds.domain.RoundStatus.ENDED;
-import static com.dariom.wds.websocket.model.EventType.ROOM_CLOSED;
 import static com.dariom.wds.websocket.model.EventType.SCORES_UPDATED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
@@ -30,6 +29,7 @@ import com.dariom.wds.persistence.entity.RoundEntity;
 import com.dariom.wds.persistence.repository.DictionaryRepository;
 import com.dariom.wds.persistence.repository.jpa.RoundJpaRepository;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
+import com.dariom.wds.websocket.model.EventType;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
@@ -123,7 +123,7 @@ class RoundLifecycleServiceTest {
     round.setGuesses(java.util.List.of(guess(PLAYER_1, 1), guess(PLAYER_1, 2)));
     service.completePlayerRound(round, room, PLAYER_1, WON);
 
-    assertThat(room.getScoresByPlayerId().get(PLAYER_1)).isEqualTo(5);
+    assertThat(room.getMatchScoresByPlayerId().get(PLAYER_1)).isEqualTo(5);
     assertThat(room.findRoomPlayer(PLAYER_1).orElseThrow().getCurrentRoundNumber())
         .isEqualTo(1);
     assertThat(room.findRoomPlayer(PLAYER_2).orElseThrow().getCurrentRoundNumber())
@@ -135,14 +135,18 @@ class RoundLifecycleServiceTest {
   }
 
   @Test
-  void completePlayerRound_bothFinalPlayersFinished_closesRoomAndPublishesFinalScore() {
+  void completePlayerRound_strictFinalWinner_incrementsWinsAndClearsMatchScores() {
     var room = room(IN_PROGRESS, 5);
     room.setConfiguredRounds(FIVE);
     var round = round(5, Map.of(PLAYER_1, WON, PLAYER_2, PLAYING));
     round.setMaxAttempts(6);
     round.setGuesses(java.util.List.of(
         guess(PLAYER_1, 1),
-        guess(PLAYER_2, 1)
+        guess(PLAYER_2, 1),
+        guess(PLAYER_2, 2),
+        guess(PLAYER_2, 3),
+        guess(PLAYER_2, 4),
+        guess(PLAYER_2, 5)
     ));
 
     service.completePlayerRound(round, room, PLAYER_1, WON);
@@ -150,13 +154,38 @@ class RoundLifecycleServiceTest {
 
     round.setPlayerStatus(PLAYER_2, WON);
     service.completePlayerRound(round, room, PLAYER_2, WON);
-    assertThat(room.getStatus()).isEqualTo(CLOSED);
+    assertThat(room.getStatus()).isEqualTo(MATCH_FINISHED);
     assertThat(round.getRoundStatus()).isEqualTo(ENDED);
+    assertThat(room.getMatchScoresByPlayerId())
+        .containsExactlyInAnyOrderEntriesOf(Map.of(PLAYER_1, 0, PLAYER_2, 0));
+    assertThat(room.getRoomPlayers()).extracting(player -> player.getWins())
+        .containsExactlyInAnyOrder(1, 0);
 
     var events = ArgumentCaptor.forClass(RoomEventToPublish.class);
-    verify(eventPublisher, org.mockito.Mockito.times(3)).publishEvent(events.capture());
+    verify(eventPublisher, org.mockito.Mockito.times(2)).publishEvent(events.capture());
     assertThat(events.getAllValues()).extracting(event -> event.event().type())
-        .containsExactly(SCORES_UPDATED, SCORES_UPDATED, ROOM_CLOSED);
+        .containsExactly(SCORES_UPDATED, EventType.MATCH_FINISHED);
+  }
+
+  @Test
+  void completePlayerRound_finalTie_clearsMatchScoresWithoutIncrementingWins() {
+    var room = room(IN_PROGRESS, 5);
+    room.setConfiguredRounds(FIVE);
+    var round = round(5, Map.of(PLAYER_1, WON, PLAYER_2, PLAYING));
+    round.setMaxAttempts(6);
+    round.setGuesses(new java.util.ArrayList<>(java.util.List.of(
+        guess(PLAYER_1, 1),
+        guess(PLAYER_2, 1)
+    )));
+
+    service.completePlayerRound(round, room, PLAYER_1, WON);
+    round.setPlayerStatus(PLAYER_2, WON);
+    service.completePlayerRound(round, room, PLAYER_2, WON);
+
+    assertThat(room.getStatus()).isEqualTo(MATCH_FINISHED);
+    assertThat(room.getRoomPlayers()).allMatch(player -> player.getWins() == 0);
+    assertThat(room.getMatchScoresByPlayerId())
+        .containsExactlyInAnyOrderEntriesOf(Map.of(PLAYER_1, 0, PLAYER_2, 0));
   }
 
   @Test

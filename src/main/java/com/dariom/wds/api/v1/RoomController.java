@@ -94,7 +94,7 @@ public class RoomController {
       @ApiResponse(responseCode = "200", description = "Rematch request accepted", content = @Content(schema = @Schema(implementation = RematchResponseDto.class))),
       @ApiResponse(responseCode = "403", description = "Player is not in the room", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
       @ApiResponse(responseCode = "404", description = "Room not found", content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-      @ApiResponse(responseCode = "409", description = "Room is not closed or is busy", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+      @ApiResponse(responseCode = "409", description = "Room is not finished or is busy", content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
   @PostMapping("/{roomId}/rematch")
   public ResponseEntity<RematchResponseDto> requestRematch(
@@ -103,8 +103,8 @@ public class RoomController {
   ) {
     var appUserId = authenticatedUserResolver.from(oidcUser).userId();
     log.info("Request rematch in room <{}> by user <{}>", roomId, appUserId);
-    var rematchRoomId = roomService.requestRematch(roomId, appUserId);
-    return ResponseEntity.ok(new RematchResponseDto(rematchRoomId.orElse(null)));
+    var started = roomService.requestRematch(roomId, appUserId);
+    return ResponseEntity.ok(new RematchResponseDto(started));
   }
 
   @Operation(summary = "List rooms", description = "Returns all rooms where the authenticated user is a player.")

@@ -55,7 +55,7 @@ class RoomRepositoryLockIT extends AbstractPostgresTest {
     room.setLanguage(IT);
     room.setStatus(WAITING_FOR_PLAYERS);
     room.addPlayer("p1");
-    room.setPlayerScore("p1", 0);
+    room.setPlayerMatchScore("p1", 0);
 
     new TransactionTemplate(transactionManager)
         .executeWithoutResult(status -> roomJpaRepository.saveAndFlush(room));

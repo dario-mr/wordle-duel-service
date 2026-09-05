@@ -56,9 +56,6 @@ public class RoomEntity {
   @OneToMany(mappedBy = "room", cascade = ALL, orphanRemoval = true, fetch = LAZY)
   private List<RoundEntity> rounds = new ArrayList<>();
 
-  @Column(name = "rematch_room_id")
-  private String rematchRoomId;
-
   @Column(name = "created_at", updatable = false)
   private Instant createdAt;
 
@@ -78,10 +75,10 @@ public class RoomEntity {
         .collect(toUnmodifiableSet());
   }
 
-  public Map<String, Integer> getScoresByPlayerId() {
+  public Map<String, Integer> getMatchScoresByPlayerId() {
     var scores = new HashMap<String, Integer>();
     for (var p : roomPlayers) {
-      scores.put(p.getPlayerId(), p.getScore());
+      scores.put(p.getPlayerId(), p.getMatchScore());
     }
     return scores;
   }
@@ -90,18 +87,18 @@ public class RoomEntity {
     rounds.add(round);
   }
 
-  public void setPlayerScore(String playerId, Integer score) {
-    var normalizedScore = score != null ? score : 0;
+  public void setPlayerMatchScore(String playerId, Integer matchScore) {
+    var normalizedScore = matchScore != null ? matchScore : 0;
     var player = getOrCreateRoomPlayer(playerId, normalizedScore);
-    player.setScore(normalizedScore);
+    player.setMatchScore(normalizedScore);
   }
 
-  public void setPlayerScoreIfNotSet(String playerId, Integer score) {
+  public void setPlayerMatchScoreIfNotSet(String playerId, Integer matchScore) {
     if (findRoomPlayer(playerId).isPresent()) {
       return;
     }
 
-    var normalizedScore = score != null ? score : 0;
+    var normalizedScore = matchScore != null ? matchScore : 0;
     getOrCreateRoomPlayer(playerId, normalizedScore);
   }
 
@@ -110,12 +107,41 @@ public class RoomEntity {
   }
 
   public boolean allPlayersRequestedRematch() {
-    return roomPlayers.stream().allMatch(RoomPlayerEntity::isRematchRequested);
+    return roomPlayers.size() == 2
+        && roomPlayers.stream().allMatch(RoomPlayerEntity::isRematchRequested);
   }
 
-  public void incrementPlayerScore(String playerId, int delta) {
+  public void incrementPlayerMatchScore(String playerId, int delta) {
     var player = getOrCreateRoomPlayer(playerId, 0);
-    player.setScore(player.getScore() + delta);
+    player.setMatchScore(player.getMatchScore() + delta);
+  }
+
+  public void incrementWinnerWins() {
+    var highestMatchScore = roomPlayers.stream()
+        .mapToInt(RoomPlayerEntity::getMatchScore)
+        .max()
+        .orElse(0);
+    var winners = roomPlayers.stream()
+        .filter(player -> player.getMatchScore() == highestMatchScore)
+        .toList();
+    if (winners.size() == 1) {
+      var winner = winners.getFirst();
+      winner.setWins(winner.getWins() + 1);
+    }
+  }
+
+  public void clearMatchScores() {
+    roomPlayers.forEach(player -> player.setMatchScore(0));
+  }
+
+  public void resetForRematch() {
+    rounds.clear();
+    roomPlayers.forEach(player -> {
+      player.setCurrentRoundNumber(null);
+      player.setRematchRequested(false);
+    });
+    clearMatchScores();
+    status = RoomStatus.IN_PROGRESS;
   }
 
   public List<String> getSortedPlayerIds() {

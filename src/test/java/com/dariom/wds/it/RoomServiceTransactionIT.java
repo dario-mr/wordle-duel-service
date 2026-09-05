@@ -41,7 +41,7 @@ class RoomServiceTransactionIT extends AbstractRedisTest {
     room.setLanguage(IT);
     room.setStatus(WAITING_FOR_PLAYERS);
     room.addPlayer(PLAYER_1);
-    room.setPlayerScore(PLAYER_1, 0);
+    room.setPlayerMatchScore(PLAYER_1, 0);
     // Prevent joinRoom from starting a new round (so we can fail after save).
     room.findRoomPlayer(PLAYER_1).orElseThrow().setCurrentRoundNumber(1);
     roomJpaRepository.save(room);
@@ -62,7 +62,7 @@ class RoomServiceTransactionIT extends AbstractRedisTest {
     assertThat(reloadedRoom.findRoomPlayer(PLAYER_1).orElseThrow().getCurrentRoundNumber())
         .isEqualTo(1);
     assertThat(reloadedRoom.getPlayerIds()).containsExactlyInAnyOrder(PLAYER_1);
-    assertThat(reloadedRoom.getScoresByPlayerId())
+    assertThat(reloadedRoom.getMatchScoresByPlayerId())
         .containsExactlyInAnyOrderEntriesOf(Map.of(PLAYER_1, 0));
   }
 }

@@ -27,7 +27,11 @@ public interface RoomJpaRepository extends JpaRepository<RoomEntity, String> {
 
   // TODO index candidate, monitor performance
   @Modifying(flushAutomatically = true, clearAutomatically = true)
-  @Query("delete from RoomEntity r where r.lastUpdatedAt < :cutoff")
+  @Query("""
+      delete from RoomEntity r
+      where r.lastUpdatedAt < :cutoff
+        and r.status = WAITING_FOR_PLAYERS
+      """)
   long deleteInactive(@Param("cutoff") Instant cutoff);
 
 }

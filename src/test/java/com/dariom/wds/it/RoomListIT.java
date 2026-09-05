@@ -64,7 +64,11 @@ class RoomListIT extends AbstractRedisTest {
             .with(player1Authentication))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$", hasSize(2)))
-        .andExpect(jsonPath("$[*].id", contains(roomCreatedByP2, roomCreatedByP1)));
+        .andExpect(jsonPath("$[*].id", contains(roomCreatedByP2, roomCreatedByP1)))
+        .andExpect(jsonPath("$[0].players[0].wins").value(0))
+        .andExpect(jsonPath("$[0].players[1].wins").value(0))
+        .andExpect(jsonPath("$[0].players[0].matchScore").value(0))
+        .andExpect(jsonPath("$[0].players[1].matchScore").value(0));
   }
 
   private String createRoom(org.springframework.test.web.servlet.request.RequestPostProcessor authentication,

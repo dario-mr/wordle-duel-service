@@ -6,7 +6,6 @@ import com.dariom.wds.websocket.model.EventPayload;
 import com.dariom.wds.websocket.model.EventPayloadMixin;
 import com.dariom.wds.websocket.model.EventType;
 import com.dariom.wds.websocket.model.PlayerJoinedPayload;
-import com.dariom.wds.websocket.model.RematchStartedPayload;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
 import com.dariom.wds.websocket.model.RoomMessagePayload;
@@ -34,9 +33,9 @@ class EventPayloadSerializationTest {
         roomEvent(EventType.ROOM_CREATED, new PlayerJoinedPayload("player-1", List.of("player-1"))),
         roomEvent(EventType.PLAYER_JOINED,
             new PlayerJoinedPayload("player-2", List.of("player-1", "player-2"))),
-        roomEvent(EventType.ROOM_CLOSED, new ScoresUpdatedPayload(Map.of("p1", 10, "p2", 5))),
+        new RoomEventToPublish("room-1", new RoomEvent(EventType.MATCH_FINISHED, null)),
         roomEvent(EventType.SCORES_UPDATED, new ScoresUpdatedPayload(Map.of("p1", 10, "p2", 5))),
-        roomEvent(EventType.REMATCH_STARTED, new RematchStartedPayload("room-2")),
+        new RoomEventToPublish("room-1", new RoomEvent(EventType.MATCH_RESTARTED, null)),
         roomEvent(EventType.ROOM_MESSAGE_SENT,
             new RoomMessagePayload(1L, "player-1", com.dariom.wds.domain.RoomMessagePreset.GOOD_LUCK,
                 Instant.parse("2026-09-03T12:00:00Z")))
@@ -53,7 +52,7 @@ class EventPayloadSerializationTest {
 
     // Assert
     assertThat(deserialized).isEqualTo(original);
-    assertThat(deserialized.event().payload()).isInstanceOf(original.event().payload().getClass());
+    assertThat(deserialized.event().payload()).isEqualTo(original.event().payload());
   }
 
   private static RoomEventToPublish roomEvent(EventType type, EventPayload payload) {

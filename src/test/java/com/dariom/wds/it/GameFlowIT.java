@@ -2,6 +2,7 @@ package com.dariom.wds.it;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.nullValue;
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -34,7 +35,7 @@ class GameFlowIT extends AbstractRedisTest {
   private RoundJpaRepository roundJpaRepository;
 
   @Test
-  void playersProgressIndependentlyAndFiniteRoomClosesAfterBothFinish() throws Exception {
+  void playersProgressIndependentlyAndFiniteRoomFinishesAfterBothFinish() throws Exception {
     var user1 = itHelper.createUser(PLAYER_1_ID, "player1@example.com", "John Smith");
     var user2 = itHelper.createUser(PLAYER_2_ID, "player2@example.com", "Bart Simpson");
     var player1Authentication = itHelper.userAuthentication(user1);
@@ -95,8 +96,10 @@ class GameFlowIT extends AbstractRedisTest {
         jsonPath("$.status").value("IN_PROGRESS"),
         jsonPath("$.currentRound.roundNumber").value(5),
         jsonPath("$.currentRound.playerStatus").value("WON"),
-        jsonPath("$.players[0].score").value(4),
-        jsonPath("$.players[1].score").value(2));
+        jsonPath("$.players[0].matchScore").value(4),
+        jsonPath("$.players[1].matchScore").value(2),
+        jsonPath("$.players[0].wins").value(0),
+        jsonPath("$.players[1].wins").value(0));
 
     for (var roundNumber = 3; roundNumber <= 5; roundNumber++) {
       itHelper.submitGuess(roomId, player2Authentication, targetWord(roundNumber, roomId))
@@ -109,11 +112,36 @@ class GameFlowIT extends AbstractRedisTest {
     var roomAfterBothPlayers = itHelper.getRoom(roomId, player2Authentication)
         .andExpect(status().isOk());
     roomAfterBothPlayers.andExpectAll(
-        jsonPath("$.status").value("CLOSED"),
+        jsonPath("$.status").value("MATCH_FINISHED"),
         jsonPath("$.currentRound.roundNumber").value(5),
         jsonPath("$.currentRound.playerStatus").value("WON"),
-        jsonPath("$.players[0].score").value(4),
-        jsonPath("$.players[1].score").value(5));
+        jsonPath("$.players[0].matchScore").value(nullValue()),
+        jsonPath("$.players[1].matchScore").value(nullValue()),
+        jsonPath("$.players[0].wins").value(0),
+        jsonPath("$.players[1].wins").value(1));
+
+    itHelper.requestRematch(roomId, player1Authentication)
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.started").value(false));
+
+    itHelper.requestRematch(roomId, player2Authentication)
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.started").value(true));
+
+    itHelper.getRoom(roomId, player1Authentication)
+        .andExpect(status().isOk())
+        .andExpectAll(
+            jsonPath("$.id").value(roomId),
+            jsonPath("$.status").value("IN_PROGRESS"),
+            jsonPath("$.currentRound.roundNumber").value(1),
+            jsonPath("$.currentRound.guesses").isEmpty(),
+            jsonPath("$.players[0].wins").value(0),
+            jsonPath("$.players[1].wins").value(1),
+            jsonPath("$.players[0].matchScore").value(0),
+            jsonPath("$.players[1].matchScore").value(0));
+
+    assertThat(roundJpaRepository.findWithDetailsByRoomIdAndRoundNumber(roomId, 5))
+        .isEmpty();
   }
 
   private String createRoom(
@@ -142,8 +170,8 @@ class GameFlowIT extends AbstractRedisTest {
         jsonPath(root + ".currentRound.guesses", hasSize(0)),
         jsonPath(root + ".currentRound.guessesByPlayerId").doesNotExist(),
         jsonPath(root + ".currentRound.statusByPlayerId").doesNotExist(),
-        jsonPath(root + ".players[0].score").value(player1Score),
-        jsonPath(root + ".players[1].score").value(player2Score),
+        jsonPath(root + ".players[0].matchScore").value(player1Score),
+        jsonPath(root + ".players[1].matchScore").value(player2Score),
         jsonPath(root + ".currentRound.solution").doesNotExist());
   }
 
@@ -156,7 +184,7 @@ class GameFlowIT extends AbstractRedisTest {
         jsonPath(root + ".currentRound.guesses", hasSize(1)),
         jsonPath(root + ".currentRound.guessesByPlayerId").doesNotExist(),
         jsonPath(root + ".currentRound.statusByPlayerId").doesNotExist(),
-        jsonPath(root + ".players[0].score").value(player1Score),
-        jsonPath(root + ".players[1].score").value(player2Score));
+        jsonPath(root + ".players[0].matchScore").value(player1Score),
+        jsonPath(root + ".players[1].matchScore").value(player2Score));
   }
 }

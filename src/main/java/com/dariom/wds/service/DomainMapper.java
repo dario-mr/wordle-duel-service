@@ -1,5 +1,6 @@
 package com.dariom.wds.service;
 
+import static com.dariom.wds.domain.RoomStatus.IN_PROGRESS;
 import static java.util.Collections.emptyList;
 import static java.util.Comparator.comparing;
 import static java.util.Comparator.comparingInt;
@@ -8,6 +9,7 @@ import com.dariom.wds.domain.Guess;
 import com.dariom.wds.domain.LetterResult;
 import com.dariom.wds.domain.Player;
 import com.dariom.wds.domain.Room;
+import com.dariom.wds.domain.RoomStatus;
 import com.dariom.wds.domain.Round;
 import com.dariom.wds.domain.UserProfile;
 import com.dariom.wds.persistence.entity.AppUserEntity;
@@ -42,7 +44,7 @@ public class DomainMapper {
         room.getLanguage(),
         room.getConfiguredRounds(),
         room.getStatus(),
-        toPlayers(room.getRoomPlayers(), displayNamePerPlayer),
+        toPlayers(room.getRoomPlayers(), room.getStatus(), displayNamePerPlayer),
         currentRound
     );
   }
@@ -69,6 +71,7 @@ public class DomainMapper {
   }
 
   private List<Player> toPlayers(Set<RoomPlayerEntity> roomPlayers,
+      RoomStatus roomStatus,
       Map<String, String> displayNamePerPlayer) {
     if (roomPlayers == null) {
       return emptyList();
@@ -78,7 +81,9 @@ public class DomainMapper {
         .sorted(comparing(RoomPlayerEntity::getPlayerId))
         .map(p -> new Player(
             p.getPlayerId(),
-            p.getScore(),
+            p.getWins(),
+            roomStatus == IN_PROGRESS
+                ? p.getMatchScore() : null,
             displayNamePerPlayer == null ? null : displayNamePerPlayer.get(p.getPlayerId())
         ))
         .toList();

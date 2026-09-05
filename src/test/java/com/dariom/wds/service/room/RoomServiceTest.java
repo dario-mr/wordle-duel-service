@@ -2,13 +2,13 @@ package com.dariom.wds.service.room;
 
 import static com.dariom.wds.domain.Language.IT;
 import static com.dariom.wds.domain.RoomRounds.FIVE;
-import static com.dariom.wds.domain.RoomStatus.CLOSED;
 import static com.dariom.wds.domain.RoomStatus.IN_PROGRESS;
+import static com.dariom.wds.domain.RoomStatus.MATCH_FINISHED;
 import static com.dariom.wds.domain.RoomStatus.WAITING_FOR_PLAYERS;
 import static com.dariom.wds.domain.RoundStatus.PLAYING;
 import static com.dariom.wds.websocket.model.EventType.PLAYER_JOINED;
 import static com.dariom.wds.websocket.model.EventType.ROOM_CREATED;
-import static com.dariom.wds.websocket.model.EventType.REMATCH_STARTED;
+import static com.dariom.wds.websocket.model.EventType.MATCH_RESTARTED;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
@@ -37,7 +37,6 @@ import com.dariom.wds.service.DomainMapper;
 import com.dariom.wds.service.round.RoundService;
 import com.dariom.wds.service.user.UserProfileService;
 import com.dariom.wds.websocket.model.PlayerJoinedPayload;
-import com.dariom.wds.websocket.model.RematchStartedPayload;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
 import java.time.Duration;
@@ -99,7 +98,7 @@ class RoomServiceTest {
     assertThat(room.rounds()).isEqualTo(FIVE);
     assertThat(room.status()).isEqualTo(WAITING_FOR_PLAYERS);
     assertThat(room.players()).extracting(Player::id).containsExactly("p1");
-    assertThat(room.players()).singleElement().satisfies(p -> assertThat(p.score()).isEqualTo(0));
+    assertThat(room.players()).singleElement().satisfies(p -> assertThat(p.wins()).isEqualTo(0));
 
     var eventCaptor = ArgumentCaptor.forClass(RoomEventToPublish.class);
     verify(eventPublisher).publishEvent(eventCaptor.capture());
@@ -173,7 +172,7 @@ class RoomServiceTest {
     // Arrange
     var room = waitingRoom("room-1", "p1");
     room.addPlayer("p2");
-    room.setPlayerScore("p2", 0);
+    room.setPlayerMatchScore("p2", 0);
 
     when(roomRepository.findWithPlayersByIdForUpdate(anyString(), any())).thenReturn(room);
 
@@ -210,7 +209,7 @@ class RoomServiceTest {
     assertThat(room.players())
         .filteredOn(p -> p.id().equals("p2"))
         .singleElement()
-        .satisfies(p -> assertThat(p.score()).isEqualTo(0));
+        .satisfies(p -> assertThat(p.matchScore()).isEqualTo(0));
     assertThat(room.currentRound()).isNotNull();
 
     verify(roundService).startNewRound("room-1");
@@ -228,7 +227,7 @@ class RoomServiceTest {
   void joinRoom_playerAlreadyInRoom_returnsRoomWithoutResettingScoreOrStartingRound() {
     // Arrange
     var entity = waitingRoom("room-1", "p1");
-    entity.setPlayerScore("p1", 5);
+    entity.setPlayerMatchScore("p1", 5);
 
     when(roomRepository.findWithPlayersByIdForUpdate(anyString(), any())).thenReturn(entity);
     when(roomRepository.save(any(RoomEntity.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -239,7 +238,7 @@ class RoomServiceTest {
 
     // Assert
     assertThat(room.players()).extracting(Player::id).containsExactly("p1");
-    assertThat(room.players()).singleElement().satisfies(p -> assertThat(p.score()).isEqualTo(5));
+    assertThat(entity.findRoomPlayer("p1").orElseThrow().getMatchScore()).isEqualTo(5);
 
     verify(roundService, never()).startNewRound(anyString());
   }
@@ -247,7 +246,7 @@ class RoomServiceTest {
   @Test
   void requestRematch_firstPlayerVotes_recordsVoteWithoutCreatingRoom() {
     // Arrange
-    var source = closedRoom("room-1");
+    var source = finishedRoom("room-1");
     when(roomRepository.findWithPlayersByIdForUpdate(anyString(), any())).thenReturn(source);
     when(roomRepository.save(any(RoomEntity.class))).thenAnswer(inv -> inv.getArgument(0));
 
@@ -255,7 +254,7 @@ class RoomServiceTest {
     var result = roomService.requestRematch("room-1", "p1");
 
     // Assert
-    assertThat(result).isEmpty();
+    assertThat(result).isFalse();
     assertThat(rematchRequested(source, "p1")).isTrue();
     assertThat(rematchRequested(source, "p2")).isFalse();
     verify(roomRepository).save(source);
@@ -264,9 +263,15 @@ class RoomServiceTest {
   }
 
   @Test
-  void requestRematch_secondPlayerVotes_createsAndPublishesOneRematch() {
+  void requestRematch_secondPlayerVotes_resetsSameRoomAndPublishesRestart() {
     // Arrange
-    var source = closedRoom("room-1");
+    var source = finishedRoom("room-1");
+    source.findRoomPlayer("p1").orElseThrow().setCurrentRoundNumber(5);
+    source.findRoomPlayer("p2").orElseThrow().setCurrentRoundNumber(5);
+    var oldRound = new com.dariom.wds.persistence.entity.RoundEntity();
+    source.addRound(oldRound);
+    source.findRoomPlayer("p1").orElseThrow().setWins(2);
+    source.findRoomPlayer("p2").orElseThrow().setWins(1);
     source.markRematchRequested("p1");
     when(roomRepository.findWithPlayersByIdForUpdate(anyString(), any())).thenReturn(source);
     when(roomRepository.save(any(RoomEntity.class))).thenAnswer(inv -> inv.getArgument(0));
@@ -274,50 +279,29 @@ class RoomServiceTest {
     var result = roomService.requestRematch("room-1", "p2");
 
     // Assert
-    var rematchRoomId = result.orElseThrow();
-    assertThat(rematchRoomId).isNotEqualTo("room-1");
-    assertThat(source.getRematchRoomId()).isEqualTo(rematchRoomId);
-    assertThat(source.allPlayersRequestedRematch()).isTrue();
-
-    var savedRooms = ArgumentCaptor.forClass(RoomEntity.class);
-    verify(roomRepository, times(2)).save(savedRooms.capture());
-    var rematchRoom = savedRooms.getAllValues().get(0);
-    assertThat(rematchRoom.getId()).isEqualTo(rematchRoomId);
-    assertThat(rematchRoom.getLanguage()).isEqualTo(IT);
-    assertThat(rematchRoom.getConfiguredRounds()).isEqualTo(FIVE);
-    assertThat(rematchRoom.getStatus()).isEqualTo(IN_PROGRESS);
-    assertThat(rematchRoom.getPlayerIds()).containsExactlyInAnyOrder("p1", "p2");
-    assertThat(rematchRoom.getScoresByPlayerId())
+    assertThat(result).isTrue();
+    assertThat(source.getId()).isEqualTo("room-1");
+    assertThat(source.getStatus()).isEqualTo(IN_PROGRESS);
+    assertThat(source.getRounds()).isEmpty();
+    assertThat(source.getMatchScoresByPlayerId())
         .containsExactlyInAnyOrderEntriesOf(Map.of("p1", 0, "p2", 0));
-    assertThat(savedRooms.getAllValues().get(1)).isSameAs(source);
+    assertThat(source.getRoomPlayers()).extracting(player -> player.getWins())
+        .containsExactlyInAnyOrder(2, 1);
+    assertThat(source.getRoomPlayers()).allMatch(player -> player.getCurrentRoundNumber() == null);
+    assertThat(source.allPlayersRequestedRematch()).isFalse();
 
-    verify(roundService).startNewRound(rematchRoomId);
+    verify(roomRepository).save(source);
+    verify(roundService).startNewRound("room-1");
     verify(eventPublisher).publishEvent(new RoomEventToPublish("room-1", new RoomEvent(
-        REMATCH_STARTED,
-        new RematchStartedPayload(rematchRoomId)
+        MATCH_RESTARTED,
+        null
     )));
-  }
-
-  @Test
-  void requestRematch_afterCompletion_returnsExistingRematchWithoutCreatingAnother() {
-    // Arrange
-    var source = closedRoom("room-1");
-    source.setRematchRoomId("room-2");
-    when(roomRepository.findWithPlayersByIdForUpdate(anyString(), any())).thenReturn(source);
-
-    // Act
-    var result = roomService.requestRematch("room-1", "p1");
-
-    // Assert
-    assertThat(result).contains("room-2");
-    verify(roomRepository, never()).save(any(RoomEntity.class));
-    verifyNoInteractions(roundService, eventPublisher);
   }
 
   @Test
   void requestRematch_nonPlayer_throwsPlayerNotInRoomException() {
     // Arrange
-    var source = closedRoom("room-1");
+    var source = finishedRoom("room-1");
     when(roomRepository.findWithPlayersByIdForUpdate(anyString(), any())).thenReturn(source);
 
     // Act
@@ -332,7 +316,7 @@ class RoomServiceTest {
   }
 
   @Test
-  void requestRematch_nonClosedRoom_throwsRoomNotReadyException() {
+  void requestRematch_nonFinishedRoom_throwsRoomNotReadyException() {
     // Arrange
     var source = waitingRoom("room-1", "p1");
     source.addPlayer("p2");
@@ -344,7 +328,8 @@ class RoomServiceTest {
     // Assert
     assertThat(thrown)
         .isInstanceOf(RoomNotReadyException.class)
-        .hasMessage("Room <room-1> is not ready: required status CLOSED, got WAITING_FOR_PLAYERS");
+        .hasMessage(
+            "Room <room-1> is not ready: required status MATCH_FINISHED, got WAITING_FOR_PLAYERS");
     verify(roomRepository, never()).save(any(RoomEntity.class));
     verifyNoInteractions(roundService, eventPublisher);
   }
@@ -379,7 +364,7 @@ class RoomServiceTest {
     // Assert
     assertThat(room.status()).isEqualTo(WAITING_FOR_PLAYERS);
     assertThat(room.players()).extracting(Player::id).containsExactly("p1");
-    assertThat(room.players()).singleElement().satisfies(p -> assertThat(p.score()).isEqualTo(0));
+    assertThat(room.players()).singleElement().satisfies(p -> assertThat(p.wins()).isEqualTo(0));
     assertThat(room.id()).isEqualTo("room-1");
     assertThat(room.language()).isEqualTo(IT);
     assertThat(room.currentRound()).isNull();
@@ -435,7 +420,7 @@ class RoomServiceTest {
     // Arrange
     var entity = waitingRoom("room-1", "p1");
     entity.addPlayer("p2");
-    entity.setPlayerScore("p2", 0);
+    entity.setPlayerMatchScore("p2", 0);
 
     when(roomRepository.findWithPlayersById(anyString()))
         .thenReturn(entity);
@@ -457,7 +442,7 @@ class RoomServiceTest {
     // Arrange
     var entity = waitingRoom("room-1", "p1");
     entity.addPlayer("p2");
-    entity.setPlayerScore("p2", 0);
+    entity.setPlayerMatchScore("p2", 0);
 
     when(roomRepository.findWithPlayersById(anyString()))
         .thenReturn(entity);
@@ -558,18 +543,18 @@ class RoomServiceTest {
     room.setLanguage(IT);
     room.setStatus(WAITING_FOR_PLAYERS);
     room.addPlayer(playerId);
-    room.setPlayerScore(playerId, 0);
+    room.setPlayerMatchScore(playerId, 0);
 
     return room;
   }
 
-  private static RoomEntity closedRoom(String roomId) {
+  private static RoomEntity finishedRoom(String roomId) {
     var room = waitingRoom(roomId, "p1");
     room.setConfiguredRounds(FIVE);
     room.addPlayer("p2");
-    room.setStatus(CLOSED);
-    room.setPlayerScore("p2", 3);
-    room.setPlayerScore("p1", 7);
+    room.setStatus(MATCH_FINISHED);
+    room.setPlayerMatchScore("p2", 3);
+    room.setPlayerMatchScore("p1", 7);
     return room;
   }
 

@@ -3,8 +3,8 @@ package com.dariom.wds.api.v1.dto;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 public record RematchResponseDto(
-    @JsonProperty("roomId")
-    String roomId
+    @JsonProperty("started")
+    boolean started
 ) {
 
 }

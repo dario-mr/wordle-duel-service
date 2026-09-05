@@ -1,17 +1,17 @@
 package com.dariom.wds.service.round;
 
 import static com.dariom.wds.api.common.ErrorCode.PLAYER_DONE;
-import static com.dariom.wds.domain.RoomStatus.CLOSED;
 import static com.dariom.wds.domain.RoundPlayerStatus.PLAYING;
 import static com.dariom.wds.domain.RoundPlayerStatus.WON;
 import static com.dariom.wds.domain.RoundStatus.ENDED;
-import static com.dariom.wds.websocket.model.EventType.ROOM_CLOSED;
+import static com.dariom.wds.websocket.model.EventType.MATCH_FINISHED;
 import static com.dariom.wds.websocket.model.EventType.SCORES_UPDATED;
 
 import com.dariom.wds.config.WordleProperties;
 import com.dariom.wds.domain.Language;
 import com.dariom.wds.domain.RoundPlayerStatus;
 import com.dariom.wds.domain.RoundStatus;
+import com.dariom.wds.domain.RoomStatus;
 import com.dariom.wds.exception.DictionaryEmptyException;
 import com.dariom.wds.exception.InvalidGuessException;
 import com.dariom.wds.exception.PlayerNotInRoomException;
@@ -77,7 +77,7 @@ class RoundLifecycleService {
   public void completePlayerRound(
       RoundEntity round, RoomEntity room, String playerId, RoundPlayerStatus status) {
     if (status == WON) {
-      room.incrementPlayerScore(playerId,
+      room.incrementPlayerMatchScore(playerId,
           round.getMaxAttempts() - round.currentAttemptNumber(playerId) + 1);
     }
 
@@ -88,16 +88,18 @@ class RoundLifecycleService {
       finishRound(round);
     }
 
-    publishRoomEvent(room.getId(), new RoomEvent(
-        SCORES_UPDATED,
-        new ScoresUpdatedPayload(room.getScoresByPlayerId())
-    ));
-
     if (finalRound && isRoundFinished(room, round)) {
-      room.setStatus(CLOSED);
+      room.incrementWinnerWins();
+      room.clearMatchScores();
+      room.setStatus(RoomStatus.MATCH_FINISHED);
       publishRoomEvent(room.getId(), new RoomEvent(
-          ROOM_CLOSED,
-          new ScoresUpdatedPayload(room.getScoresByPlayerId())
+          MATCH_FINISHED,
+          null
+      ));
+    } else {
+      publishRoomEvent(room.getId(), new RoomEvent(
+          SCORES_UPDATED,
+          new ScoresUpdatedPayload(room.getMatchScoresByPlayerId())
       ));
     }
   }

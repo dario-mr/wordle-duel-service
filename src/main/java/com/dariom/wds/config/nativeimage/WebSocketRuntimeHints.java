@@ -6,7 +6,6 @@ import static org.springframework.aot.hint.MemberCategory.INVOKE_PUBLIC_METHODS;
 
 import com.dariom.wds.domain.RoundPlayerStatus;
 import com.dariom.wds.websocket.model.PlayerJoinedPayload;
-import com.dariom.wds.websocket.model.RematchStartedPayload;
 import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
 import com.dariom.wds.websocket.model.RoomMessagePayload;
@@ -22,7 +21,6 @@ public class WebSocketRuntimeHints implements RuntimeHintsRegistrar {
     registerRecord(hints, RoomEvent.class);
     registerRecord(hints, PlayerJoinedPayload.class);
     registerRecord(hints, ScoresUpdatedPayload.class);
-    registerRecord(hints, RematchStartedPayload.class);
     registerRecord(hints, RoomMessagePayload.class);
     hints.reflection().registerType(RoundPlayerStatus.class,
         DECLARED_FIELDS, INVOKE_PUBLIC_METHODS);

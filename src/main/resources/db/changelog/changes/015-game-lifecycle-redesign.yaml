@@ -1,0 +1,31 @@
+databaseChangeLog:
+  - changeSet:
+      id: 015-game-lifecycle-redesign
+      author: dariom
+      changes:
+        - sql:
+            sql: DELETE FROM wordle.rooms
+        - dropColumn:
+            schemaName: wordle
+            tableName: rooms
+            columnName: rematch_room_id
+        - dropColumn:
+            schemaName: wordle
+            tableName: room_players
+            columnName: score
+        - addColumn:
+            schemaName: wordle
+            tableName: room_players
+            columns:
+              - column:
+                  name: match_score
+                  type: int
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
+              - column:
+                  name: wins
+                  type: int
+                  defaultValueNumeric: 0
+                  constraints:
+                    nullable: false
