@@ -46,6 +46,7 @@ public class RoomService {
   private final RoomRepository roomRepository;
   private final RoomLockProperties lockProperties;
   private final RoundService roundService;
+  private final RoomMessageService roomMessageService;
   private final DomainMapper domainMapper;
   private final ApplicationEventPublisher eventPublisher;
   private final UserProfileService userProfileService;
@@ -174,6 +175,7 @@ public class RoomService {
     }
 
     sourceRoom.resetForRematch();
+    roomMessageService.clearMessages(roomId);
     roomRepository.save(sourceRoom);
     roundService.startNewRound(roomId);
     publishRoomEvent(roomId, new RoomEvent(

@@ -79,6 +79,15 @@ class RoomMessageServiceTest {
   }
 
   @Test
+  void clearMessages_roomId_deletesRoomMessages() {
+    // Act
+    roomMessageService.clearMessages("room-1");
+
+    // Assert
+    verify(roomMessageJpaRepository).deleteByRoomId("room-1");
+  }
+
+  @Test
   void sendMessage_waitingForOpponent_isRejected() {
     // Arrange
     when(roomRepository.findWithPlayersByIdForUpdate("room-1", lockProperties.acquireTimeout()))

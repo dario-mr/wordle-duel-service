@@ -40,6 +40,11 @@ public class RoomMessageService {
   private final RoomMessageJpaRepository roomMessageJpaRepository;
   private final ApplicationEventPublisher eventPublisher;
 
+  @Transactional
+  public void clearMessages(String roomId) {
+    roomMessageJpaRepository.deleteByRoomId(roomId);
+  }
+
   @Transactional(readOnly = true)
   public RoomMessagesDto listMessages(String roomId, String playerId) {
     var room = roomRepository.findWithPlayersById(roomId);

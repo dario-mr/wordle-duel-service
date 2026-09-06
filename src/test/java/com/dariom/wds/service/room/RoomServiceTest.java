@@ -67,6 +67,8 @@ class RoomServiceTest {
   @Mock
   private RoundService roundService;
   @Mock
+  private RoomMessageService roomMessageService;
+  @Mock
   private ApplicationEventPublisher eventPublisher;
   @Mock
   private UserProfileService userProfileService;
@@ -79,6 +81,7 @@ class RoomServiceTest {
         roomRepository,
         lockProperties,
         roundService,
+        roomMessageService,
         domainMapper,
         eventPublisher,
         userProfileService
@@ -291,6 +294,7 @@ class RoomServiceTest {
     assertThat(source.allPlayersRequestedRematch()).isFalse();
 
     verify(roomRepository).save(source);
+    verify(roomMessageService).clearMessages("room-1");
     verify(roundService).startNewRound("room-1");
     verify(eventPublisher).publishEvent(new RoomEventToPublish("room-1", new RoomEvent(
         MATCH_RESTARTED,

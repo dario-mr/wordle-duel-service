@@ -9,4 +9,6 @@ public interface RoomMessageJpaRepository extends JpaRepository<RoomMessageEntit
   List<RoomMessageEntity> findTop3ByRoomIdOrderByCreatedAtDescIdDesc(String roomId);
 
   List<RoomMessageEntity> findByRoomIdOrderByCreatedAtAscIdAsc(String roomId);
+
+  void deleteByRoomId(String roomId);
 }
