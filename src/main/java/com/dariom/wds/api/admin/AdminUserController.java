@@ -1,5 +1,7 @@
 package com.dariom.wds.api.admin;
 
+import static org.springframework.data.domain.Sort.Direction.DESC;
+
 import com.dariom.wds.api.admin.dto.UserDto;
 import com.dariom.wds.domain.UserProfile;
 import com.dariom.wds.service.user.UserProfileService;
@@ -27,7 +29,7 @@ public class AdminUserController {
   @Operation(summary = "List all users", description = "Returns a paginated list of all registered users.")
   @GetMapping
   public Page<UserDto> getAllUsers(
-      @PageableDefault(size = 50, sort = "fullName") Pageable pageable,
+      @PageableDefault(size = 50, sort = "createdOn", direction = DESC) Pageable pageable,
       @RequestParam(name = "fullName", required = false) String fullName,
       @RequestParam(name = "email", required = false) String email,
       @RequestParam(name = "displayName", required = false) String displayName

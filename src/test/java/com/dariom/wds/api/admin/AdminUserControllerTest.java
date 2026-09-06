@@ -21,6 +21,7 @@ import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 
 @ExtendWith(MockitoExtension.class)
 class AdminUserControllerTest {
@@ -30,6 +31,18 @@ class AdminUserControllerTest {
 
   @InjectMocks
   private AdminUserController controller;
+
+  @Test
+  void getAllUsers_defaultPageable_sortsByLatestJoinDate() throws NoSuchMethodException {
+    var pageableDefault = AdminUserController.class
+        .getDeclaredMethod("getAllUsers", Pageable.class, String.class, String.class, String.class)
+        .getParameterAnnotations()[0][0];
+
+    assertThat(pageableDefault).isInstanceOf(PageableDefault.class);
+    var annotation = (PageableDefault) pageableDefault;
+    assertThat(annotation.sort()).containsExactly("createdOn");
+    assertThat(annotation.direction()).isEqualTo(Sort.Direction.DESC);
+  }
 
   @Test
   void getAllUsers_validRequest_returnsPagedDtos() {
