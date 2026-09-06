@@ -14,6 +14,9 @@ import java.util.Optional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Session;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -31,6 +34,10 @@ public class RoomRepository {
 
   public List<RoomEntity> findWithPlayersByPlayerId(String playerId) {
     return roomJpaRepository.findWithPlayersByPlayerId(playerId);
+  }
+
+  public Page<RoomEntity> findAll(Specification<RoomEntity> spec, Pageable pageable) {
+    return roomJpaRepository.findAll(spec, pageable);
   }
 
   public RoomEntity findWithPlayersByIdForUpdate(String id, Duration lockTimeout) {

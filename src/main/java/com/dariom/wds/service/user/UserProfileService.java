@@ -4,10 +4,14 @@ import static com.dariom.wds.config.CacheConfig.USER_PROFILE_CACHE;
 import static com.dariom.wds.persistence.repository.jpa.AppUserSpecifications.displayNameContains;
 import static com.dariom.wds.persistence.repository.jpa.AppUserSpecifications.emailContains;
 import static com.dariom.wds.persistence.repository.jpa.AppUserSpecifications.fullNameContains;
+import static com.dariom.wds.persistence.repository.jpa.AppUserSpecifications.playerSearch;
 import static java.util.stream.Collectors.toMap;
+import static java.util.stream.Collectors.toSet;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 
 import com.dariom.wds.domain.UserProfile;
 import com.dariom.wds.exception.UserNotFoundException;
+import com.dariom.wds.persistence.entity.AppUserEntity;
 import com.dariom.wds.persistence.repository.UserRepository;
 import com.dariom.wds.service.DomainMapper;
 import java.util.Map;
@@ -39,6 +43,16 @@ public class UserProfileService {
   public Map<String, String> getDisplayNamePerPlayer(Set<String> playerIds) {
     return playerIds.stream()
         .collect(toMap(Function.identity(), userDetailsService::getUserDisplayName));
+  }
+
+  public Set<String> findPlayerIdsBySearch(String search) {
+    if (isBlank(search)) {
+      return Set.of();
+    }
+    return userRepository.findAll(playerSearch(search), Pageable.unpaged()).stream()
+        .map(AppUserEntity::getId)
+        .map(String::valueOf)
+        .collect(toSet());
   }
 
   public Page<UserProfile> getAllUserProfiles(Pageable pageable, String fullName, String email,

@@ -3,20 +3,33 @@ package com.dariom.wds.service.room;
 import static com.dariom.wds.domain.RoomStatus.IN_PROGRESS;
 import static com.dariom.wds.domain.RoomStatus.MATCH_FINISHED;
 import static com.dariom.wds.domain.RoomStatus.WAITING_FOR_PLAYERS;
+import static com.dariom.wds.persistence.repository.jpa.RoomSpecifications.createdAtOn;
+import static com.dariom.wds.persistence.repository.jpa.RoomSpecifications.firstPlayerFullNameSort;
+import static com.dariom.wds.persistence.repository.jpa.RoomSpecifications.languageEquals;
+import static com.dariom.wds.persistence.repository.jpa.RoomSpecifications.lastUpdatedAtOn;
+import static com.dariom.wds.persistence.repository.jpa.RoomSpecifications.playerMatches;
+import static com.dariom.wds.persistence.repository.jpa.RoomSpecifications.roomIdContains;
+import static com.dariom.wds.persistence.repository.jpa.RoomSpecifications.roundsEquals;
+import static com.dariom.wds.persistence.repository.jpa.RoomSpecifications.statusIn;
 import static com.dariom.wds.service.room.RoomValidator.validateRoom;
 import static com.dariom.wds.websocket.model.EventType.MATCH_RESTARTED;
 import static com.dariom.wds.websocket.model.EventType.PLAYER_JOINED;
 import static com.dariom.wds.websocket.model.EventType.ROOM_CREATED;
+import static java.util.Comparator.comparing;
 
+import com.dariom.wds.api.admin.dto.AdminRoomDto;
+import com.dariom.wds.api.v1.dto.PlayerDto;
 import com.dariom.wds.config.lock.RoomLockProperties;
 import com.dariom.wds.domain.Language;
 import com.dariom.wds.domain.Room;
 import com.dariom.wds.domain.RoomRounds;
+import com.dariom.wds.domain.RoomStatus;
 import com.dariom.wds.exception.PlayerNotInRoomException;
 import com.dariom.wds.exception.RoomAccessDeniedException;
 import com.dariom.wds.exception.RoomLockedException;
 import com.dariom.wds.exception.RoomNotReadyException;
 import com.dariom.wds.persistence.entity.RoomEntity;
+import com.dariom.wds.persistence.entity.RoomPlayerEntity;
 import com.dariom.wds.persistence.repository.RoomRepository;
 import com.dariom.wds.service.DomainMapper;
 import com.dariom.wds.service.round.RoundService;
@@ -27,11 +40,18 @@ import com.dariom.wds.websocket.model.RoomEventToPublish;
 import jakarta.persistence.LockTimeoutException;
 import jakarta.persistence.PessimisticLockException;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -116,6 +136,28 @@ public class RoomService {
           return domainMapper.toRoom(room, currentRound, displayNamePerPlayer);
         })
         .toList();
+  }
+
+  @Transactional(readOnly = true)
+  public Page<AdminRoomDto> listRoomsForAdmin(Pageable pageable, Set<RoomStatus> statuses,
+      Language language, RoomRounds rounds, String roomId, String playerSearch,
+      LocalDate createdAt, LocalDate lastUpdatedAt) {
+    var matchingPlayerIds = userProfileService.findPlayerIdsBySearch(playerSearch);
+    var spec = Specification.allOf(
+        statusIn(statuses),
+        languageEquals(language),
+        roundsEquals(rounds),
+        roomIdContains(roomId),
+        playerMatches(playerSearch, matchingPlayerIds),
+        createdAtOn(createdAt),
+        lastUpdatedAtOn(lastUpdatedAt)
+    );
+    var playerSort = pageable.getSort().getOrderFor("players");
+    if (playerSort != null) {
+      spec = Specification.allOf(spec, firstPlayerFullNameSort(playerSort.getDirection()));
+      pageable = withoutSort(pageable, "players");
+    }
+    return roomRepository.findAll(spec, pageable).map(this::toAdminRoomDto);
   }
 
   @Transactional
@@ -213,6 +255,36 @@ public class RoomService {
   private Map<String, String> getDisplayNamePerPlayer(RoomEntity room) {
     var playerIds = room.getPlayerIds();
     return userProfileService.getDisplayNamePerPlayer(playerIds);
+  }
+
+  private AdminRoomDto toAdminRoomDto(RoomEntity room) {
+    var displayNamePerPlayer = getDisplayNamePerPlayer(room);
+    var players = room.getRoomPlayers().stream()
+        .sorted(comparing(RoomPlayerEntity::getPlayerId))
+        .map(player -> new PlayerDto(
+            player.getPlayerId(),
+            player.getWins(),
+            player.getMatchScore(),
+            displayNamePerPlayer.get(player.getPlayerId())
+        ))
+        .toList();
+    return new AdminRoomDto(
+        room.getId(),
+        room.getLanguage(),
+        room.getConfiguredRounds(),
+        room.getStatus(),
+        players,
+        room.getCreatedAt(),
+        room.getLastUpdatedAt()
+    );
+  }
+
+  private Pageable withoutSort(Pageable pageable, String property) {
+    var orders = pageable.getSort().stream()
+        .filter(order -> !order.getProperty().equals(property))
+        .toList();
+    var sort = orders.isEmpty() ? Sort.unsorted() : Sort.by(orders);
+    return PageRequest.of(pageable.getPageNumber(), pageable.getPageSize(), sort);
   }
 
   private void ensurePlayerCanInspectRoom(RoomEntity room, String requestingPlayerId) {

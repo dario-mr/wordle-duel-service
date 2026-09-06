@@ -41,6 +41,7 @@ import com.dariom.wds.websocket.model.RoomEvent;
 import com.dariom.wds.websocket.model.RoomEventToPublish;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -52,6 +53,8 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.dao.PessimisticLockingFailureException;
 
 @ExtendWith(MockitoExtension.class)
@@ -494,6 +497,45 @@ class RoomServiceTest {
     verify(roundService).getCurrentRoundsByRoomIds(List.of("room-1", "room-2"), "p1");
     verify(userProfileService, times(2)).getDisplayNamePerPlayer(Set.of("p1"));
     verifyNoMoreInteractions(roomRepository, roundService, userProfileService);
+  }
+
+  @Test
+  void listRoomsForAdmin_filtersAndMapsRooms() {
+    // Arrange
+    var entity = waitingRoom("room-1", "p1");
+    entity.setConfiguredRounds(FIVE);
+    entity.setCreatedAt(Instant.parse("2025-06-01T10:00:00Z"));
+    entity.setLastUpdatedAt(Instant.parse("2025-06-01T10:05:00Z"));
+    var pageable = PageRequest.of(0, 50);
+    var statuses = Set.of(WAITING_FOR_PLAYERS);
+    var createdAt = LocalDate.of(2025, 6, 1);
+    var lastUpdatedAt = LocalDate.of(2025, 6, 2);
+
+    when(roomRepository.findAll(any(), eq(pageable))).thenReturn(new PageImpl<>(List.of(entity)));
+    when(userProfileService.findPlayerIdsBySearch("p1")).thenReturn(Set.of());
+    when(userProfileService.getDisplayNamePerPlayer(Set.of("p1")))
+        .thenReturn(Map.of("p1", "Player One"));
+
+    // Act
+    var result = roomService.listRoomsForAdmin(
+        pageable, statuses, IT, FIVE, "room", "p1", createdAt, lastUpdatedAt);
+
+    // Assert
+    var room = result.getContent().getFirst();
+    assertThat(room.id()).isEqualTo("room-1");
+    assertThat(room.language()).isEqualTo(IT);
+    assertThat(room.rounds()).isEqualTo(FIVE);
+    assertThat(room.status()).isEqualTo(WAITING_FOR_PLAYERS);
+    assertThat(room.players()).singleElement().satisfies(player -> {
+      assertThat(player.id()).isEqualTo("p1");
+      assertThat(player.displayName()).isEqualTo("Player One");
+    });
+    assertThat(room.createdAt()).isEqualTo(Instant.parse("2025-06-01T10:00:00Z"));
+    assertThat(room.lastUpdatedAt()).isEqualTo(Instant.parse("2025-06-01T10:05:00Z"));
+
+    verify(roomRepository).findAll(any(), eq(pageable));
+    verify(userProfileService).findPlayerIdsBySearch("p1");
+    verify(userProfileService).getDisplayNamePerPlayer(Set.of("p1"));
   }
 
   @Test

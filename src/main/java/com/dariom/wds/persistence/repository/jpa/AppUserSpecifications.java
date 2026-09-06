@@ -33,4 +33,16 @@ public class AppUserSpecifications {
     return (root, query, cb) ->
         cb.like(cb.lower(root.get("displayName")), "%" + displayName.toLowerCase() + "%");
   }
+
+  public static Specification<AppUserEntity> playerSearch(String search) {
+    if (isBlank(search)) {
+      return null;
+    }
+    var pattern = "%" + search.strip().toLowerCase() + "%";
+    return (root, query, cb) -> cb.or(
+        cb.like(cb.lower(root.get("fullName")), pattern),
+        cb.like(cb.lower(root.get("displayName")), pattern),
+        cb.like(cb.lower(root.get("email")), pattern)
+    );
+  }
 }

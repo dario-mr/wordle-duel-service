@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import com.dariom.wds.exception.UserNotFoundException;
@@ -23,6 +24,7 @@ import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 
 @ExtendWith(MockitoExtension.class)
@@ -137,6 +139,34 @@ class UserProfileServiceTest {
 
     verify(userDetailsService).getUserDisplayName(userId1);
     verify(userDetailsService).getUserDisplayName(userId2);
+  }
+
+  @Test
+  void findPlayerIdsBySearch_returnsMatchingUserIds() {
+    // Arrange
+    var userId = UUID.fromString("00000000-0000-0000-0000-000000000001");
+    var userEntity = new AppUserEntity(userId, "john@example.com", "google-sub", "John Smith",
+        "pictureUrl");
+    userEntity.setDisplayName("Johnny");
+    when(userRepository.findAll(anySpecification(), eq(Pageable.unpaged())))
+        .thenReturn(new PageImpl<>(List.of(userEntity)));
+
+    // Act
+    var result = userProfileService.findPlayerIdsBySearch("john");
+
+    // Assert
+    assertThat(result).containsExactly(userId.toString());
+    verify(userRepository).findAll(anySpecification(), eq(Pageable.unpaged()));
+  }
+
+  @Test
+  void findPlayerIdsBySearch_blankSearch_returnsEmptyWithoutQuery() {
+    // Act
+    var result = userProfileService.findPlayerIdsBySearch("  ");
+
+    // Assert
+    assertThat(result).isEmpty();
+    verifyNoInteractions(userRepository);
   }
 
   @SuppressWarnings("unchecked")

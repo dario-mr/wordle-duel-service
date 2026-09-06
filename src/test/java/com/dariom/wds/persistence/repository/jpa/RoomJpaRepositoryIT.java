@@ -1,8 +1,17 @@
 package com.dariom.wds.persistence.repository.jpa;
 
 import static com.dariom.wds.domain.Language.IT;
+import static com.dariom.wds.domain.RoomRounds.FIVE;
 import static com.dariom.wds.domain.RoomStatus.IN_PROGRESS;
 import static com.dariom.wds.domain.RoomStatus.WAITING_FOR_PLAYERS;
+import static com.dariom.wds.persistence.repository.jpa.RoomSpecifications.createdAtOn;
+import static com.dariom.wds.persistence.repository.jpa.RoomSpecifications.firstPlayerFullNameSort;
+import static com.dariom.wds.persistence.repository.jpa.RoomSpecifications.languageEquals;
+import static com.dariom.wds.persistence.repository.jpa.RoomSpecifications.lastUpdatedAtOn;
+import static com.dariom.wds.persistence.repository.jpa.RoomSpecifications.playerMatches;
+import static com.dariom.wds.persistence.repository.jpa.RoomSpecifications.roomIdContains;
+import static com.dariom.wds.persistence.repository.jpa.RoomSpecifications.roundsEquals;
+import static com.dariom.wds.persistence.repository.jpa.RoomSpecifications.statusIn;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.dariom.wds.domain.LetterStatus;
@@ -10,13 +19,20 @@ import com.dariom.wds.domain.RoundPlayerStatus;
 import com.dariom.wds.domain.RoundStatus;
 import com.dariom.wds.persistence.entity.GuessEntity;
 import com.dariom.wds.persistence.entity.LetterResultEmbeddable;
+import com.dariom.wds.persistence.entity.AppUserEntity;
 import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.entity.RoundEntity;
 import jakarta.persistence.EntityManager;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 
 @JpaRepositoryIT
 class RoomJpaRepositoryIT {
@@ -98,6 +114,153 @@ class RoomJpaRepositoryIT {
     assertThat(found.get(1).getSortedPlayerIds()).containsExactly("p1", "p2");
     assertThat(found.get(1).getMatchScoresByPlayerId()).containsEntry("p1", 0)
         .containsEntry("p2", 1);
+  }
+
+  @Test
+  void findAll_adminFilters_returnsMatchingRooms() {
+    // Arrange
+    var matchingRoom = new RoomEntity();
+    matchingRoom.setId("room-match");
+    matchingRoom.setLanguage(IT);
+    matchingRoom.setStatus(IN_PROGRESS);
+    matchingRoom.setConfiguredRounds(FIVE);
+    matchingRoom.addPlayer("p1");
+    matchingRoom.setPlayerMatchScore("p1", 2);
+
+    var otherRoom = new RoomEntity();
+    otherRoom.setId("room-other");
+    otherRoom.setLanguage(IT);
+    otherRoom.setStatus(WAITING_FOR_PLAYERS);
+    otherRoom.setConfiguredRounds(FIVE);
+    otherRoom.addPlayer("p1");
+    otherRoom.setPlayerMatchScore("p1", 0);
+
+    repository.save(matchingRoom);
+    repository.save(otherRoom);
+
+    var spec = Specification.allOf(
+        statusIn(Set.of(IN_PROGRESS)),
+        languageEquals(IT),
+        roundsEquals(FIVE),
+        roomIdContains("match"),
+        playerMatches("p", Set.of())
+    );
+
+    // Act
+    var found = repository.findAll(spec, PageRequest.of(0, 50, Sort.by("lastUpdatedAt")));
+
+    // Assert
+    assertThat(found.getContent()).extracting(RoomEntity::getId).containsExactly("room-match");
+  }
+
+  @Test
+  void findAll_adminDateFilters_matchOnlyRoomsWithinRequestedUtcDays() {
+    // Arrange
+    var matchingRoom = new RoomEntity();
+    matchingRoom.setId("room-match-date");
+    matchingRoom.setLanguage(IT);
+    matchingRoom.setStatus(WAITING_FOR_PLAYERS);
+    matchingRoom.setCreatedAt(Instant.parse("2025-06-01T23:59:59Z"));
+
+    var wrongCreatedDate = new RoomEntity();
+    wrongCreatedDate.setId("room-wrong-created-date");
+    wrongCreatedDate.setLanguage(IT);
+    wrongCreatedDate.setStatus(WAITING_FOR_PLAYERS);
+    wrongCreatedDate.setCreatedAt(Instant.parse("2025-06-02T00:00:00Z"));
+
+    var wrongUpdatedDate = new RoomEntity();
+    wrongUpdatedDate.setId("room-wrong-updated-date");
+    wrongUpdatedDate.setLanguage(IT);
+    wrongUpdatedDate.setStatus(WAITING_FOR_PLAYERS);
+    wrongUpdatedDate.setCreatedAt(Instant.parse("2025-06-01T00:00:00Z"));
+
+    repository.save(matchingRoom);
+    repository.save(wrongCreatedDate);
+    repository.save(wrongUpdatedDate);
+    entityManager.flush();
+
+    entityManager.createNativeQuery("update rooms set last_updated_at = :ts where id = :id")
+        .setParameter("ts", Instant.parse("2025-06-02T00:00:00Z"))
+        .setParameter("id", matchingRoom.getId())
+        .executeUpdate();
+    entityManager.createNativeQuery("update rooms set last_updated_at = :ts where id = :id")
+        .setParameter("ts", Instant.parse("2025-06-02T12:00:00Z"))
+        .setParameter("id", wrongCreatedDate.getId())
+        .executeUpdate();
+    entityManager.createNativeQuery("update rooms set last_updated_at = :ts where id = :id")
+        .setParameter("ts", Instant.parse("2025-06-03T00:00:00Z"))
+        .setParameter("id", wrongUpdatedDate.getId())
+        .executeUpdate();
+    entityManager.flush();
+    entityManager.clear();
+
+    // Act
+    var found = repository.findAll(
+        Specification.allOf(
+            createdAtOn(LocalDate.of(2025, 6, 1)),
+            lastUpdatedAtOn(LocalDate.of(2025, 6, 2))
+        ),
+        PageRequest.of(0, 50)
+    );
+
+    // Assert
+    assertThat(found.getContent()).extracting(RoomEntity::getId)
+        .containsExactly("room-match-date");
+  }
+
+  @Test
+  void findAll_adminPlayerSearch_matchesProfilePlayerIds() {
+    // Arrange
+    var room = new RoomEntity();
+    room.setId("room-profile");
+    room.setLanguage(IT);
+    room.setStatus(WAITING_FOR_PLAYERS);
+    room.addPlayer("00000000-0000-0000-0000-000000000001");
+    repository.save(room);
+
+    // Act
+    var found = repository.findAll(
+        playerMatches("alice", Set.of("00000000-0000-0000-0000-000000000001")),
+        PageRequest.of(0, 50)
+    );
+
+    // Assert
+    assertThat(found.getContent()).extracting(RoomEntity::getId).containsExactly("room-profile");
+  }
+
+  @Test
+  void findAll_adminPlayerSort_returnsRoomsByFirstPlayerFullName() {
+    // Arrange
+    var playerB = "00000000-0000-0000-0000-000000000002";
+    var playerA = "00000000-0000-0000-0000-000000000001";
+    entityManager.persist(new AppUserEntity(
+        UUID.fromString(playerB), "b@example.com", "google-b", "Alice Example", "pictureUrl"));
+    entityManager.persist(new AppUserEntity(
+        UUID.fromString(playerA), "a@example.com", "google-a", "Zoe Example", "pictureUrl"));
+
+    var roomB = new RoomEntity();
+    roomB.setId("room-b");
+    roomB.setLanguage(IT);
+    roomB.setStatus(WAITING_FOR_PLAYERS);
+    roomB.addPlayer(playerB);
+
+    var roomA = new RoomEntity();
+    roomA.setId("room-a");
+    roomA.setLanguage(IT);
+    roomA.setStatus(WAITING_FOR_PLAYERS);
+    roomA.addPlayer(playerA);
+
+    repository.save(roomB);
+    repository.save(roomA);
+
+    var spec = firstPlayerFullNameSort(Sort.Direction.ASC);
+
+    // Act
+    var found = repository.findAll(spec, PageRequest.of(0, 50));
+
+    // Assert
+    assertThat(found.getContent()).extracting(RoomEntity::getId)
+        .containsExactly("room-b", "room-a");
   }
 
   @Test
