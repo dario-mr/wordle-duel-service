@@ -16,9 +16,15 @@ import static com.dariom.wds.websocket.model.EventType.MATCH_RESTARTED;
 import static com.dariom.wds.websocket.model.EventType.PLAYER_JOINED;
 import static com.dariom.wds.websocket.model.EventType.ROOM_CREATED;
 import static java.util.Comparator.comparing;
+import static java.util.Comparator.comparingInt;
+import static java.util.function.Function.identity;
+import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.toMap;
+import static java.util.stream.Collectors.toSet;
 
+import com.dariom.wds.api.admin.dto.AdminPlayerDto;
 import com.dariom.wds.api.admin.dto.AdminRoomDto;
-import com.dariom.wds.api.v1.dto.PlayerDto;
+import com.dariom.wds.api.admin.dto.AdminRoundDto;
 import com.dariom.wds.config.lock.RoomLockProperties;
 import com.dariom.wds.domain.Language;
 import com.dariom.wds.domain.Room;
@@ -30,7 +36,9 @@ import com.dariom.wds.exception.RoomLockedException;
 import com.dariom.wds.exception.RoomNotReadyException;
 import com.dariom.wds.persistence.entity.RoomEntity;
 import com.dariom.wds.persistence.entity.RoomPlayerEntity;
+import com.dariom.wds.persistence.entity.RoundEntity;
 import com.dariom.wds.persistence.repository.RoomRepository;
+import com.dariom.wds.persistence.repository.jpa.RoundJpaRepository;
 import com.dariom.wds.service.DomainMapper;
 import com.dariom.wds.service.round.RoundService;
 import com.dariom.wds.service.user.UserProfileService;
@@ -47,12 +55,12 @@ import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.dao.PessimisticLockingFailureException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -70,6 +78,7 @@ public class RoomService {
   private final DomainMapper domainMapper;
   private final ApplicationEventPublisher eventPublisher;
   private final UserProfileService userProfileService;
+  private final RoundJpaRepository roundJpaRepository;
 
   @Transactional
   public Room createRoom(Language language, RoomRounds rounds, String creatorPlayerId) {
@@ -157,7 +166,28 @@ public class RoomService {
       spec = Specification.allOf(spec, firstPlayerFullNameSort(playerSort.getDirection()));
       pageable = withoutSort(pageable, "players");
     }
-    return roomRepository.findAll(spec, pageable).map(this::toAdminRoomDto);
+    var page = roomRepository.findAll(spec, pageable);
+    var roomIds = page.getContent().stream().map(RoomEntity::getId).toList();
+    if (roomIds.isEmpty()) {
+      return page.map(room -> toAdminRoomDto(room, room, List.of(), Map.of()));
+    }
+
+    var roomWithPlayersById = roomRepository.findWithPlayersByIds(roomIds).stream()
+        .collect(toMap(RoomEntity::getId, identity()));
+    var roundsByRoomId = roundJpaRepository.findWithPlayerStatusesByRoomIds(roomIds).stream()
+        .collect(groupingBy(round -> round.getRoom().getId()));
+    var playerIds = roomWithPlayersById.values().stream()
+        .flatMap(room -> room.getRoomPlayers().stream())
+        .map(RoomPlayerEntity::getPlayerId)
+        .collect(toSet());
+    var displayNamePerPlayer = userProfileService.getDisplayNamePerPlayer(playerIds);
+
+    return page.map(room -> toAdminRoomDto(
+        room,
+        roomWithPlayersById.get(room.getId()),
+        roundsByRoomId.getOrDefault(room.getId(), List.of()),
+        displayNamePerPlayer
+    ));
   }
 
   @Transactional
@@ -257,15 +287,26 @@ public class RoomService {
     return userProfileService.getDisplayNamePerPlayer(playerIds);
   }
 
-  private AdminRoomDto toAdminRoomDto(RoomEntity room) {
-    var displayNamePerPlayer = getDisplayNamePerPlayer(room);
-    var players = room.getRoomPlayers().stream()
+  private AdminRoomDto toAdminRoomDto(RoomEntity room, RoomEntity roomWithPlayers,
+      List<RoundEntity> roundEntities,
+      Map<String, String> displayNamePerPlayer) {
+    var players = roomWithPlayers.getRoomPlayers().stream()
         .sorted(comparing(RoomPlayerEntity::getPlayerId))
-        .map(player -> new PlayerDto(
+        .map(player -> new AdminPlayerDto(
             player.getPlayerId(),
             player.getWins(),
             player.getMatchScore(),
-            displayNamePerPlayer.get(player.getPlayerId())
+            displayNamePerPlayer.get(player.getPlayerId()),
+            player.getCurrentRoundNumber()
+        ))
+        .toList();
+    var rounds = roundEntities.stream()
+        .sorted(comparingInt(RoundEntity::getRoundNumber))
+        .map(round -> new AdminRoundDto(
+            round.getRoundNumber(),
+            round.getTargetWord(),
+            round.getRoundStatus(),
+            Map.copyOf(round.getStatusByPlayerId())
         ))
         .toList();
     return new AdminRoomDto(
@@ -274,6 +315,7 @@ public class RoomService {
         room.getConfiguredRounds(),
         room.getStatus(),
         players,
+        rounds,
         room.getCreatedAt(),
         room.getLastUpdatedAt()
     );

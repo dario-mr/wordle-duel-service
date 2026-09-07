@@ -47,7 +47,8 @@ public class AdminRoomController {
 
   private final RoomService roomService;
 
-  @Operation(summary = "List rooms", description = "Returns a paginated list of rooms.")
+  @Operation(summary = "List rooms", description =
+      "Returns a paginated list of rooms with player state and all current-match rounds.")
   @GetMapping
   public Page<AdminRoomDto> getAllRooms(
       @PageableDefault(size = 50, sort = "lastUpdatedAt", direction = DESC) Pageable pageable,

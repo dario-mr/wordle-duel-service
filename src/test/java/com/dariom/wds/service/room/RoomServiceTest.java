@@ -5,6 +5,8 @@ import static com.dariom.wds.domain.RoomRounds.FIVE;
 import static com.dariom.wds.domain.RoomStatus.IN_PROGRESS;
 import static com.dariom.wds.domain.RoomStatus.MATCH_FINISHED;
 import static com.dariom.wds.domain.RoomStatus.WAITING_FOR_PLAYERS;
+import static com.dariom.wds.domain.RoundPlayerStatus.WON;
+import static com.dariom.wds.domain.RoundStatus.ENDED;
 import static com.dariom.wds.domain.RoundStatus.PLAYING;
 import static com.dariom.wds.websocket.model.EventType.PLAYER_JOINED;
 import static com.dariom.wds.websocket.model.EventType.ROOM_CREATED;
@@ -32,7 +34,9 @@ import com.dariom.wds.exception.RoomNotFoundException;
 import com.dariom.wds.exception.RoomNotReadyException;
 import com.dariom.wds.exception.PlayerNotInRoomException;
 import com.dariom.wds.persistence.entity.RoomEntity;
+import com.dariom.wds.persistence.entity.RoundEntity;
 import com.dariom.wds.persistence.repository.RoomRepository;
+import com.dariom.wds.persistence.repository.jpa.RoundJpaRepository;
 import com.dariom.wds.service.DomainMapper;
 import com.dariom.wds.service.round.RoundService;
 import com.dariom.wds.service.user.UserProfileService;
@@ -75,6 +79,8 @@ class RoomServiceTest {
   private ApplicationEventPublisher eventPublisher;
   @Mock
   private UserProfileService userProfileService;
+  @Mock
+  private RoundJpaRepository roundJpaRepository;
 
   private RoomService roomService;
 
@@ -87,7 +93,8 @@ class RoomServiceTest {
         roomMessageService,
         domainMapper,
         eventPublisher,
-        userProfileService
+        userProfileService,
+        roundJpaRepository
     );
   }
 
@@ -510,8 +517,19 @@ class RoomServiceTest {
     var statuses = Set.of(WAITING_FOR_PLAYERS);
     var createdAt = LocalDate.of(2025, 6, 1);
     var lastUpdatedAt = LocalDate.of(2025, 6, 2);
+    var round = new RoundEntity();
+    round.setRoom(entity);
+    round.setRoundNumber(1);
+    round.setTargetWord("PIZZA");
+    round.setRoundStatus(ENDED);
+    round.setPlayerStatus("p1", WON);
+    entity.addRound(round);
+    entity.findRoomPlayer("p1").orElseThrow().setCurrentRoundNumber(1);
 
     when(roomRepository.findAll(any(), eq(pageable))).thenReturn(new PageImpl<>(List.of(entity)));
+    when(roomRepository.findWithPlayersByIds(List.of("room-1"))).thenReturn(List.of(entity));
+    when(roundJpaRepository.findWithPlayerStatusesByRoomIds(List.of("room-1")))
+        .thenReturn(List.of(round));
     when(userProfileService.findPlayerIdsBySearch("p1")).thenReturn(Set.of());
     when(userProfileService.getDisplayNamePerPlayer(Set.of("p1")))
         .thenReturn(Map.of("p1", "Player One"));
@@ -524,16 +542,25 @@ class RoomServiceTest {
     var room = result.getContent().getFirst();
     assertThat(room.id()).isEqualTo("room-1");
     assertThat(room.language()).isEqualTo(IT);
-    assertThat(room.rounds()).isEqualTo(FIVE);
+    assertThat(room.configuredRounds()).isEqualTo(FIVE);
     assertThat(room.status()).isEqualTo(WAITING_FOR_PLAYERS);
     assertThat(room.players()).singleElement().satisfies(player -> {
       assertThat(player.id()).isEqualTo("p1");
       assertThat(player.displayName()).isEqualTo("Player One");
+      assertThat(player.currentRoundNumber()).isEqualTo(1);
+    });
+    assertThat(room.rounds()).singleElement().satisfies(adminRound -> {
+      assertThat(adminRound.roundNumber()).isEqualTo(1);
+      assertThat(adminRound.solution()).isEqualTo("PIZZA");
+      assertThat(adminRound.roundStatus()).isEqualTo(ENDED);
+      assertThat(adminRound.playerStatus()).containsEntry("p1", WON);
     });
     assertThat(room.createdAt()).isEqualTo(Instant.parse("2025-06-01T10:00:00Z"));
     assertThat(room.lastUpdatedAt()).isEqualTo(Instant.parse("2025-06-01T10:05:00Z"));
 
     verify(roomRepository).findAll(any(), eq(pageable));
+    verify(roomRepository).findWithPlayersByIds(List.of("room-1"));
+    verify(roundJpaRepository).findWithPlayerStatusesByRoomIds(List.of("room-1"));
     verify(userProfileService).findPlayerIdsBySearch("p1");
     verify(userProfileService).getDisplayNamePerPlayer(Set.of("p1"));
   }

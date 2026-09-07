@@ -17,6 +17,14 @@ public interface RoomJpaRepository extends JpaRepository<RoomEntity, String>,
   @EntityGraph(attributePaths = {"roomPlayers"})
   Optional<RoomEntity> findWithPlayersById(String id);
 
+  @EntityGraph(attributePaths = "roomPlayers")
+  @Query("""
+      select distinct r
+      from RoomEntity r
+      where r.id in :roomIds
+      """)
+  List<RoomEntity> findWithPlayersByIds(@Param("roomIds") List<String> roomIds);
+
   @EntityGraph(attributePaths = {"roomPlayers"})
   @Query("""
       select distinct r

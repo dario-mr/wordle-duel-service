@@ -169,4 +169,34 @@ class RoundJpaRepositoryIT {
     assertThat(foundRoom1Round.getGuesses()).hasSize(1);
     assertThat(foundRoom1Round.getGuesses().getFirst().getLetters()).hasSize(1);
   }
+
+  @Test
+  void findWithPlayerStatusesByRoomIds_roomsHaveRounds_returnsLoadedPlayerStatuses() {
+    // Arrange
+    var room = new RoomEntity();
+    room.setId("room-1");
+    room.setLanguage(IT);
+    room.setStatus(IN_PROGRESS);
+    room.addPlayer("p1");
+
+    var round = new RoundEntity();
+    round.setRoom(room);
+    round.setRoundNumber(1);
+    round.setTargetWord("PIZZA");
+    round.setRoundStatus(RoundStatus.ENDED);
+    round.setPlayerStatus("p1", RoundPlayerStatus.WON);
+    room.addRound(round);
+
+    roomJpaRepository.save(room);
+
+    // Act
+    var found = roundJpaRepository.findWithPlayerStatusesByRoomIds(List.of("room-1"));
+
+    // Assert
+    assertThat(found).singleElement().satisfies(foundRound -> {
+      assertThat(foundRound.getTargetWord()).isEqualTo("PIZZA");
+      assertThat(foundRound.getStatusByPlayerId())
+          .containsEntry("p1", RoundPlayerStatus.WON);
+    });
+  }
 }

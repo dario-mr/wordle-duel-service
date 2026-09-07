@@ -71,6 +71,33 @@ class RoomJpaRepositoryIT {
   }
 
   @Test
+  void findWithPlayersByIds_roomsWithPlayers_returnsLoadedElementCollections() {
+    // Arrange
+    var room1 = new RoomEntity();
+    room1.setId("room-1");
+    room1.setLanguage(IT);
+    room1.setStatus(WAITING_FOR_PLAYERS);
+    room1.addPlayer("p1");
+
+    var room2 = new RoomEntity();
+    room2.setId("room-2");
+    room2.setLanguage(IT);
+    room2.setStatus(WAITING_FOR_PLAYERS);
+    room2.addPlayer("p2");
+
+    repository.save(room1);
+    repository.save(room2);
+
+    // Act
+    var found = repository.findWithPlayersByIds(List.of("room-1", "room-2"));
+
+    // Assert
+    assertThat(found).extracting(RoomEntity::getId)
+        .containsExactlyInAnyOrder("room-1", "room-2");
+    assertThat(found).allSatisfy(room -> assertThat(room.getRoomPlayers()).hasSize(1));
+  }
+
+  @Test
   void findWithPlayersByPlayerId_playerInMultipleRooms_returnsRoomsOrderedByLastUpdatedAtDesc() {
     // Arrange
     var room1 = new RoomEntity();

@@ -1,6 +1,5 @@
 package com.dariom.wds.api.admin.dto;
 
-import com.dariom.wds.api.v1.dto.PlayerDto;
 import com.dariom.wds.domain.Language;
 import com.dariom.wds.domain.RoomRounds;
 import com.dariom.wds.domain.RoomStatus;
@@ -10,9 +9,10 @@ import java.util.List;
 public record AdminRoomDto(
     String id,
     Language language,
-    RoomRounds rounds,
+    RoomRounds configuredRounds,
     RoomStatus status,
-    List<PlayerDto> players,
+    List<AdminPlayerDto> players,
+    List<AdminRoundDto> rounds,
     Instant createdAt,
     Instant lastUpdatedAt
 ) {

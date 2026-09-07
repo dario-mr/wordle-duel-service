@@ -17,6 +17,15 @@ public interface RoundJpaRepository extends JpaRepository<RoundEntity, Long> {
   })
   Optional<RoundEntity> findWithDetailsByRoomIdAndRoundNumber(String roomId, int roundNumber);
 
+  @EntityGraph(attributePaths = "statusByPlayerId")
+  @Query("""
+      select distinct r
+      from RoundEntity r
+      where r.room.id in :roomIds
+      order by r.room.id, r.roundNumber
+      """)
+  List<RoundEntity> findWithPlayerStatusesByRoomIds(@Param("roomIds") List<String> roomIds);
+
   @EntityGraph(attributePaths = {
       "statusByPlayerId",
       "guesses",

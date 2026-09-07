@@ -5,8 +5,8 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.dariom.wds.api.admin.dto.AdminPlayerDto;
 import com.dariom.wds.api.admin.dto.AdminRoomDto;
-import com.dariom.wds.api.v1.dto.PlayerDto;
 import com.dariom.wds.domain.Language;
 import com.dariom.wds.domain.RoomRounds;
 import com.dariom.wds.domain.RoomStatus;
@@ -46,7 +46,8 @@ class AdminRoomControllerTest {
         Language.IT,
         RoomRounds.FIVE,
         RoomStatus.IN_PROGRESS,
-        List.of(new PlayerDto("player-1", 2, 7, "Player One")),
+        List.of(new AdminPlayerDto("player-1", 2, 7, "Player One", 3)),
+        List.of(),
         Instant.parse("2025-06-01T10:00:00Z"),
         Instant.parse("2025-06-01T10:05:00Z")
     );

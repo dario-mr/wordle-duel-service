@@ -36,6 +36,10 @@ public class RoomRepository {
     return roomJpaRepository.findWithPlayersByPlayerId(playerId);
   }
 
+  public List<RoomEntity> findWithPlayersByIds(List<String> roomIds) {
+    return roomJpaRepository.findWithPlayersByIds(roomIds);
+  }
+
   public Page<RoomEntity> findAll(Specification<RoomEntity> spec, Pageable pageable) {
     return roomJpaRepository.findAll(spec, pageable);
   }
