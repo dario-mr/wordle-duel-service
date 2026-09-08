@@ -26,8 +26,21 @@ public class RoomMapper {
         room.rounds(),
         room.status(),
         toPlayerDto(room.players()),
-        toRoundDto(room.currentRound(), requestingPlayerId)
+        toRoundDto(room.currentRound(), requestingPlayerId),
+        rematchRequested(room, requestingPlayerId)
     );
+  }
+
+  private static boolean rematchRequested(Room room, String requestingPlayerId) {
+    if (requestingPlayerId == null || room.players() == null) {
+      return false;
+    }
+
+    return room.players().stream()
+        .filter(player -> requestingPlayerId.equals(player.id()))
+        .findFirst()
+        .map(Player::rematchRequested)
+        .orElse(false);
   }
 
   private List<PlayerDto> toPlayerDto(List<Player> players) {

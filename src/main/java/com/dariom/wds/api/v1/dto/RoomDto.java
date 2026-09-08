@@ -18,7 +18,9 @@ public record RoomDto(
     @JsonProperty("players")
     List<PlayerDto> players,
     @JsonProperty("currentRound")
-    RoundDto currentRound
+    RoundDto currentRound,
+    @JsonProperty("rematchRequested")
+    boolean rematchRequested
 ) {
 
 }

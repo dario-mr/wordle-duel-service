@@ -37,7 +37,7 @@ class RoomMapperTest {
     );
 
     var room = new Room("room-1", IT, FIVE, IN_PROGRESS,
-        List.of(new Player("p1", 0, 0, "John")), round);
+        List.of(new Player("p1", 0, 0, "John", false)), round);
 
     // Act
     var dto = mapper.toDto(room, "p1");
@@ -64,7 +64,7 @@ class RoomMapperTest {
     );
 
     var room = new Room("room-1", IT, FIVE, IN_PROGRESS,
-        List.of(new Player("p1", 0, 0, "John")), round);
+        List.of(new Player("p1", 0, 0, "John", false)), round);
 
     // Act
     var dto = mapper.toDto(room, "p1");
@@ -84,7 +84,7 @@ class RoomMapperTest {
     );
 
     var room = new Room("room-1", IT, FIVE, IN_PROGRESS,
-        List.of(new Player("p1", 0, 0, "John")), round);
+        List.of(new Player("p1", 0, 0, "John", false)), round);
 
     // Act
     var dto = mapper.toDto(room, "p1");
@@ -104,12 +104,30 @@ class RoomMapperTest {
     );
 
     var room = new Room("room-1", IT, FIVE, IN_PROGRESS,
-        List.of(new Player("p1", 0, 0, "John")), round);
+        List.of(new Player("p1", 0, 0, "John", false)), round);
 
     // Act
     var dto = mapper.toDto(room, "someone-else");
 
     // Assert
     assertThat(dto.currentRound().solution()).isEqualTo("PIZZA");
+  }
+
+  @Test
+  void toDto_rematchRequested_scopesStateToRequestingPlayer() {
+    // Arrange
+    var room = new Room("room-1", IT, FIVE, IN_PROGRESS,
+        List.of(
+            new Player("p1", 0, 0, "John", true),
+            new Player("p2", 0, 0, "Bart", false)
+        ), null);
+
+    // Act
+    var requesterDto = mapper.toDto(room, "p1");
+    var otherPlayerDto = mapper.toDto(room, "p2");
+
+    // Assert
+    assertThat(requesterDto.rematchRequested()).isTrue();
+    assertThat(otherPlayerDto.rematchRequested()).isFalse();
   }
 }

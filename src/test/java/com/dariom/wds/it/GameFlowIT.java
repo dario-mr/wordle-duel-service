@@ -124,6 +124,13 @@ class GameFlowIT extends AbstractRedisTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.started").value(false));
 
+    itHelper.getRoom(roomId, player1Authentication)
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rematchRequested").value(true));
+    itHelper.getRoom(roomId, player2Authentication)
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.rematchRequested").value(false));
+
     itHelper.requestRematch(roomId, player2Authentication)
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.started").value(true));
@@ -138,7 +145,8 @@ class GameFlowIT extends AbstractRedisTest {
             jsonPath("$.players[0].wins").value(0),
             jsonPath("$.players[1].wins").value(1),
             jsonPath("$.players[0].matchScore").value(0),
-            jsonPath("$.players[1].matchScore").value(0));
+            jsonPath("$.players[1].matchScore").value(0),
+            jsonPath("$.rematchRequested").value(false));
 
     assertThat(roundJpaRepository.findWithDetailsByRoomIdAndRoundNumber(roomId, 5))
         .isEmpty();

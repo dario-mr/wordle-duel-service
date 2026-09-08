@@ -4,7 +4,8 @@ public record Player(
     String id,
     int wins,
     Integer matchScore,
-    String displayName
+    String displayName,
+    boolean rematchRequested
 ) {
 
 }

@@ -99,7 +99,7 @@ class RoomAccessValidatorTest {
         IT,
         FIVE,
         status,
-        Arrays.stream(playerIds).map(pid -> new Player(pid, 0, null, "John" + pid)).toList(),
+        Arrays.stream(playerIds).map(pid -> new Player(pid, 0, null, "John" + pid, false)).toList(),
         null
     );
   }

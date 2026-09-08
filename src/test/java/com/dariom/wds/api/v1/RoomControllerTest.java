@@ -227,7 +227,7 @@ class RoomControllerTest {
         IT,
         FIVE,
         roomStatus,
-        List.of(new Player("p1", 0, 0, "John")),
+        List.of(new Player("p1", 0, 0, "John", false)),
         null
     );
   }

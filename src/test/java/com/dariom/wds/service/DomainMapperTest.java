@@ -60,6 +60,7 @@ class DomainMapperTest {
 
     entity.setPlayerMatchScore("b", 1);
     entity.setPlayerMatchScore("a", 2);
+    entity.findRoomPlayer("a").orElseThrow().setRematchRequested(true);
 
     var displayNamePerPlayer = Map.of("a", "John", "b", "Bart");
 
@@ -73,10 +74,11 @@ class DomainMapperTest {
     assertThat(room.currentRound()).isNull();
     assertThat(room.players().size()).isEqualTo(2);
     assertThat(room.players())
-        .extracting(Player::id, Player::wins, Player::matchScore, Player::displayName)
+        .extracting(Player::id, Player::wins, Player::matchScore, Player::displayName,
+            Player::rematchRequested)
         .containsExactly(
-            tuple("a", 0, 2, "John"),
-            tuple("b", 0, 1, "Bart")
+            tuple("a", 0, 2, "John", true),
+            tuple("b", 0, 1, "Bart", false)
         );
   }
 

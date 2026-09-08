@@ -52,6 +52,6 @@ class RoomValidatorTest {
   }
 
   private Player player(String playerId) {
-    return new Player(playerId, 0, null, "John");
+    return new Player(playerId, 0, null, "John", false);
   }
 }

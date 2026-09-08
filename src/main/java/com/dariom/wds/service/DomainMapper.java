@@ -83,7 +83,8 @@ public class DomainMapper {
             p.getPlayerId(),
             p.getWins(),
             roomStatus == WAITING_FOR_PLAYERS ? null : p.getMatchScore(),
-            displayNamePerPlayer == null ? null : displayNamePerPlayer.get(p.getPlayerId())
+            displayNamePerPlayer == null ? null : displayNamePerPlayer.get(p.getPlayerId()),
+            p.isRematchRequested()
         ))
         .toList();
   }
