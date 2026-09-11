@@ -59,6 +59,7 @@ class AuthFlowIT extends AbstractRedisTest {
     mockMvc.perform(get(ME_URL).with(itHelper.userAuthentication(user)))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.id").value(user.getId().toString()))
+        .andExpect(jsonPath("$.email").value("user@test.com"))
         .andExpect(jsonPath("$.roles[0]").value("USER"));
   }
 

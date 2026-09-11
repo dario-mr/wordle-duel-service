@@ -6,6 +6,8 @@ import java.util.Set;
 public record UserMeDto(
     @JsonProperty("id")
     String id,
+    @JsonProperty("email")
+    String email,
     @JsonProperty("fullName")
     String fullName,
     @JsonProperty("displayName")

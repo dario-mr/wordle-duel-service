@@ -47,8 +47,8 @@ class UserControllerTest {
     // Assert
     assertThat(response.getStatusCode().value()).isEqualTo(200);
     assertThat(response.getBody())
-        .isEqualTo(new UserMeDto("user-1", "John Smith", "John", "https://example.com/pic.png",
-            java.util.Set.of("USER")));
+        .isEqualTo(new UserMeDto("user-1", "john@example.com", "John Smith", "John",
+            "https://example.com/pic.png", java.util.Set.of("USER")));
 
     verify(userProfileService).getUserProfile("user-1");
   }

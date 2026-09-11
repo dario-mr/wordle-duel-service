@@ -38,7 +38,8 @@ public class UserController {
     var appUserId = authenticatedUser.userId();
     var profile = userProfileService.getUserProfile(appUserId);
     return ResponseEntity.ok(new UserMeDto(
-        profile.id(), profile.fullName(), profile.displayName(), profile.pictureUrl(),
+        profile.id(), profile.email(), profile.fullName(), profile.displayName(),
+        profile.pictureUrl(),
         authenticatedUser.roles()
     ));
   }
